@@ -1,6 +1,7 @@
+import { containsBytes, getU8Encoder } from '@solana/codecs';
 import {
-  containsBytes,
-  getU8Encoder,
+  // containsBytes,
+  // getU8Encoder,
   type ReadonlyUint8Array,
 } from '@solana/kit';
 

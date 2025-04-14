@@ -15,6 +15,8 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+} from '@solana/codecs';
+import {
   type Codec,
   type Decoder,
   type Encoder,

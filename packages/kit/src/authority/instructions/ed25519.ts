@@ -1,4 +1,5 @@
-import { getAddressCodec, type ReadonlyUint8Array } from '@solana/kit';
+import { getAddressCodec } from '@solana/addresses';
+import { type ReadonlyUint8Array } from '@solana/kit';
 import {
   type AddAuthorityV1InstructionDataArgs,
   type RemoveAuthorityV1InstructionDataArgs,

@@ -1,8 +1,13 @@
+// import {
+//   getArrayEncoder,
+//   getU8Encoder,
+//   type ReadonlyUint8Array,
+// } from '@solana/kit';
 import {
   getArrayEncoder,
   getU8Encoder,
   type ReadonlyUint8Array,
-} from '@solana/kit';
+} from '@solana/codecs';
 import type { TransactionInstruction } from '@solana/web3.js';
 import {
   getActionEncoder,

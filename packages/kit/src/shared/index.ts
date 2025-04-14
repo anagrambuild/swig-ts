@@ -1,13 +1,15 @@
+import { isProgramDerivedAddress } from '@solana/addresses';
+import { AccountRole, upgradeRoleToSigner } from '@solana/instructions';
 import {
-  AccountRole,
-  isProgramDerivedAddress,
+  // AccountRole,
+  // isProgramDerivedAddress,
   isTransactionSigner as kitIsTransactionSigner,
+  // upgradeRoleToSigner,
   type Address,
   type IAccountMeta,
   type IAccountSignerMeta,
   type ProgramDerivedAddress,
   type TransactionSigner,
-  upgradeRoleToSigner,
 } from '@solana/kit';
 
 /**
@@ -31,7 +33,7 @@ export function expectAddress<T extends string = string>(
     | ProgramDerivedAddress<T>
     | TransactionSigner<T>
     | null
-    | undefined
+    | undefined,
 ): Address<T> {
   if (!value) {
     throw new Error('Expected a Address.');
@@ -55,7 +57,7 @@ export function expectProgramDerivedAddress<T extends string = string>(
     | ProgramDerivedAddress<T>
     | TransactionSigner<T>
     | null
-    | undefined
+    | undefined,
 ): ProgramDerivedAddress<T> {
   if (!value || !Array.isArray(value) || !isProgramDerivedAddress(value)) {
     throw new Error('Expected a ProgramDerivedAddress.');
@@ -73,7 +75,7 @@ export function expectTransactionSigner<T extends string = string>(
     | ProgramDerivedAddress<T>
     | TransactionSigner<T>
     | null
-    | undefined
+    | undefined,
 ): TransactionSigner<T> {
   if (!value || !isTransactionSigner(value)) {
     throw new Error('Expected a TransactionSigner.');
@@ -115,10 +117,10 @@ export type IInstructionWithByteDelta = {
  */
 export function getAccountMetaFactory(
   programAddress: Address,
-  optionalAccountStrategy: 'omitted' | 'programId'
+  optionalAccountStrategy: 'omitted' | 'programId',
 ) {
   return (
-    account: ResolvedAccount
+    account: ResolvedAccount,
   ): IAccountMeta | IAccountSignerMeta | undefined => {
     if (!account.value) {
       if (optionalAccountStrategy === 'omitted') return;
@@ -145,7 +147,7 @@ export function isTransactionSigner<TAddress extends string = string>(
   value:
     | Address<TAddress>
     | ProgramDerivedAddress<TAddress>
-    | TransactionSigner<TAddress>
+    | TransactionSigner<TAddress>,
 ): value is TransactionSigner<TAddress> {
   return (
     !!value &&

@@ -1,6 +1,8 @@
+import { getArrayEncoder } from '@solana/codecs-data-structures';
+import { getU8Encoder } from '@solana/codecs-numbers';
 import {
-  getArrayEncoder,
-  getU8Encoder,
+  // getArrayEncoder,
+  // getU8Encoder,
   type ReadonlyUint8Array,
 } from '@solana/kit';
 import {

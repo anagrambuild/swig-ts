@@ -1,7 +1,9 @@
+import { getProgramDerivedAddress } from '@solana/addresses';
+import { getBytesEncoder, getUtf8Encoder } from '@solana/codecs';
 import {
-  getBytesEncoder,
-  getProgramDerivedAddress,
-  getUtf8Encoder,
+  // getBytesEncoder,
+  // getProgramDerivedAddress,
+  // getUtf8Encoder,
   type Address,
   type FetchAccountConfig,
   type GetAccountInfoApi,

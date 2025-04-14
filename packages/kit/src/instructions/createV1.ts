@@ -1,5 +1,6 @@
+import { AccountRole } from '@solana/instructions';
 import {
-  AccountRole,
+  // AccountRole,
   type Address,
   type ReadonlyAccount,
   type WritableAccount,

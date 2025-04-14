@@ -1,11 +1,12 @@
 import {
-  isProgramError,
+  // isProgramError,
   type Address,
   type SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
   type SolanaError,
 } from '@solana/kit';
-import { SWIG_PROGRAM_ADDRESS } from '../consts';
+import { isProgramError } from '@solana/programs';
 import type { SwigError } from '@swig/coder';
+import { SWIG_PROGRAM_ADDRESS } from '../consts';
 
 export function isSwigError<TProgramErrorCode extends SwigError>(
   error: unknown,

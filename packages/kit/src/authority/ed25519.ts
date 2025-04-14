@@ -1,4 +1,4 @@
-import { getAddressCodec, type Address } from '@solana/kit';
+import { getAddressCodec, type Address } from '@solana/addresses';
 import { AuthorityType } from '@swig/coder';
 import { Authority } from './abstract';
 

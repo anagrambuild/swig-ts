@@ -1,4 +1,7 @@
-import { AccountRole, address, type IAccountMeta } from '@solana/kit';
+import { address } from '@solana/addresses';
+import { AccountRole } from '@solana/instructions';
+import { type IAccountMeta } from '@solana/kit';
+
 import {
   Connection,
   PublicKey,
@@ -69,5 +72,5 @@ export async function createLegacyTransaction(
     await connection.getLatestBlockhash(options)
   ).blockhash;
 
-  return transaction
+  return transaction;
 }
