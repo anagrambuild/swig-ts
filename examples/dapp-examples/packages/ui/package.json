@@ -5,8 +5,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "vite build",
+    "dev": "vite",
     "lint": "eslint src/**/*.ts*"
   },
   "dependencies": {
@@ -16,7 +16,8 @@
     "@swig/eslint-config-custom": "*",
     "@swig/tsconfig": "*",
     "@types/react": "^18.2.15",
-    "tsup": "^7.1.0",
-    "typescript": "^5.0.4"
+    "@vitejs/plugin-react": "^4.0.3",
+    "typescript": "^5.0.4",
+    "vite": "^4.5.0"
   }
 }
