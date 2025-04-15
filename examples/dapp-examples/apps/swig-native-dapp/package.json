@@ -1,0 +1,28 @@
+{
+  "name": "@swig/swig-native-dapp",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint src --ext ts,tsx"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.78.0",
+    "@swig/ui": "*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@swig/eslint-config-custom": "*",
+    "@swig/tsconfig": "*",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.26",
+    "tailwindcss": "^3.3.3",
+    "typescript": "^5.0.4",
+    "vite": "^4.4.4"
+  }
+}

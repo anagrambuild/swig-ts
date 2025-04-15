@@ -1,0 +1,34 @@
+{
+  "name": "dapp-examples",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:wallet-standard": "turbo run dev --filter=@swig/wallet-standard-dapp",
+    "dev:legacy-dapp": "turbo run dev --filter=@swig/legacy-dapp-example",
+    "dev:swig-native": "turbo run dev --filter=@swig/swig-native-dapp",
+    "dev:in-app-wallet": "turbo run dev --filter=@swig/in-app-wallet-example",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.309",
+    "prettier": "^2.8.8",
+    "turbo": "latest",
+    "typescript": "^5.0.4"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "packageManager": "yarn@4.6.0",
+  "dependencies": {
+    "react-icons": "^5.5.0"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@swig/tsconfig/react.json",
+  "include": ["src"],
+  "exclude": ["node_modules"],
+  "compilerOptions": {
+    "types": ["chrome"],
+    "typeRoots": ["./node_modules/@types", "../../node_modules/@types"]
+  }
+}
