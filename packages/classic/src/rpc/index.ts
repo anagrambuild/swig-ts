@@ -135,8 +135,6 @@ export async function signAndSend(
  * @param authority
  * @param newAuthority
  * @param actions
- * @param startSlot
- * @param endSlot
  * @param payer
  * @param signers
  * @param options

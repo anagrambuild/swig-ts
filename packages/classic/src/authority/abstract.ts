@@ -109,9 +109,8 @@ export abstract class Authority {
    * @param args.swigAddress The public key of the swig
    * @param args.payer The public key of the swig payer.
    * @param args.roleId The ID of the role signing the instruction.
-   * @param args.roldIdToRemove ID of the role to remove
-   * @param options {@link InstructionDataOptions}
-   *
+   * @param args.roleIdToRemove ID of the role to remove
+   * @param args.options {@link InstructionDataOptions}
    * @returns `RemoveAuthority` Instruction.
    */
   abstract removeAuthority(args: {

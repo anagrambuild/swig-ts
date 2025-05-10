@@ -25,6 +25,9 @@ import { Actions } from './action';
 
 type ActionsData = { bytes: Uint8Array; noOfActions: number };
 
+/**
+ * Utility class for composing actions
+ */
 export class ActionsBuilder {
   private _actionConfigs: ActionConfig[] = [];
 
@@ -85,7 +88,7 @@ export class ActionsBuilder {
 
   /**
    * Enable a program scope
-   * @arg programId: ID of the program to enable
+   * @param payload.programId ID of the program to enable
    */
   programLimit(payload: { programId: PublicKey }): this {
     this._actionConfigs.push(
@@ -94,6 +97,12 @@ export class ActionsBuilder {
     return this;
   }
 
+  /**
+   * Basic program scope
+   * @param payload.programId Program ID
+   * @param payload.targetAccount Program Account to target
+   * @returns Basic ProgramScope action
+   */
   programScopeBasic(payload: {
     programId: PublicKey;
     targetAccount: PublicKey;
@@ -115,6 +124,14 @@ export class ActionsBuilder {
     return this;
   }
 
+  /**
+   * Limit ProgramScope
+   * @param payload.amount Max amount spendable
+   * @param payload.numericType Numeric type of the amount. i.e u8, u32, u64 or u128
+   * @param payload.programId Program ID
+   * @param payload.targetAccount Program Account to target
+   * @return Limit ProgramScope
+   */
   programScopeLimit(payload: {
     amount: bigint;
     numericType: NumericType;
@@ -132,12 +149,21 @@ export class ActionsBuilder {
         scopeType: ProgramScopeType.Basic,
         targetAccount: payload.targetAccount.toBytes(),
         balance_field_end: 0n,
-        balance_field_start:0n
+        balance_field_start: 0n,
       }),
     );
     return this;
   }
 
+  /**
+   * RecurringLimit ProgramScope
+   * @param payload.amount Max amount spendable
+   * @param payload.window Duration in slot between limits reset
+   * @param payload.numericType Numeric type of the amount. i.e u8, u32, u64 or u128
+   * @param payload.programId Program ID
+   * @param payload.targetAccount Program Account to target
+   * @return RecurringLimit ProgramScope
+   */
   programScopeRecurringLimit(payload: {
     amount: bigint;
     window: bigint;
@@ -164,7 +190,7 @@ export class ActionsBuilder {
 
   /**
    * controls a subaccount
-   * @arg subaccount: Sub-account publickey
+   * @param payload.subAccount Sub-account publickey
    */
   subAccount(payload: { subAccount: PublicKey }): this {
     this._actionConfigs.push(
@@ -175,7 +201,7 @@ export class ActionsBuilder {
 
   /**
    * Enables a Spend-once SOL Spend
-   * @arg amount: ID of the program to enable
+   * @param payload.amount ID of the program to enable
    */
   solLimit(payload: { amount: bigint }): this {
     this._actionConfigs.push(new SolLimitConfig(payload));
@@ -184,8 +210,8 @@ export class ActionsBuilder {
 
   /**
    * Enables a Spend-recurring SOL Spend
-   * @param recurringAcount recurring amount per window
-   * @param window period in slots until amount reset.
+   * @param payload.recurringAmount recurring amount per window
+   * @param payload.window period in slots until amount reset.
    */
   solRecurringLimit(payload: {
     recurringAmount: bigint;
@@ -203,8 +229,8 @@ export class ActionsBuilder {
 
   /**
    * Enables a Spend-once Token Spend
-   * @param mint token mint public key
-   * @param amount amount allowed to spend
+   * @param payload.mint token mint public key
+   * @param payload.amount amount allowed to spend
    */
   tokenLimit(payload: { mint: PublicKey; amount: bigint }): this {
     this._actionConfigs.push(
@@ -215,9 +241,9 @@ export class ActionsBuilder {
 
   /**
    * Enables a Spend-recurring Token Spend
-   * @param mint token mint public key
-   * @param recurringAmount recurring amount per window
-   * @param window period in slots until amount reset
+   * @param payload.mint token mint public key
+   * @param payload.recurringAmount recurring amount per window
+   * @param payload.window period in slots until amount reset
    */
   tokenReccuringLimit(payload: {
     mint: PublicKey;

@@ -3,20 +3,27 @@
   "version": "0.2.0-beta.1",
   "license": "AGPL-3.0-only",
   "sideEffects": true,
+  "private": true,
   "type": "module",
   "scripts": {
     "build": "bun --filter '*' build",
     "build:classic": "bun --filter '@swig/classic' build",
     "build:coder": "bun --filter '@swig/coder' build",
+    "build:docs": "typedoc",
+    "changeset": "changeset",
     "dev": "bun --filter '*' dev",
     "dev:classic": "bun --filter '@swig/classic' dev",
-    "dev:coder": "bun --filter '@swig/coder' dev"
+    "dev:coder": "bun --filter '@swig/coder' dev",
+    "format": "prettier --check packages/",
+    "format:fix": "prettier --write packages/",
+    "release": "bun run build && changeset publish"
   },
   "workspaces": [
     "packages/*",
     "examples/*"
   ],
   "devDependencies": {
+    "@changesets/cli": "^2.29.3",
     "@types/node": "^22.13.10",
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",
@@ -26,6 +33,7 @@
     "prettier-plugin-organize-imports": "^4.0.0",
     "ts-node": "^10.9.2",
     "tsup": "^8.4.0",
+    "typedoc": "^0.28.4",
     "typescript": "^5.8.2"
   },
   "dependencies": {

@@ -103,7 +103,6 @@ export class Actions {
 
   /**
    * Gets the spend limit for a SOL. Return null if the spend is uncapped.
-   * @param mint Token mint
    * @returns `bigint` | `null`
    */
   solSpendLimit(): bigint | null {

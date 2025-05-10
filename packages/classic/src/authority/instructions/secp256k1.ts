@@ -138,7 +138,7 @@ export const Secp256k1Instruction: AuthorityInstruction = {
 /**
  * Prepare Secp authority payload for instruction
  * @param dataPayload message bytes
- * @param accountMetas Instruction {@link AccountMeta}s
+ * @param accountMetas Instruction AccountMetas
  * @param options {@link InstructionDataOptions}
  * @returns Authority Payload bytes 
  */

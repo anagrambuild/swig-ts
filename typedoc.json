@@ -1,0 +1,11 @@
+{
+    "entryPoints": ["packages/classic", "packages/coder"],
+    "entryPointStrategy": "packages",
+    "out": "docs",
+    "readme": "README.md",
+    "name": "Swig TS — API References",
+    "includeVersion": false,
+    "excludeNotDocumented": false,
+    "categorizeByGroup": false,
+    "defaultCategory": "Other",
+}

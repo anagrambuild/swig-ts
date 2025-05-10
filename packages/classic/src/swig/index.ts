@@ -119,8 +119,6 @@ export class Swig {
    * @param args
    * @param args.payer Swig payer
    * @param args.id Swig ID
-   * @param args.id Swig actions
-   * @param args.id Swig authority
    * @returns Instruction for creating a Swig
    */
   static create(args: {
