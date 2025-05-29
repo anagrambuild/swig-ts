@@ -1,0 +1,26 @@
+{
+  "name": "@swig-wallet/agentic-example",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "example": "bun example.ts",
+    "build": "tsup",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.1",
+    "@solana/web3.js": "^1.98.0",
+    "@solana/spl-token": "^0.4.13",
+    "@swig-wallet/classic": "workspace:*",
+    "better-sqlite3": "^11.6.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/uuid": "^10.0.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.2"
+  }
+}
