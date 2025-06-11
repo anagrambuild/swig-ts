@@ -1,4 +1,4 @@
-import { address, type Address } from '@solana/kit';
+import { getAddressCodec, type Address } from '@solana/kit';
 import { isAction, type Action, type ActionKind } from '@swig/coder';
 import { SwigActionsBuilder } from './builder';
 import { SwigTokenControl } from './token-control';
@@ -56,7 +56,7 @@ export class SwigAction {
     }
 
     if (isAction('Token', this.action)) {
-      if (token === address(this.action.key))
+      if (token === getAddressCodec().decode(this.action.key))
         return SwigTokenControl.get(this.action.action);
     }
 
@@ -69,7 +69,7 @@ export class SwigAction {
     }
 
     if (isAction('Program', this.action)) {
-      if (program === address(this.action.key)) return true;
+      if (program === getAddressCodec().decode(this.action.key)) return true;
     }
 
     return false;
