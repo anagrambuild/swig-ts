@@ -8,13 +8,9 @@ import {
   type ProgramDerivedAddress,
   type Rpc,
 } from '@solana/kit';
-import {
-  getSwigCodec,
-  type Action,
-  type Role,
-  type SwigAccount,
-} from '@swig/coder';
+import { getSwigCodec, type Role, type SwigAccount } from '@swig/coder';
 import { fetchMaybeSwig } from './accounts';
+import { SwigActions } from './actions/swig';
 import { Authority } from './authority';
 import { SWIG_PROGRAM_ADDRESS } from './consts';
 import type { GenericInstruction } from './utils';
@@ -40,7 +36,7 @@ export class Swig {
 
   get roles() {
     return this.account.roles.map(
-      (role, i) => new SwigRole(role, this.address, i),
+      (role: Role, i: number) => new SwigRole(role, this.address, i),
     );
   }
 
@@ -89,11 +85,15 @@ export class Swig {
 }
 
 export class SwigRole {
+  private readonly actions: SwigActions;
+
   constructor(
     private role: Role,
     public swigAddress: Address,
     public id: number,
-  ) {}
+  ) {
+    this.actions = new SwigActions(this.role.actions);
+  }
 
   get authority(): Authority {
     return new Authority(
@@ -118,7 +118,7 @@ export class SwigRole {
 
   addAuthority(args: {
     payer: Address;
-    actions: Action[];
+    actions: SwigActions;
     newAuthority: Authority;
     startSlot: bigint;
     endSlot: bigint;
@@ -127,39 +127,75 @@ export class SwigRole {
       payer: args.payer,
       swigAddress: this.swigAddress,
       actingRoleId: this.id,
-      actions: args.actions,
+      actions: args.actions.rawActions(),
       startSlot: args.startSlot,
       endSlot: args.endSlot,
       newAuthority: args.newAuthority,
     });
   }
 
-  removeAuthority(args: { payer: Address; roleIdToRemove: number }) {
+  removeAuthority(args: { payer: Address; roleToRemove: SwigRole }) {
     return this.authority.removeAuthority({
       payer: args.payer,
       swigAddress: this.swigAddress,
       roleId: this.id,
-      roleIdToRemove: args.roleIdToRemove,
+      roleIdToRemove: args.roleToRemove.id,
     });
   }
 
   replaceAuthority(args: {
     payer: Address;
-    actions: Action[];
+    actions: SwigActions;
     newAuthority: Authority;
     startSlot: bigint;
     endSlot: bigint;
-    roleIdToReplace: number;
+    roleToReplace: SwigRole;
   }) {
     return this.authority.replaceAuthority({
       payer: args.payer,
       swigAddress: this.swigAddress,
       roleId: this.id,
-      actions: args.actions,
-      roleIdToReplace: args.roleIdToReplace,
+      actions: args.actions.rawActions(),
+      roleIdToReplace: args.roleToReplace.id,
       endSlot: args.endSlot,
       startSlot: args.startSlot,
       newAuthority: args.newAuthority,
     });
+  }
+
+  hasAllAction() {
+    return this.actions.hasAllAction();
+  }
+
+  canManageAuthority() {
+    return this.actions.canManageAuthority();
+  }
+
+  canUseProgram(programId: Address) {
+    return this.actions.canUseProgram(programId);
+  }
+
+  canSpendSolMax() {
+    return this.actions.canSpendSolMax();
+  }
+
+  canSpendSol(amount?: bigint) {
+    return this.actions.canSpendSol(amount);
+  }
+
+  canSpendAllTokensMax() {
+    return this.actions.canSpendAllTokensMax();
+  }
+
+  canSpendAllTokens(amount?: bigint) {
+    return this.actions.canSpendAllTokens(amount);
+  }
+
+  canSpendTokenMax(mint: Address) {
+    return this.actions.canSpendTokenMax(mint);
+  }
+
+  canSpendToken(mint: Address, amount?: bigint) {
+    return this.actions.canSpendToken(mint, amount);
   }
 }
