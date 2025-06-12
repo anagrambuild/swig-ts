@@ -46,10 +46,10 @@ export function getAddV1BaseAccountMetasWithAuthority(
   accounts: AddAuthorityV1InstructionAccounts,
   authority: PublicKey,
 ): [AddAuthorityV1BaseAccountMetasWithAuthority, number] {
-  let accountMetas = getAddAuthorityV1BaseAccountMetas(accounts);
-  let authorityIndex = accountMetas.length;
+  const accountMetas = getAddAuthorityV1BaseAccountMetas(accounts);
+  const authorityIndex = accountMetas.length;
 
-  let metas: AddAuthorityV1BaseAccountMetasWithAuthority = [
+  const metas: AddAuthorityV1BaseAccountMetasWithAuthority = [
     ...accountMetas,
     {
       pubkey: authority,

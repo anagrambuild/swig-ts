@@ -1,5 +1,0 @@
-start-validator:
-    solana-test-validator --reset --bpf-program swigNmWhy8RvUYXBKV5TSU8Hh3f4o5EczHouzBzEsLC swig.so
-
-restart-validator:
-    solana-test-validator --ledger test-ledger

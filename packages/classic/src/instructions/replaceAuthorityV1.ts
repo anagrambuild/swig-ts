@@ -49,10 +49,10 @@ export function getReplaceV1BaseAccountMetasWithAuthority(
   accounts: ReplaceAuthorityV1InstructionAccounts,
   authority: PublicKey,
 ): [ReplaceAuthorityV1BaseAccountMetasWithAuthority, number] {
-  let accountMetas = getReplaceAuthorityV1BaseAccountMetas(accounts);
-  let authorityIndex = accountMetas.length;
+  const accountMetas = getReplaceAuthorityV1BaseAccountMetas(accounts);
+  const authorityIndex = accountMetas.length;
 
-  let metas: ReplaceAuthorityV1BaseAccountMetasWithAuthority = [
+  const metas: ReplaceAuthorityV1BaseAccountMetasWithAuthority = [
     ...accountMetas,
     {
       pubkey: authority,

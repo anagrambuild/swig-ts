@@ -11,5 +11,5 @@ path = "generate.rs"
 anyhow = "1"
 borsh = { version = "1.5.3", default-features = false, features = ["derive"] }
 solana-sdk = {version = "2"}
-swig-state = { git = "ssh://git@github.com/anagrambuild/swig-wallet.git" }
-swig-interface = { git = "ssh://git@github.com/anagrambuild/swig-wallet.git" }
+swig-state = { git = "ssh://git@github.com/anagrambuild/swig-wallet.git", branch = "febaustin" }
+swig-interface = { git = "ssh://git@github.com/anagrambuild/swig-wallet.git", branch = "febaustin" }

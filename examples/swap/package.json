@@ -1,0 +1,16 @@
+{
+  "name": "swig-jupiter-swap-example",
+  "version": "1.0.0",
+  "description": "Example of using Jupiter with Swig wallet",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run index.ts"
+  },
+  "dependencies": {
+    "@jup-ag/api": "^6.0.42",
+    "@swig-wallet/classic": "latest",
+    "@solana/web3.js": "^1.87.0",
+    "chalk": "^5.3.0"
+  }
+}

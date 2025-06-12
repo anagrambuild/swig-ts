@@ -13,13 +13,11 @@ export function getSignV1BaseAccountMetas(
   return [
     {
       pubkey: accounts.swig,
-      // role: AccountRole.WRITABLE,
       isSigner: false,
       isWritable: true,
     },
     {
       pubkey: accounts.payer,
-      // role: AccountRole.WRITABLE_SIGNER,
       isSigner: true,
       isWritable: true,
     },
@@ -35,14 +33,13 @@ export function getSignV1BaseAccountMetasWithAuthority(
   accounts: SignV1InstructionAccounts,
   authority: PublicKey,
 ): [SignV1BaseAccountMetasWithAuthority, number] {
-  let accountMetas = getSignV1BaseAccountMetas(accounts);
-  let authorityIndex = accountMetas.length;
+  const accountMetas = getSignV1BaseAccountMetas(accounts);
+  const authorityIndex = accountMetas.length;
 
-  let metas: SignV1BaseAccountMetasWithAuthority = [
+  const metas: SignV1BaseAccountMetasWithAuthority = [
     ...accountMetas,
     {
       pubkey: authority,
-      // role: AccountRole.READONLY_SIGNER,
       isSigner: true,
       isWritable: false,
     },

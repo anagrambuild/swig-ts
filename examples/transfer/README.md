@@ -21,21 +21,15 @@ This guide will walk you through setting up and running the Swig SDK transfer ex
    cd swig-ts
    ```
 
-2. **Install the Just command runner**
-
-   ```bash
-   cargo install just
-   ```
-
-3. Install project dependencies
+2. Install project dependencies
 
    ```bash
    yarn install  # For Node.js
    # OR
    bun install  # For Bun
    ```
-
-4. Navigate to the transfer example and install its dependencies
+   
+3. Navigate to the transfer example and install its dependencies
 
    ```bash
    cd examples/transfer
@@ -43,15 +37,17 @@ This guide will walk you through setting up and running the Swig SDK transfer ex
    # No need for bun install here if already done in the root
    ```
 
-5. In a terminal, start the validator
+4. In a terminal, start the validator. This step may not be required if you are running a `svm` example,
+   but it is recommended you do so before you run a `local` example as it depends on localnet, this will install swig locally.
 
    ```bash
-   just start-validator
+   bun start-validator
    ```
 
-6. In another terminal, run the transfer example
+5. In another terminal, run the transfer example e.g
    ```bash
    yarn dlx tsx transfer-local.ts  # For Node.js
    # OR
-   bun run transfer-local.ts  # For Bun
+   bun transfer-local.ts  # For Bun
+
    ```

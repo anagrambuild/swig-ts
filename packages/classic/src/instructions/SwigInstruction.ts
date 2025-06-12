@@ -1,26 +1,41 @@
-import type { AccountMeta, TransactionInstruction } from '@solana/web3.js';
+import type {
+  AccountMeta,
+  PublicKey,
+  TransactionInstruction,
+} from '@solana/web3.js';
 import {
   getAddAuthorityV1InstructionCodec,
+  getCreateSessionV1InstructionCodec,
   getCreateV1InstructionDataCodec,
   getRemoveAuthorityV1InstructionCodec,
-  getReplaceAuthorityV1InstructionCodec,
   getSignV1InstructionCodec,
+  getSubAccountCreateV1InstructionDataCodec,
+  getSubAccountSignV1InstructionDataCodec,
+  getSubAccountToggleV1InstructionDataCodec,
+  getSubAccountWithdrawV1InstructionDataCodec,
   type AddAuthorityV1InstructionDataArgs,
+  type CreateSessionV1InstructionDataArgs,
   type CreateV1InstructionDataArgs,
   type RemoveAuthorityV1InstructionDataArgs,
-  type ReplaceAuthorityV1InstructionDataArgs,
   type SignV1InstructionDataArgs,
-} from '@swig/coder';
-import { swigInstuction } from '../utils';
+  type SubAccountCreateV1InstructionDataArgs,
+  type SubAccountSignV1InstructionDataArgs,
+  type SubAccountToggleV1InstructionDataArgs,
+  type SubAccountWithdrawV1InstructionDataArgs,
+} from '@swig-wallet/coder';
+import { findSwigPda, swigInstruction } from '../utils';
 import { type AddAuthorityV1BaseAccountMetas } from './addAuthorityV1';
+import type { CreateSessionV1BaseAccountMetas } from './createSessionV1';
 import {
   getCreateV1BaseAccountMetas,
   type CreateV1BaseAccountMetas,
-  type CreateV1InstructionAccounts,
 } from './createV1';
 import { type RemoveAuthorityV1BaseAccountMetas } from './removeAuthorityV1';
-import { type ReplaceAuthorityV1BaseAccountMetas } from './replaceAuthorityV1';
 import { type SignV1BaseAccountMetas } from './signV1';
+import type { SubAccountCreateV1BaseAccountMetas } from './subAccountCreateV1';
+import type { SubAccountSignV1BaseAccountMetas } from './subAccountSignV1';
+import type { SubAccountToggleV1BaseAccountMetas } from './subAccountToggleV1';
+import type { SubAccountWithdrawV1BaseAccountMetas } from './subAccountWithdrawV1';
 
 /**
  *
@@ -29,11 +44,15 @@ import { type SignV1BaseAccountMetas } from './signV1';
  * @returns `SwigInstruction`
  */
 export function createSwigInstruction(
-  accounts: CreateV1InstructionAccounts,
-  data: CreateV1InstructionDataArgs,
+  accounts: { payer: PublicKey },
+  data: Omit<CreateV1InstructionDataArgs, 'bump'>,
 ): TransactionInstruction {
-  let createIxAccountMetas = getCreateV1BaseAccountMetas(accounts);
-  return SwigInstructionV1.create(createIxAccountMetas, data);
+  const [swigAddress, bump] = findSwigPda(Uint8Array.from(data.id));
+  const createIxAccountMetas = getCreateV1BaseAccountMetas({
+    ...accounts,
+    swig: swigAddress,
+  });
+  return SwigInstructionV1.create(createIxAccountMetas, { ...data, bump });
 }
 
 /**
@@ -52,20 +71,19 @@ export class SwigInstructionV1 {
     accounts: T,
     data: CreateV1InstructionDataArgs,
   ): TransactionInstruction {
-    let createV1InstructionDataEncoder = getCreateV1InstructionDataCodec();
+    const createV1InstructionDataEncoder =
+      getCreateV1InstructionDataCodec().encoder;
 
-    let createV1InstructionData = createV1InstructionDataEncoder.encode(data);
+    const createV1InstructionData = createV1InstructionDataEncoder.encode(data);
 
-    return swigInstuction(accounts, new Uint8Array(createV1InstructionData));
+    return swigInstruction(accounts, new Uint8Array(createV1InstructionData));
   }
 
   /**
-   *
+   * Creates a `AddAuthorityV1` instruction
    * @param accounts AddAuthorityV1InstructionAccountsWithAuthority
    * @param data AddAuthorityV1InstructionDataArgs
    * @returns SwigInstruction
-   *
-   * Creates a `AddAuthorityV1` instruction
    */
   static addAuthority<
     T extends [...AddAuthorityV1BaseAccountMetas, ...AccountMeta[]],
@@ -73,27 +91,25 @@ export class SwigInstructionV1 {
     accounts: T,
     data: AddAuthorityV1InstructionDataArgs,
   ): TransactionInstruction {
-    let addV1InstructionDataEncoder = getAddAuthorityV1InstructionCodec(
+    const addV1InstructionDataEncoder = getAddAuthorityV1InstructionCodec(
       data.authorityPayload.length,
       data.newAuthorityData.length,
-    ).encoder;
+    );
 
-    let addAuthorityV1InstructionData =
+    const addAuthorityV1InstructionData =
       addV1InstructionDataEncoder.encode(data);
 
-    return swigInstuction(
+    return swigInstruction(
       accounts,
       new Uint8Array(addAuthorityV1InstructionData),
     );
   }
 
   /**
-   *
+   * Creates a `RemoveAuthorityV1` instruction
    * @param accounts removeAuthorityV1InstructionAccountsWithAuthority
    * @param data removeAuthorityV1InstructionDataArgs
    * @returns SwigInstruction
-   *
-   * Creates a `RemoveAuthorityV1` instruction
    */
   static removeAuthority<
     T extends [...RemoveAuthorityV1BaseAccountMetas, ...AccountMeta[]],
@@ -101,44 +117,16 @@ export class SwigInstructionV1 {
     accounts: T,
     data: RemoveAuthorityV1InstructionDataArgs,
   ): TransactionInstruction {
-    let removeV1InstructionDataEncoder = getRemoveAuthorityV1InstructionCodec(
+    const removeV1InstructionDataEncoder = getRemoveAuthorityV1InstructionCodec(
       data.authorityPayload.length,
     ).encoder;
 
-    let removeAuthorityV1InstructionData =
+    const removeAuthorityV1InstructionData =
       removeV1InstructionDataEncoder.encode(data);
 
-    return swigInstuction(
+    return swigInstruction(
       accounts,
       new Uint8Array(removeAuthorityV1InstructionData),
-    );
-  }
-
-  /**
-   *
-   * @param accounts ReplaceAuthorityV1InstructionAccountsWithAuthority
-   * @param data replaceAuthorityV1InstructionDataArgs
-   * @returns SwigInstruction
-   *
-   * Creates a `ReplaceAuthorityV1` instruction
-   */
-  static replaceAuthority<
-    T extends [...ReplaceAuthorityV1BaseAccountMetas, ...AccountMeta[]],
-  >(
-    accounts: T,
-    data: ReplaceAuthorityV1InstructionDataArgs,
-  ): TransactionInstruction {
-    let replaceV1InstructionDataEncoder = getReplaceAuthorityV1InstructionCodec(
-      data.authorityPayload.length,
-      data.newAuthorityData.length,
-    ).encoder;
-
-    let replaceAuthorityV1InstructionData =
-      replaceV1InstructionDataEncoder.encode(data);
-
-    return swigInstuction(
-      accounts,
-      new Uint8Array(replaceAuthorityV1InstructionData),
     );
   }
 
@@ -154,12 +142,89 @@ export class SwigInstructionV1 {
     accounts: T,
     data: SignV1InstructionDataArgs,
   ): TransactionInstruction {
-    let signV1InstructionDataEncoder = getSignV1InstructionCodec(
+    const signV1InstructionDataEncoder = getSignV1InstructionCodec(
       data.authorityPayload.length,
     ).encoder;
 
-    let signV1InstructionData = signV1InstructionDataEncoder.encode(data);
+    const signV1InstructionData = signV1InstructionDataEncoder.encode(data);
 
-    return swigInstuction(accounts, new Uint8Array(signV1InstructionData));
+    return swigInstruction(accounts, new Uint8Array(signV1InstructionData));
+  }
+
+  static createSession<
+    T extends [...CreateSessionV1BaseAccountMetas, ...AccountMeta[]],
+  >(
+    accounts: T,
+    data: CreateSessionV1InstructionDataArgs & { payloadSize?: number },
+  ): TransactionInstruction {
+    const createSessionV1InstructionDataEncoder =
+      getCreateSessionV1InstructionCodec(
+        data.payloadSize ?? data.authorityPayload.length,
+      ).encoder;
+
+    const createSessionV1InstructionData =
+      createSessionV1InstructionDataEncoder.encode(data);
+
+    return swigInstruction(
+      accounts,
+      new Uint8Array(createSessionV1InstructionData),
+    );
+  }
+
+  static subAccountCreate<
+    T extends [...SubAccountCreateV1BaseAccountMetas, ...AccountMeta[]],
+  >(
+    accounts: T,
+    data: SubAccountCreateV1InstructionDataArgs,
+  ): TransactionInstruction {
+    const subAccountCreateV1InstructionDataEncoder =
+      getSubAccountCreateV1InstructionDataCodec().encoder;
+
+    const subAccountCreateV1InstructionData =
+      subAccountCreateV1InstructionDataEncoder.encode(data);
+
+    return swigInstruction(
+      accounts,
+      new Uint8Array(subAccountCreateV1InstructionData),
+    );
+  }
+
+  static subAccountSign<
+    T extends [...SubAccountSignV1BaseAccountMetas, ...AccountMeta[]],
+  >(
+    accounts: T,
+    data: SubAccountSignV1InstructionDataArgs,
+  ): TransactionInstruction {
+    const encoder = getSubAccountSignV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    return swigInstruction(accounts, new Uint8Array(instructionData));
+  }
+
+  static subAccountWithdraw<
+    T extends [...SubAccountWithdrawV1BaseAccountMetas, ...AccountMeta[]],
+  >(
+    accounts: T,
+    data: SubAccountWithdrawV1InstructionDataArgs,
+  ): TransactionInstruction {
+    const encoder = getSubAccountWithdrawV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    return swigInstruction(accounts, new Uint8Array(instructionData));
+  }
+
+  static subAccountToggle<
+    T extends [...SubAccountToggleV1BaseAccountMetas, ...AccountMeta[]],
+  >(
+    accounts: T,
+    data: SubAccountToggleV1InstructionDataArgs,
+  ): TransactionInstruction {
+    const encoder = getSubAccountToggleV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    return swigInstruction(accounts, new Uint8Array(instructionData));
   }
 }

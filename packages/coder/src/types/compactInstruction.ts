@@ -20,6 +20,18 @@ export type CompactInstruction = {
   data: ReadonlyUint8Array;
 };
 
+export function getCompactInstructionsEncoder(): Encoder<CompactInstruction[]> {
+  return getArrayEncoder(getCompactInstructionEncoder(), {
+    size: getU8Encoder(),
+  });
+}
+
+export function getCompactInstructionsDecoder(): Decoder<CompactInstruction[]> {
+  return getArrayDecoder(getCompactInstructionDecoder(), {
+    size: getU8Decoder(),
+  });
+}
+
 export function getCompactInstructionDecoder(): Decoder<CompactInstruction> {
   return getStructDecoder([
     ['programIdIndex', getU8Decoder()],

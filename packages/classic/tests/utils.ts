@@ -1,5 +1,15 @@
 import { getAddressCodec } from '@solana/kit';
-import { PublicKey } from '@solana/web3.js';
+import {
+  Keypair,
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
+import {
+  FailedTransactionMetadata,
+  LiteSVM,
+  TransactionMetadata,
+} from 'litesvm';
 
 export function uint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
@@ -21,4 +31,35 @@ export function mockAddress(byte: number) {
 
 export function mockBytesArray(byte: number, length: number) {
   return Uint8Array.from(Array(length).fill(byte));
+}
+
+export function sendSVMTransaction(
+  svm: LiteSVM,
+  instruction: TransactionInstruction,
+  payer: Keypair,
+  signers: Keypair[] = [],
+) {
+  let transaction = new Transaction();
+  transaction.instructions = [instruction];
+  transaction.feePayer = payer.publicKey;
+  transaction.recentBlockhash = svm.latestBlockhash();
+
+  transaction.sign(payer, ...signers);
+
+  let tx = svm.sendTransaction(transaction);
+
+  if (tx instanceof FailedTransactionMetadata) {
+    console.log('tx:', tx.meta().logs());
+    throw new Error(tx.err().toString());
+  }
+
+  if (tx instanceof TransactionMetadata) {
+    // console.log("tx:", tx.logs())
+  }
+}
+
+export function randomBytes(length: number): Uint8Array {
+  const randomArray = new Uint8Array(length);
+  crypto.getRandomValues(randomArray);
+  return randomArray;
 }

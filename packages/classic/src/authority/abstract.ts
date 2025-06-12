@@ -1,145 +1,271 @@
 import { PublicKey, type TransactionInstruction } from '@solana/web3.js';
-import { AuthorityType, type Action } from '@swig/coder';
-import { createSwigInstruction } from '../instructions';
+import { type AuthorityType } from '@swig-wallet/coder';
+import type { Actions } from '../actions';
 import { uint8ArraysEqual } from '../utils';
-import { getAuthorityConfig } from './config';
+import type {
+  AuthorityCreateInfo,
+  CreateAuthorityInfo,
+} from './createAuthority';
+import type { InstructionDataOptions } from './instructions/interface';
 
-export class Authority {
+export abstract class Authority implements CreateAuthorityInfo {
+  /**
+   * Indicates if {@link Authority} is Session-based or not. `true` if Authority is Session-based
+   */
+  abstract session: boolean;
+
+  /**
+   * {@link AuthorityType}
+   */
+  abstract type: AuthorityType;
+  /**
+   * This is the ID for the {@link Authority}.
+   *
+   * This would usually the data that represents the Authority
+   *
+   * For {@link TokenBasedAuthority}, it is either a Ed25519 or Secp256k1 Public Key.
+   *
+   * For {@link SessionBasedAuthority}, It could be public key bytes, groth16 proof etc.
+   */
+  abstract id: Uint8Array;
+  /**
+   * This is the Signer ID for the {@link Authority}.
+   *
+   * This would usually the public key bytes that
+   * identifies the signer on behalf of the authority,
+   *
+   * For {@link TokenBasedAuthority}, it is either a Ed25519 or Secp256k1 Public Key.
+   *
+   * For {@link SessionBasedAuthority}, it is the Session Key.
+   */
+  abstract signer: Uint8Array;
+
   constructor(
     public data: Uint8Array,
-    public type: AuthorityType,
+    public roleId: number | null,
   ) {}
 
-  get config() {
-    return getAuthorityConfig(this.type);
+  /**
+   * Authority is initilized if a role id is assigned
+   * @returns boolean
+   */
+  isInitialized(): boolean {
+    return this.roleId !== null;
   }
 
-  get instructions() {
-    return this.config.instructions;
-  }
-
-  static ed25519(address: PublicKey) {
-    return new Authority(address.toBytes(), AuthorityType.Ed25519)
-  }
-  
-  static secp256k1(address: any) {
-    return new Authority(address.toBytes(), AuthorityType.Secp256k1)
-  }
-
-  create(args: {
+  /**
+   * Creates a `Swig` instruction for initializing a new entity on-chain.
+   * @param args - The parameters required to create the Swig instruction.
+   * @param args.payer - The public key of the account paying for the transaction.
+   * @param args.id - 32-bytes Uint8Array.
+   * @param args.actions - A container holding the set of actions to include.   * @returns The serialized instruction for creating the Swig.
+   */
+  abstract create(args: {
     payer: PublicKey;
-    swigAddress: PublicKey;
-    bump: number;
     id: Uint8Array;
-    startSlot: bigint;
-    endSlot: bigint;
-  }) {
-    return createSwigInstruction(
-      { payer: args.payer, swig: args.swigAddress },
-      {
-        bump: args.bump,
-        authorityData: this.data,
-        endSlot: args.endSlot,
-        startSlot: args.startSlot,
-        id: args.id,
-        initialAuthority: this.type,
-      },
-    );
-  }
+    actions: Actions;
+  }): TransactionInstruction;
 
-  sign(args: {
+  /**
+   * Creates a `Sign` instruction for signing provided instructions with the Swig
+   * @param args The parameters required to create the Swig instruction.
+   * @param args.swigAddress The public key of the swig
+   * @param args.payer The public key of the swig payer.
+   * @param args.roleId The ID of the role signing the instruction.
+   * @param args.innerInstructions The instructions the Swig is to sign.
+   * @param args.options {@link InstructionDataOptions}
+   * @returns `Sign` Instruction.
+   */
+  abstract sign(args: {
     swigAddress: PublicKey;
     payer: PublicKey;
     roleId: number;
     innerInstructions: TransactionInstruction[];
-  }) {
-    return this.instructions.signV1Instruction(
-      {
-        swig: args.swigAddress,
-        payer: args.payer,
-      },
-      {
-        authorityData: this.data,
-        innerInstructions: args.innerInstructions,
-        roleId: args.roleId,
-      },
-    );
-  }
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
 
-  addAuthority(args: {
+  /**
+   * Creates an `AddAuthority` Instructon
+   *
+   * @param args The parameters required to create the Swig instruction.
+   * @param args.swigAddress The public key of the swig
+   * @param args.payer The public key of the swig payer.
+   * @param args.actingRoleId The ID of the role signing the instruction.
+   * @param args.newAuthorityInfo {@link CreateAuthorityInfo} of new Authority to add
+   * @param args.actions Actions of the new authority
+   * @param args.options {@link InstructionDataOptions}
+   *
+   * @returns `AddAuthority` Instruction.
+   */
+  abstract addAuthority(args: {
     swigAddress: PublicKey;
     payer: PublicKey;
     actingRoleId: number;
-    actions: Action[];
-    newAuthority: Authority;
-    startSlot: bigint;
-    endSlot: bigint;
-  }) {
-    return this.instructions.addAuthorityV1Instruction(
-      {
-        payer: args.payer,
-        swig: args.swigAddress,
-      },
-      {
-        actingRoleId: args.actingRoleId,
-        actions: args.actions,
-        authorityData: this.data,
-        startSlot: args.startSlot,
-        endSlot: args.endSlot,
-        newAuthorityData: args.newAuthority.data,
-        newAuthorityType: args.newAuthority.type,
-      },
-    );
-  }
+    actions: Actions;
+    newAuthorityInfo: CreateAuthorityInfo;
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
 
-  removeAuthority(args: {
+  /**
+   * Creates an `RemoveAuthority` Instructon
+   *
+   * @param args The parameters required for `RemoveAuthority` instruction.
+   * @param args.swigAddress The public key of the swig
+   * @param args.payer The public key of the swig payer.
+   * @param args.roleId The ID of the role signing the instruction.
+   * @param args.roleIdToRemove ID of the role to remove
+   * @param args.options {@link InstructionDataOptions}
+   * @returns `RemoveAuthority` Instruction.
+   */
+  abstract removeAuthority(args: {
     payer: PublicKey;
     swigAddress: PublicKey;
     roleId: number;
     roleIdToRemove: number;
-  }) {
-    return this.instructions.removeAuthorityV1Instruction(
-      {
-        payer: args.payer,
-        swig: args.swigAddress,
-      },
-      {
-        actingRoleId: args.roleId,
-        authorityData: this.data,
-        authorityToRemoveId: args.roleIdToRemove,
-      },
-    );
-  }
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
 
-  replaceAuthority(args: {
-    swigAddress: PublicKey;
+  abstract subAccountCreate(args: {
     payer: PublicKey;
+    swigAddress: PublicKey;
+    swigId: Uint8Array;
     roleId: number;
-    actions: Action[];
-    newAuthority: Authority;
-    startSlot: bigint;
-    endSlot: bigint;
-    roleIdToReplace: number;
-  }) {
-    return this.instructions.replaceAuthorityV1Instruction(
-      {
-        payer: args.payer,
-        swig: args.swigAddress,
-      },
-      {
-        actingRoleId: args.roleId,
-        actions: args.actions,
-        authorityData: this.data,
-        authorityToReplaceId: args.roleIdToReplace,
-        endSlot: args.endSlot,
-        startSlot: args.startSlot,
-        newAuthorityData: args.newAuthority.data,
-        newAuthorityType: args.newAuthority.type,
-      },
-    );
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
+
+  abstract subAccountSign(args: {
+    payer: PublicKey;
+    swigAddress: PublicKey;
+    subAccount: PublicKey;
+    roleId: number;
+    innerInstructions: TransactionInstruction[];
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
+
+  abstract subAccountToggle(args: {
+    payer: PublicKey;
+    swigAddress: PublicKey;
+    subAccount: PublicKey;
+    roleId: number;
+    enabled: boolean;
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
+
+  abstract subAccountWithdrawSol(args: {
+    payer: PublicKey;
+    swigAddress: PublicKey;
+    subAccount: PublicKey;
+    roleId: number;
+    amount: bigint;
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
+
+  abstract subAccountWithdrawToken(args: {
+    payer: PublicKey;
+    swigAddress: PublicKey;
+    subAccount: PublicKey;
+    roleId: number;
+    mint: PublicKey;
+    amount: bigint;
+    tokenProgram?: PublicKey;
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
+
+  /**
+   * Data required to create a new authority.
+   *
+   * this is usually used when creating a new Role from an unitialized authority, with the AddInstruction
+   */
+  abstract createAuthorityData(): Uint8Array;
+
+  /**
+   * Data required to create a new authority.
+   *
+   * this is usually used when creating a new Role from an unitialized authority, with the AddInstruction
+   */
+  get createAuthorityInfo(): AuthorityCreateInfo {
+    return {
+      type: this.type,
+      data: this.createAuthorityData(),
+    };
   }
 
+  /**
+   * Check two {@link Authority} are partially equal
+   */
   isEqual(other: Authority): boolean {
-    return uint8ArraysEqual(this.data, other.data) && this.type === other.type;
+    return uint8ArraysEqual(this.id, other.id) && this.type === other.type;
   }
+
+  /**
+   * Check two {@link Authority} has the same signer.
+   */
+  matchesSigner(signer: Uint8Array): boolean {
+    return uint8ArraysEqual(this.signer, signer);
+  }
+}
+
+export abstract class TokenBasedAuthority extends Authority {
+  session = false;
+}
+
+export abstract class SessionBasedAuthority extends Authority {
+  session = true;
+
+  /**
+   * Ed25519 based Public Key as Session key
+   */
+  abstract sessionKey: PublicKey;
+  /**
+   * Slot when the session expires
+   */
+  abstract expirySlot: bigint;
+  /**
+   * Max duration on a session
+   */
+  abstract maxDuration: bigint;
+
+  /**
+   * Creates an `CreateSession` Instructon
+   *
+   * @param args The parameters required to create the Swig instruction.
+   * @param args.swigAddress The public key of the swig
+   * @param args.payer The public key of the swig payer.
+   * @param args.roleId The ID of the role signing the instruction.
+   * @param args.newSessionKey Ed25519 Public key of the Session key
+   * @param args.sessionDuration Session duration in slots
+   * @param args.options {@link InstructionDataOptions}
+   *
+   * @returns `AddAuthority` Instruction.
+   */
+  abstract createSession(args: {
+    payer: PublicKey;
+    swigAddress: PublicKey;
+    roleId: number;
+    newSessionKey: PublicKey;
+    sessionDuration?: bigint;
+    options?: InstructionDataOptions;
+  }): Promise<TransactionInstruction>;
+}
+
+/**
+ * Utility to check if an {@link Authority} is Token-based Authority
+ * @param authority {@link Authority}
+ * @returns boolean
+ */
+export function isTokenBasedAuthority(
+  authority: Authority,
+): authority is TokenBasedAuthority {
+  return authority instanceof TokenBasedAuthority;
+}
+
+/**
+ * Utility to check if an {@link Authority} is Session-based Authority
+ * @param authority {@link Authority}
+ * @returns boolean
+ */
+export function isSessionBasedAuthority(
+  authority: Authority,
+): authority is SessionBasedAuthority {
+  return authority instanceof SessionBasedAuthority;
 }

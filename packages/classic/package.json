@@ -1,13 +1,16 @@
 {
-  "name": "@swig/classic",
-  "version": "0.1.0",
-  "license": "Apache-2.0",
-  "private": true,
+  "name": "@swig-wallet/classic",
+  "version": "0.2.0-beta.4",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
+    "build-pkg": "tsup-node",
     "build": "tsup-node",
     "dev": "tsup-node --watch",
-    "gen-sanity": "cd tests/sanity && cargo run"
+    "gen-sanity": "cd tests/sanity && cargo run",
+    "lint": "eslint --config ../../eslint.config.mjs --ext js,ts,tsx src",
+    "lint:fix": "eslint --config ../../eslint.config.mjs --ext js,ts,tsx src --fix",
+    "test": "bun test"
   },
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -17,19 +20,22 @@
     "dist"
   ],
   "devDependencies": {
-    "@swig/coder": "workspace:*",
     "@types/bun": "^1.2.5",
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^10.1.1",
+    "litesvm": "^0.2.0",
     "prettier": "^3.3.3",
     "prettier-plugin-organize-imports": "^4.0.0",
     "tsup": "^8.2.0",
     "typescript": "^5.5.3"
   },
   "dependencies": {
-    "@solana/kit": "^2.1.0"
+    "@noble/curves": "^1.8.2",
+    "@solana/kit": "^2.1.0",
+    "@solana/spl-token": "^0.4.13",
+    "@swig-wallet/coder": "workspace:*"
   },
   "peerDependencies": {
     "@solana/web3.js": "^1.98.0"
