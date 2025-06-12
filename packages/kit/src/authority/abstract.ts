@@ -1,6 +1,6 @@
 import type { Address } from '@solana/kit';
-import { createSwigInstruction } from '../instructions';
 import type { Action, AuthorityType } from '@swig/coder';
+import { createSwigInstruction } from '../instructions';
 import { uint8ArraysEqual, type GenericInstruction } from '../utils';
 import { getAuthorityConfig } from './config';
 
