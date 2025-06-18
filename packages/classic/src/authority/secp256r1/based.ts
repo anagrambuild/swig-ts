@@ -7,7 +7,7 @@ import { createSwigInstruction } from '../../instructions';
 import type { Authority as IAuthority } from '../abstract';
 import { TokenBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
-import { Secp256r1Instruction } from '../instructions';
+import { Secp256r1Instruction } from '../instructions/secp256r1';
 import type { InstructionDataOptions } from '../instructions/interface';
 
 export interface Secp256r1BasedAuthority {

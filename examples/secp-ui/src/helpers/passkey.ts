@@ -1,5 +1,5 @@
 import { p256 } from '@noble/curves/p256';
-import * as cbor from 'cbor2';
+import * as cbor from 'cbor';
 
 export interface PasskeyCredential {
   id: string;

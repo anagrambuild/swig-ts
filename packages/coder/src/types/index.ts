@@ -9,6 +9,7 @@ export * from './programLimit';
 export * from './programScope';
 export * from './role';
 export * from './secp256k1Session';
+export * from './secp256r1Session';
 export * from './solLimit';
 export * from './solRecurringLimit';
 export * from './stakeLimit';

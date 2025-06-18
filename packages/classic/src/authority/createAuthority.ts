@@ -3,6 +3,7 @@ import {
   AuthorityType,
   getCreateSecp256k1SessionEncoder,
   getEd25519SessionEncoder,
+  getCreateSecp256r1SessionEncoder,
 } from '@swig-wallet/coder';
 import { getUnprefixedSecpBytes } from '../utils';
 
@@ -12,6 +13,12 @@ export interface CreateAuthorityInfo {
   createAuthorityInfo: AuthorityCreateInfo;
 }
 
+/**
+ * Create an AuthorityInfo object for a standard Ed25519 authority.
+ *
+ * @param publicKey Solana PublicKey
+ * @returns The encoded authority data and authority type.
+ */
 export function createEd25519AuthorityInfo(
   publicKey: PublicKey,
 ): CreateAuthorityInfo {
@@ -20,6 +27,14 @@ export function createEd25519AuthorityInfo(
   return { createAuthorityInfo: { data, type } };
 }
 
+/**
+ * Create an AuthorityInfo object for an Ed25519 session authority.
+ *
+ * @param publicKey Solana PublicKey for the authority
+ * @param maxSessionDuration Number of slots the session is valid for
+ * @param sessionKey Optional session key (defaults to zeroed key)
+ * @returns The encoded session authority data and authority type.
+ */
 export function createEd25519SessionAuthorityInfo(
   publicKey: PublicKey,
   maxSessionDuration: bigint,
@@ -38,9 +53,10 @@ export function createEd25519SessionAuthorityInfo(
 }
 
 /**
+ * Create an AuthorityInfo object for a basic Secp256k1 authority.
  *
- * @param publicKey Uncomporesed Publickey bytes or Hex string
- * @returns
+ * @param publicKey Uncompressed public key (64 bytes) as Uint8Array or hex string.
+ * @returns The encoded authority data and authority type.
  */
 export function createSecp256k1AuthorityInfo(
   publicKey: string | Uint8Array,
@@ -52,9 +68,12 @@ export function createSecp256k1AuthorityInfo(
 }
 
 /**
+ * Create an AuthorityInfo object for a Secp256k1 session authority.
  *
- * @param publicKey Uncomporesed Publickey bytes or Hex string
- * @returns
+ * @param publicKey Uncompressed public key (64 bytes) as Uint8Array or hex string.
+ * @param maxSessionDuration Number of slots the session is valid for
+ * @param sessionKey Optional session key (defaults to zeroed key)
+ * @returns The encoded session authority data and authority type.
  */
 export function createSecp256k1SessionAuthorityInfo(
   publicKey: string | Uint8Array,
@@ -71,6 +90,48 @@ export function createSecp256k1SessionAuthorityInfo(
 
   const data = Uint8Array.from(sessionData);
   const type = AuthorityType.Secp256k1Session;
+
+  return { createAuthorityInfo: { data, type } };
+}
+
+/**
+ * Create an AuthorityInfo object for a basic Secp256r1 authority.
+ *
+ * @param publicKey Compressed public key (33 bytes) as Uint8Array or hex string.
+ * @returns The encoded authority data and authority type.
+ */
+export function createSecp256r1AuthorityInfo(
+  publicKey: string | Uint8Array,
+): CreateAuthorityInfo {
+  const data = getUnprefixedSecpBytes(publicKey, 33);
+  const type = AuthorityType.Secp256r1;
+
+  return { createAuthorityInfo: { data, type } };
+}
+
+/**
+ * Create an AuthorityInfo object for a Secp256r1 session authority.
+ *
+ * @param publicKey Compressed public key (33 bytes) as Uint8Array or hex string.
+ * @param maxSessionDuration Number of slots the session is valid for
+ * @param sessionKey Optional session key (defaults to zeroed key)
+ * @returns The encoded session authority data and authority type.
+ */
+export function createSecp256r1SessionAuthorityInfo(
+  publicKey: string | Uint8Array,
+  maxSessionDuration: bigint,
+  sessionKey?: PublicKey,
+): CreateAuthorityInfo {
+  const publicKeyBytes = getUnprefixedSecpBytes(publicKey, 33);
+
+  const sessionData = getCreateSecp256r1SessionEncoder().encode({
+    publicKey: publicKeyBytes,
+    sessionKey: sessionKey ? sessionKey.toBytes() : Uint8Array.from(Array(32)),
+    maxSessionLength: maxSessionDuration,
+  });
+
+  const data = Uint8Array.from(sessionData);
+  const type = AuthorityType.Secp256r1Session;
 
   return { createAuthorityInfo: { data, type } };
 }

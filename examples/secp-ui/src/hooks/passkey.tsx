@@ -11,7 +11,7 @@ import {
   createSecp256r1AuthorityInfo,
   createSwig,
   fetchSwig,
-  signAndSendSecp256r1,
+  signAndSend,
 } from '@swig-wallet/classic';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -201,7 +201,7 @@ export function useSwigTransferWithPasskey() {
         );
       }
 
-      return signAndSendSecp256r1(
+      return signAndSend(
         connection,
         [
           SystemProgram.transfer({
