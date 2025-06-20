@@ -154,14 +154,9 @@ export class SwigInstructionV1 {
       ...CreateSessionV1BaseAccountMetas,
       ...{ address: Address; role: AccountRole }[],
     ],
-  >(
-    accounts: T,
-    data: CreateSessionV1InstructionDataArgs & { payloadSize?: number },
-  ): IInstruction {
+  >(accounts: T, data: CreateSessionV1InstructionDataArgs): IInstruction {
     const createSessionV1InstructionDataEncoder =
-      getCreateSessionV1InstructionCodec(
-        data.payloadSize ?? data.authorityPayload.length,
-      ).encoder;
+      getCreateSessionV1InstructionCodec().encoder;
 
     const createSessionV1InstructionData =
       createSessionV1InstructionDataEncoder.encode(data);

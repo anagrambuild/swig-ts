@@ -126,7 +126,7 @@ export const Secp256k1Instruction: AuthorityInstruction = {
       getCreateSessionV1BaseAccountMetasWithSystemProgram(accounts);
 
     const authorityPayloadCodec =
-      getCreateSessionV1AuthorityPayloadCodec(1).codec;
+      getCreateSessionV1AuthorityPayloadCodec().codec;
 
     const message = authorityPayloadCodec.encode(data);
 
@@ -138,7 +138,6 @@ export const Secp256k1Instruction: AuthorityInstruction = {
 
     return SwigInstructionV1.createSession(createSessionIxAccountMetas, {
       ...data,
-      payloadSize: 1,
       authorityPayload,
     });
   },
