@@ -177,7 +177,7 @@ export const Secp256k1Instruction: AuthorityInstruction = {
     const codecData = { roleId, sessionDuration, sessionKey };
 
     const authorityPayloadCodec =
-      getCreateSessionV1AuthorityPayloadCodec(1).codec;
+      getCreateSessionV1AuthorityPayloadCodec().codec;
     const message = authorityPayloadCodec.encode(codecData);
     const authorityPayload = await prepareSecpPayload(
       Uint8Array.from(message),
@@ -187,7 +187,6 @@ export const Secp256k1Instruction: AuthorityInstruction = {
 
     return SwigInstructionV1.createSession(createSessionIxAccountMetas, {
       ...data,
-      payloadSize: 1,
       authorityPayload,
     });
   },
