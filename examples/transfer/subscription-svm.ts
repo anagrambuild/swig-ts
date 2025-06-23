@@ -34,12 +34,12 @@ function fetchSwig(svm: LiteSVM, swigAddress: PublicKey): ReturnType<typeof Swig
 // Helper to send transactions through LiteSVM
 function sendSVMTransaction(
   svm: LiteSVM,
-  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[],
   payer: Keypair,
 ): TransactionMetadata | FailedTransactionMetadata {
   svm.expireBlockhash();
   let transaction = new Transaction();
-  transaction.instructions = [instruction];
+  transaction.instructions = instructions;
   transaction.feePayer = payer.publicKey;
   transaction.recentBlockhash = svm.latestBlockhash();
   transaction.sign(payer);
@@ -104,7 +104,7 @@ async function main() {
     actions: rootActions,
   });
 
-  let result = sendSVMTransaction(svm, createSwigInstruction, rootKeypair);
+  let result = sendSVMTransaction(svm, [createSwigInstruction], rootKeypair);
   if (result instanceof FailedTransactionMetadata) {
     throw new Error(`Failed to create SWIG wallet: ${result.err}`);
   }

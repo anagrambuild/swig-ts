@@ -1,7 +1,6 @@
 import { GoToExplorer } from '@/components/GoToExplorer';
 import { PasskeyManager } from '@/helpers/passkey';
 import { getSwigAddress, payerKeypair } from '@/helpers/solana';
-import { keccak_256 } from '@noble/hashes/sha3';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import type { Authority } from '@swig-wallet/classic';
@@ -11,6 +10,7 @@ import {
   createSecp256r1AuthorityInfo,
   createSwig,
   fetchSwig,
+  getWebAuthnPrefix,
   signAndSend,
 } from '@swig-wallet/classic';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -169,6 +169,7 @@ export function useSwigTransferWithPasskey() {
 
       // Find the secp256r1 authority role
       const swig = query.data;
+      await swig.refetch(connection);
       let authority: Authority | undefined;
 
       // Look for secp256r1 authorities that match our passkey public key
@@ -215,19 +216,19 @@ export function useSwigTransferWithPasskey() {
         payerKeypair.publicKey,
         [payerKeypair],
         async (message: Uint8Array) => {
-          // Hash the message using keccak (same as secp256r1 implementation)
-          const messageHash = keccak_256(message);
-
           // Sign with passkey (this will trigger browser authentication)
           const passkeySignature =
-            await PasskeyManager.signWithPasskey(messageHash);
+            await PasskeyManager.signWithPasskey(message);
 
           // Return in the format expected by secp256r1 authority
           // Note: We need to return the WebAuthn message hash for the precompile to verify correctly
           return {
             signature: passkeySignature.signature,
-            prefix: new Uint8Array(), // No prefix needed for secp256r1
-            messageHash: passkeySignature.webAuthnMessageHash, // The actual message WebAuthn signed
+            prefix: getWebAuthnPrefix(
+              new Uint8Array(passkeySignature.clientDataJSON),
+              new Uint8Array(passkeySignature.authenticatorData),
+            ),
+            message: passkeySignature.webAuthnMessage, // The actual message WebAuthn signed
           };
         },
       );

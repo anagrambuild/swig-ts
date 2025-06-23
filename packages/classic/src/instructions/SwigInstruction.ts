@@ -90,7 +90,8 @@ export class SwigInstructionV1 {
   >(
     accounts: T,
     data: AddAuthorityV1InstructionDataArgs,
-  ): TransactionInstruction {
+    options: InstructionOptions = { preInstructions: [], postInstructions: [] },
+  ): TransactionInstruction[] {
     const addV1InstructionDataEncoder = getAddAuthorityV1InstructionCodec(
       data.authorityPayload.length,
       data.newAuthorityData.length,
@@ -99,10 +100,11 @@ export class SwigInstructionV1 {
     const addAuthorityV1InstructionData =
       addV1InstructionDataEncoder.encode(data);
 
-    return swigInstruction(
-      accounts,
-      new Uint8Array(addAuthorityV1InstructionData),
-    );
+    return [
+      ...options.preInstructions,
+      swigInstruction(accounts, new Uint8Array(addAuthorityV1InstructionData)),
+      ...options.postInstructions,
+    ];
   }
 
   /**
@@ -116,7 +118,8 @@ export class SwigInstructionV1 {
   >(
     accounts: T,
     data: RemoveAuthorityV1InstructionDataArgs,
-  ): TransactionInstruction {
+    options: InstructionOptions = { preInstructions: [], postInstructions: [] },
+  ): TransactionInstruction[] {
     const removeV1InstructionDataEncoder = getRemoveAuthorityV1InstructionCodec(
       data.authorityPayload.length,
     ).encoder;
@@ -124,10 +127,14 @@ export class SwigInstructionV1 {
     const removeAuthorityV1InstructionData =
       removeV1InstructionDataEncoder.encode(data);
 
-    return swigInstruction(
-      accounts,
-      new Uint8Array(removeAuthorityV1InstructionData),
-    );
+    return [
+      ...options.preInstructions,
+      swigInstruction(
+        accounts,
+        new Uint8Array(removeAuthorityV1InstructionData),
+      ),
+      ...options.postInstructions,
+    ];
   }
 
   /**
@@ -141,14 +148,19 @@ export class SwigInstructionV1 {
   static sign<T extends [...SignV1BaseAccountMetas, ...AccountMeta[]]>(
     accounts: T,
     data: SignV1InstructionDataArgs,
-  ): TransactionInstruction {
+    options: InstructionOptions = { preInstructions: [], postInstructions: [] },
+  ): TransactionInstruction[] {
     const signV1InstructionDataEncoder = getSignV1InstructionCodec(
       data.authorityPayload.length,
     ).encoder;
 
     const signV1InstructionData = signV1InstructionDataEncoder.encode(data);
 
-    return swigInstruction(accounts, new Uint8Array(signV1InstructionData));
+    return [
+      ...options.preInstructions,
+      swigInstruction(accounts, new Uint8Array(signV1InstructionData)),
+      ...options.postInstructions,
+    ];
   }
 
   static createSession<
@@ -156,7 +168,8 @@ export class SwigInstructionV1 {
   >(
     accounts: T,
     data: CreateSessionV1InstructionDataArgs & { payloadSize?: number },
-  ): TransactionInstruction {
+    options: InstructionOptions = { preInstructions: [], postInstructions: [] },
+  ): TransactionInstruction[] {
     const createSessionV1InstructionDataEncoder =
       getCreateSessionV1InstructionCodec(
         data.payloadSize ?? data.authorityPayload.length,
@@ -165,10 +178,11 @@ export class SwigInstructionV1 {
     const createSessionV1InstructionData =
       createSessionV1InstructionDataEncoder.encode(data);
 
-    return swigInstruction(
-      accounts,
-      new Uint8Array(createSessionV1InstructionData),
-    );
+    return [
+      ...options.preInstructions,
+      swigInstruction(accounts, new Uint8Array(createSessionV1InstructionData)),
+      ...options.postInstructions,
+    ];
   }
 
   static subAccountCreate<
@@ -176,17 +190,22 @@ export class SwigInstructionV1 {
   >(
     accounts: T,
     data: SubAccountCreateV1InstructionDataArgs,
-  ): TransactionInstruction {
+    options: InstructionOptions = { preInstructions: [], postInstructions: [] },
+  ): TransactionInstruction[] {
     const subAccountCreateV1InstructionDataEncoder =
       getSubAccountCreateV1InstructionDataCodec().encoder;
 
     const subAccountCreateV1InstructionData =
       subAccountCreateV1InstructionDataEncoder.encode(data);
 
-    return swigInstruction(
-      accounts,
-      new Uint8Array(subAccountCreateV1InstructionData),
-    );
+    return [
+      ...options.preInstructions,
+      swigInstruction(
+        accounts,
+        new Uint8Array(subAccountCreateV1InstructionData),
+      ),
+      ...options.postInstructions,
+    ];
   }
 
   static subAccountSign<
@@ -194,12 +213,17 @@ export class SwigInstructionV1 {
   >(
     accounts: T,
     data: SubAccountSignV1InstructionDataArgs,
-  ): TransactionInstruction {
+    options: InstructionOptions = { preInstructions: [], postInstructions: [] },
+  ): TransactionInstruction[] {
     const encoder = getSubAccountSignV1InstructionDataCodec().encoder;
 
     const instructionData = encoder.encode(data);
 
-    return swigInstruction(accounts, new Uint8Array(instructionData));
+    return [
+      ...options.preInstructions,
+      swigInstruction(accounts, new Uint8Array(instructionData)),
+      ...options.postInstructions,
+    ];
   }
 
   static subAccountWithdraw<
@@ -207,12 +231,17 @@ export class SwigInstructionV1 {
   >(
     accounts: T,
     data: SubAccountWithdrawV1InstructionDataArgs,
-  ): TransactionInstruction {
+    options: InstructionOptions = { preInstructions: [], postInstructions: [] },
+  ): TransactionInstruction[] {
     const encoder = getSubAccountWithdrawV1InstructionDataCodec().encoder;
 
     const instructionData = encoder.encode(data);
 
-    return swigInstruction(accounts, new Uint8Array(instructionData));
+    return [
+      ...options.preInstructions,
+      swigInstruction(accounts, new Uint8Array(instructionData)),
+      ...options.postInstructions,
+    ];
   }
 
   static subAccountToggle<
@@ -220,11 +249,21 @@ export class SwigInstructionV1 {
   >(
     accounts: T,
     data: SubAccountToggleV1InstructionDataArgs,
-  ): TransactionInstruction {
+    options: InstructionOptions = { preInstructions: [], postInstructions: [] },
+  ): TransactionInstruction[] {
     const encoder = getSubAccountToggleV1InstructionDataCodec().encoder;
 
     const instructionData = encoder.encode(data);
 
-    return swigInstruction(accounts, new Uint8Array(instructionData));
+    return [
+      ...options.preInstructions,
+      swigInstruction(accounts, new Uint8Array(instructionData)),
+      ...options.postInstructions,
+    ];
   }
 }
+
+export type InstructionOptions = {
+  preInstructions: TransactionInstruction[];
+  postInstructions: TransactionInstruction[];
+};

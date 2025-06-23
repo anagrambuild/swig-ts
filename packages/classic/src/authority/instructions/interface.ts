@@ -29,7 +29,7 @@ export interface AuthorityInstruction {
       authorityData: ReadonlyUint8Array;
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 
   removeAuthorityV1Instruction(
     accounts: RemoveAuthorityV1InstructionAccounts,
@@ -37,7 +37,7 @@ export interface AuthorityInstruction {
       authorityData: ReadonlyUint8Array;
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 
   signV1Instruction(
     accounts: SignV1InstructionAccounts,
@@ -47,7 +47,7 @@ export interface AuthorityInstruction {
       innerInstructions: TransactionInstruction[];
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 
   createSessionV1Instruction(
     accounts: SignV1InstructionAccounts,
@@ -55,7 +55,7 @@ export interface AuthorityInstruction {
       authorityData: ReadonlyUint8Array;
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 
   subAccountCreateV1Instruction(
     accounts: SubAccountCreateV1InstructionAccounts,
@@ -63,7 +63,7 @@ export interface AuthorityInstruction {
       authorityData: ReadonlyUint8Array;
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 
   subAccountWithdrawV1SolInstruction(
     accounts: SubAccountWithdrawV1SolInstructionAccounts,
@@ -71,7 +71,7 @@ export interface AuthorityInstruction {
       authorityData: ReadonlyUint8Array;
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 
   subAccountWithdrawV1TokenInstruction(
     accounts: SubAccountWithdrawV1TokenInstructionAccounts,
@@ -79,7 +79,7 @@ export interface AuthorityInstruction {
       authorityData: ReadonlyUint8Array;
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 
   subAccountToggleV1Instruction(
     accounts: SubAccountToggleV1InstructionAccounts,
@@ -87,7 +87,7 @@ export interface AuthorityInstruction {
       authorityData: ReadonlyUint8Array;
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 
   subAccountSignV1Instruction(
     accounts: SubAccountSignV1InstructionAccounts,
@@ -97,7 +97,7 @@ export interface AuthorityInstruction {
       innerInstructions: TransactionInstruction[];
     },
     options?: InstructionDataOptions,
-  ): Promise<TransactionInstruction>;
+  ): Promise<TransactionInstruction[]>;
 }
 
 /**
@@ -109,7 +109,11 @@ export type SigningFn = (message: Uint8Array) => Promise<SigningResult>;
  * @property signature - Signature of the message
  * @property prefix - Additional Prefix added to the message
  */
-export type SigningResult = { signature: Uint8Array; prefix?: Uint8Array };
+export type SigningResult = {
+  signature: Uint8Array;
+  prefix?: Uint8Array;
+  message?: Uint8Array;
+};
 
 /**
  * Options used for constructing or signing instruction data.

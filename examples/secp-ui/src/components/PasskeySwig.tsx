@@ -121,42 +121,34 @@ export function PasskeySwig() {
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col space-y-2 w-full">
-            <div className="flex space-x-2">
+          <div className="items-center w-full space-x-4">
+            <Button
+              variant="destructive"
+              onClick={() => clearPasskey()}
+              disabled={isClearingPasskey}
+            >
+              {isClearingPasskey ? 'Clearing...' : 'Clear Passkey'}
+            </Button>
+
+            {!swig ? (
               <Button
-                variant="secondary"
-                onClick={() => clearPasskey()}
-                disabled={isClearingPasskey}
+                onClick={() => createSwigWithPasskey()}
+                disabled={isCreatingSwig}
               >
-                {isClearingPasskey ? 'Clearing...' : 'Clear Passkey'}
+                {isCreatingSwig ? 'Creating...' : 'Create Swig Wallet'}
               </Button>
-
-              {!swig && (
-                <Button
-                  onClick={() => createSwigWithPasskey()}
-                  disabled={isCreatingSwig}
-                >
-                  {isCreatingSwig ? 'Creating...' : 'Create Swig Wallet'}
-                </Button>
-              )}
-            </div>
-
-            {swig && (
-              <div className="flex space-x-2">
-                <Button onClick={() => requestAirdropAsync()} variant="outline">
-                  Request Airdrop
-                </Button>
-
-                {hasMatchingAuthority && (
-                  <Button
-                    onClick={() => transferWithPasskey()}
-                    disabled={isTransferring}
-                  >
-                    {isTransferring ? 'Transferring...' : 'Transfer 0.1 SOL'}
-                  </Button>
-                )}
-              </div>
+            ) : (
+              <Button onClick={() => requestAirdropAsync()} variant="outline">
+                Request Airdrop
+              </Button>
             )}
+
+            <Button
+              onClick={() => transferWithPasskey()}
+              disabled={hasMatchingAuthority && isTransferring}
+            >
+              {isTransferring ? 'Transferring...' : 'Transfer 0.1 SOL'}
+            </Button>
           </div>
         )}
 

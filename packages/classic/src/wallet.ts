@@ -35,6 +35,23 @@ export function getEvmPersonalSignPrefix(messageLen: number): Uint8Array {
   return utf8ToBytes(`\x19Ethereum Signed Message:\n${messageLen}`);
 }
 
+export function getWebAuthnPrefix(
+  clientJson: Uint8Array,
+  authData: Uint8Array,
+): Uint8Array {
+  const prefix = new Uint8Array(4 + clientJson.length + authData.length);
+
+  const authDataLen = new Uint8Array(2);
+  const authDataLenView = new DataView(authDataLen.buffer);
+  authDataLenView.setUint16(0, authData.length, true);
+
+  prefix.set(authDataLen, 2);
+  prefix.set(authData, 4);
+  prefix.set(clientJson, 4 + authData.length);
+
+  return prefix;
+}
+
 /**
  * this function does nothing. just implementing the interface of [SigningFn]
  */

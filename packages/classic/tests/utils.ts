@@ -35,12 +35,12 @@ export function mockBytesArray(byte: number, length: number) {
 
 export function sendSVMTransaction(
   svm: LiteSVM,
-  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[],
   payer: Keypair,
   signers: Keypair[] = [],
 ) {
   let transaction = new Transaction();
-  transaction.instructions = [instruction];
+  transaction.instructions = instructions;
   transaction.feePayer = payer.publicKey;
   transaction.recentBlockhash = svm.latestBlockhash();
 

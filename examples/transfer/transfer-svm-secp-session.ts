@@ -30,11 +30,11 @@ import { readFileSync } from 'node:fs';
 //
 function sendSVMTransaction(
   svm: LiteSVM,
-  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[],
   payer: Keypair,
 ) {
   let transaction = new Transaction();
-  transaction.instructions = [instruction];
+  transaction.instructions = instructions;
   transaction.feePayer = payer.publicKey;
   transaction.recentBlockhash = svm.latestBlockhash();
 
@@ -110,7 +110,7 @@ let createSwigInstruction = Swig.create({
   actions: rootActions,
 });
 
-sendSVMTransaction(svm, createSwigInstruction, userRootKeypair);
+sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
 
 //
 // * fetch swig

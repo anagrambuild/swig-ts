@@ -79,7 +79,7 @@ export async function getSignInstruction(
   payer: PublicKey,
   signingFn?: SigningFn,
   options?: { commitment: Commitment },
-): Promise<TransactionInstruction> {
+): Promise<TransactionInstruction[]> {
   const swig = await fetchSwig(connection, swigAddress, options);
 
   const role = swig.findRoleByAuthority(authority);
@@ -119,12 +119,14 @@ export async function signAndSend(
   // todo: option for sending versioned
   const transaction = await createLegacyTransaction(
     connection,
-    [signInstruction],
+    [...signInstruction],
     payer,
     options,
   );
 
-  return sendAndConfirmTransaction(connection, transaction, signers, options);
+  return sendAndConfirmTransaction(connection, transaction, signers, {
+    skipPreflight: true,
+  });
 }
 
 /**
@@ -177,7 +179,7 @@ export async function addAuthority(
   // todo: option for sending versioned
   const transaction = await createLegacyTransaction(
     connection,
-    [addAuthorityIx],
+    [...addAuthorityIx],
     payer.publicKey,
     options,
   );
@@ -229,7 +231,7 @@ export async function removeAuthority(
   // todo: option for sending versioned
   const transaction = await createLegacyTransaction(
     connection,
-    [removeAuthorityIx],
+    [...removeAuthorityIx],
     payer.publicKey,
     options,
   );

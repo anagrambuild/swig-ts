@@ -25,11 +25,11 @@ import {
 //helpers
 async function sendAndConfirm(
   conn: Connection,
-  ix: TransactionInstruction,
+  ixs: TransactionInstruction[],
   feePayer: Keypair,
   extra: Keypair[] = [],
 ) {
-  const tx = new Transaction().add(ix);
+  const tx = new Transaction().add(...ixs);
   tx.feePayer = feePayer.publicKey;
   const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
   tx.recentBlockhash = blockhash;

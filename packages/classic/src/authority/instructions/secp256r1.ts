@@ -1,12 +1,17 @@
 import { keccak_256 } from '@noble/hashes/sha3';
 import { getArrayEncoder, getU8Encoder } from '@solana/kit';
-import { PublicKey, type AccountMeta } from '@solana/web3.js';
+import {
+  PublicKey,
+  TransactionInstruction,
+  type AccountMeta,
+} from '@solana/web3.js';
 import {
   getAccountsPayloadEncoder,
   getAddAuthorityV1AuthorityPayloadEncoder,
   getCompactInstructionEncoder,
   getCreateSessionV1AuthorityPayloadCodec,
   getRemoveAuthorityV1AuthorityPayloadEncoder,
+  getSecp256r1SignatureInstructionDataEncoder,
   getSubAccountCreateV1InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
@@ -16,7 +21,7 @@ import {
   compactInstructions,
   getAddAuthorityV1BaseAccountMetas,
   getRemoveAuthorityV1BaseAccountMetas,
-  getSignV1BaseAccountMetas,
+  getSignV1BaseAccountMetasWithSystemProgram,
   getSubAccountCreateV1BaseAccountMetas,
   getSubAccountSignV1BaseAccountMetas,
   getSubAccountToggleV1BaseAccountMetas,
@@ -46,16 +51,21 @@ export const Secp256r1Instruction: AuthorityInstruction = {
 
     const message = authorityPayloadCodec.encode(data);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(message),
       addAuthorityIxAccountMetas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.addAuthority(addAuthorityIxAccountMetas, {
-      ...data,
-      authorityPayload,
-    });
+    return SwigInstructionV1.addAuthority(
+      addAuthorityIxAccountMetas,
+      {
+        ...data,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 
   async removeAuthorityV1Instruction(accounts, data, options) {
@@ -72,16 +82,21 @@ export const Secp256r1Instruction: AuthorityInstruction = {
 
     const message = authorityPayloadCodec.encode(data);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(message),
       removeIxAccountMetas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.removeAuthority(removeIxAccountMetas, {
-      ...data,
-      authorityPayload,
-    });
+    return SwigInstructionV1.removeAuthority(
+      removeIxAccountMetas,
+      {
+        ...data,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 
   async signV1Instruction(accounts, data, options) {
@@ -90,21 +105,21 @@ export const Secp256r1Instruction: AuthorityInstruction = {
         'instruction data options not provided for Secp256r1 based authority',
       );
 
-    const signInstructionsAccount = getSignV1BaseAccountMetas(accounts);
-
     // Add instructions sysvar account for secp256r1
     const instructionsSysvar: AccountMeta = {
       pubkey: new PublicKey('Sysvar1nstructions1111111111111111111111111'),
       isSigner: false,
       isWritable: false,
     };
+
+    const signInstructionsAccount = getSignV1BaseAccountMetasWithSystemProgram(
+      accounts,
+      [instructionsSysvar],
+    );
+
     const { accounts: metas, compactIxs } = compactInstructions(
       accounts.swig,
-      [...signInstructionsAccount, instructionsSysvar] as [
-        AccountMeta,
-        AccountMeta,
-        ...AccountMeta[],
-      ],
+      signInstructionsAccount,
       data.innerInstructions,
     );
 
@@ -115,17 +130,22 @@ export const Secp256r1Instruction: AuthorityInstruction = {
       },
     ).encode(compactIxs);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(encodedCompactInstructions),
       metas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.sign(metas, {
-      roleId: data.roleId,
-      authorityPayload,
-      compactInstructions: compactIxs,
-    });
+    return SwigInstructionV1.sign(
+      metas,
+      {
+        roleId: data.roleId,
+        authorityPayload,
+        compactInstructions: compactIxs,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 
   async createSessionV1Instruction(accounts, data, options) {
@@ -143,17 +163,22 @@ export const Secp256r1Instruction: AuthorityInstruction = {
 
     const message = authorityPayloadCodec.encode(data);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(message),
       createSessionIxAccountMetas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.createSession(createSessionIxAccountMetas, {
-      ...data,
-      payloadSize: SECP256R1_AUTHORITY_PAYLOAD_SIZE,
-      authorityPayload,
-    });
+    return SwigInstructionV1.createSession(
+      createSessionIxAccountMetas,
+      {
+        ...data,
+        payloadSize: SECP256R1_AUTHORITY_PAYLOAD_SIZE,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 
   async subAccountCreateV1Instruction(accounts, data, options) {
@@ -168,16 +193,21 @@ export const Secp256r1Instruction: AuthorityInstruction = {
 
     const message = payloadEncoder.encode(data);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(message),
       accountMetas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.subAccountCreate(accountMetas, {
-      ...data,
-      authorityPayload,
-    });
+    return SwigInstructionV1.subAccountCreate(
+      accountMetas,
+      {
+        ...data,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 
   async subAccountSignV1Instruction(accounts, data, options) {
@@ -203,17 +233,22 @@ export const Secp256r1Instruction: AuthorityInstruction = {
       },
     ).encode(compactIxs);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(encodedCompactInstructions),
       metas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.subAccountSign(metas, {
-      roleId: data.roleId,
-      compactInstructions: compactIxs,
-      authorityPayload,
-    });
+    return SwigInstructionV1.subAccountSign(
+      metas,
+      {
+        roleId: data.roleId,
+        compactInstructions: compactIxs,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 
   async subAccountToggleV1Instruction(accounts, data, options) {
@@ -228,16 +263,21 @@ export const Secp256r1Instruction: AuthorityInstruction = {
 
     const message = payloadEncoder.encode(data);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(message),
       accountMetas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.subAccountToggle(accountMetas, {
-      ...data,
-      authorityPayload,
-    });
+    return SwigInstructionV1.subAccountToggle(
+      accountMetas,
+      {
+        ...data,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 
   async subAccountWithdrawV1SolInstruction(accounts, data, options) {
@@ -252,16 +292,21 @@ export const Secp256r1Instruction: AuthorityInstruction = {
 
     const message = payloadEncoder.encode(data);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(message),
       accountMetas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.subAccountWithdraw(accountMetas, {
-      ...data,
-      authorityPayload,
-    });
+    return SwigInstructionV1.subAccountWithdraw(
+      accountMetas,
+      {
+        ...data,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 
   async subAccountWithdrawV1TokenInstruction(accounts, data, options) {
@@ -276,24 +321,33 @@ export const Secp256r1Instruction: AuthorityInstruction = {
 
     const message = payloadEncoder.encode(data);
 
-    const authorityPayload = await prepareSecp256r1Payload(
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
       Uint8Array.from(message),
       accountMetas,
+      new Uint8Array(data.authorityData),
       options,
     );
 
-    return SwigInstructionV1.subAccountWithdraw(accountMetas, {
-      ...data,
-      authorityPayload,
-    });
+    return SwigInstructionV1.subAccountWithdraw(
+      accountMetas,
+      {
+        ...data,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
   },
 };
 
 export async function prepareSecp256r1Payload(
   dataPayload: Uint8Array,
   accountMetas: AccountMeta[],
+  publicKey: Uint8Array,
   options: InstructionDataOptions,
-): Promise<Uint8Array> {
+): Promise<{
+  authorityPayload: Uint8Array;
+  sigVerifyIx: TransactionInstruction;
+}> {
   const u64Len = 8;
 
   const slot = new Uint8Array(u64Len);
@@ -326,7 +380,15 @@ export async function prepareSecp256r1Payload(
 
   // Note: For secp256r1, the signature is handled by the secp256r1 precompile instruction
   // The signingFn is called to trigger the signature creation, but we don't use the result here
-  await options.signingFn(messageHash);
+  const {
+    signature,
+    prefix,
+    message: msg,
+  } = await options.signingFn(messageHash);
+
+  const msgHash = msg ?? messageHash;
+
+  const prefixPayload = prefix ?? new Uint8Array(0);
 
   // Find the instructions sysvar account index
   const instructionSysvarIndex = accountMetas.findIndex(
@@ -343,11 +405,26 @@ export async function prepareSecp256r1Payload(
   // - 4 bytes: counter/odometer (little endian)
   // - 1 byte: instruction sysvar account index
   // - 4 bytes: padding to meet minimum 17 byte requirement
-  const authorityPayload = new Uint8Array(SECP256R1_AUTHORITY_PAYLOAD_SIZE);
+  const authorityPayload = new Uint8Array(
+    SECP256R1_AUTHORITY_PAYLOAD_SIZE + prefixPayload.length,
+  );
   authorityPayload.set(slot, 0);
   authorityPayload.set(odometer, 8);
   authorityPayload[12] = instructionSysvarIndex;
   // Remaining 4 bytes are padding (already zeroed)
+  authorityPayload.set(prefixPayload, SECP256R1_AUTHORITY_PAYLOAD_SIZE);
 
-  return authorityPayload;
+  const instData = getSecp256r1SignatureInstructionDataEncoder().encode({
+    message: msgHash,
+    publicKey,
+    signature,
+  });
+
+  const sigVerifyIx: TransactionInstruction = {
+    programId: new PublicKey('Secp256r1SigVerify1111111111111111111111111'),
+    data: Buffer.from(instData),
+    keys: [],
+  };
+
+  return { authorityPayload, sigVerifyIx };
 }

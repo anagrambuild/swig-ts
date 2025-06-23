@@ -29,7 +29,7 @@ describe('SubAccount Test', () => {
       authorityInfo: createEd25519AuthorityInfo(rootAuthority.publicKey),
       id: swigId,
     });
-    sendSVMTransaction(svm, createSwigIx, rootAuthority);
+    sendSVMTransaction(svm, [createSwigIx], rootAuthority);
 
     let swig = fetchSwig(svm, swigAddress);
 

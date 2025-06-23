@@ -41,22 +41,21 @@ export enum AuthorityType {
   Secp256k1Session,
 
   /**
+   * Standard Secp256r1 public key-based authority.
+   */
+  Secp256r1,
+  /**
    * A session-based Secp256r1 authority with expiration.
    * Not yet implemented.
    */
   Secp256r1Session,
 
-  /**
-   * Standard Secp256r1 public key-based authority.
-   */
-  Secp256r1,
-
-  /**
-   * A session-based authority using a Groth16 zero-knowledge proof.
-   * The session is authorized only if the provided ZK circuit proof is valid.
-   * Not yet implemented.
-   */
-  Groth16Session,
+  // /**
+  //  * A session-based authority using a Groth16 zero-knowledge proof.
+  //  * The session is authorized only if the provided ZK circuit proof is valid.
+  //  * Not yet implemented.
+  //  */
+  // Groth16Session,
 }
 
 /**

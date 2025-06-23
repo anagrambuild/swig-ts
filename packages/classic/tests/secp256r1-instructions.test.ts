@@ -73,9 +73,10 @@ describe('Secp256r1 Instructions', () => {
         odometer,
       };
 
-      const authorityPayload = await prepareSecp256r1Payload(
+      const { authorityPayload } = await prepareSecp256r1Payload(
         testData,
         accountMetas,
+        new Uint8Array(33),
         options,
       );
 
@@ -122,7 +123,12 @@ describe('Secp256r1 Instructions', () => {
       };
 
       await expect(
-        prepareSecp256r1Payload(testData, accountMetas, options),
+        prepareSecp256r1Payload(
+          testData,
+          accountMetas,
+          new Uint8Array(33),
+          options,
+        ),
       ).rejects.toThrow(
         'Instructions sysvar account not found in account metas',
       );
@@ -158,7 +164,12 @@ describe('Secp256r1 Instructions', () => {
         odometer,
       };
 
-      await prepareSecp256r1Payload(testData, accountMetas, options);
+      await prepareSecp256r1Payload(
+        testData,
+        accountMetas,
+        new Uint8Array(33),
+        options,
+      );
 
       expect(capturedMessage).not.toBeNull();
       expect(capturedMessage!.length).toBe(32);

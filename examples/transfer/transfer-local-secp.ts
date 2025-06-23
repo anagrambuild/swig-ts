@@ -132,7 +132,7 @@ const signedTransfer = await signInstruction(
   instOptions,
 );
 
-const tx = new Transaction().add(signedTransfer);
+const tx = new Transaction().add(...signedTransfer);
 const sig = await sendAndConfirmTransaction(connection, tx, [signer]);
 
 console.log(

@@ -12,7 +12,6 @@ import {
   createEd25519SessionAuthorityInfo,
   createSessionInstruction,
   createSwig,
-  Ed25519SessionAuthority,
   fetchSwig,
   findSwigPda,
   signInstruction,
@@ -23,12 +22,12 @@ import {
 //
 async function sendTransaction(
   connection: Connection,
-  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[],
   payer: Keypair,
   signers: Signer[] = [],
 ) {
   let transaction = new Transaction();
-  transaction.instructions = [instruction];
+  transaction.instructions = instructions;
   transaction.feePayer = payer.publicKey;
   transaction.recentBlockhash = (
     await connection.getLatestBlockhash()

@@ -26,10 +26,10 @@ function randomBytes(length: number): Uint8Array {
 
 async function sendTransaction(
   connection: Connection,
-  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[],
   payer: Keypair,
 ) {
-  const transaction = new Transaction().add(instruction);
+  const transaction = new Transaction().add(...instructions);
   const signature = await connection.sendTransaction(transaction, [payer]);
 
   // Wait for confirmation

@@ -1,5 +1,4 @@
 import type { Authority } from '../abstract';
-import type { Ed25519BasedAuthority } from '../ed25519';
 
 export interface Secp256k1BasedAuthority {
   // todo: address
@@ -23,7 +22,7 @@ export interface Secp256k1BasedAuthority {
 
 export function isSecp256k1BasedAuthority(
   authority: Authority,
-): authority is Authority & Ed25519BasedAuthority {
+): authority is Authority & Secp256k1BasedAuthority {
   return (
     'secp256k1PublicKey' in authority && 'secp256k1PublicKeyString' in authority
   );

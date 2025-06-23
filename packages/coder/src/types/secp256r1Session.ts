@@ -46,10 +46,7 @@ export function getCreateSecp256r1SessionEncoder(): Encoder<Secp256r1CreateSessi
       ['sessionKey', fixEncoderSize(getBytesEncoder(), 32)],
       ['maxSessionLength', getU64Encoder()],
     ]),
-    (value) => ({
-      ...value,
-      _padding: Uint8Array.from(Array(7)),
-    }),
+    (value) => ({ _padding: new Uint8Array(3), ...value }),
   );
 }
 

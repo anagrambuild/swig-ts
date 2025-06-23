@@ -27,11 +27,11 @@ function formatSolLimit(limit: bigint | null): string {
 
 async function sendTransaction(
   connection: Connection,
-  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[],
   payer: Keypair,
 ) {
   let transaction = new Transaction();
-  transaction.instructions = [instruction];
+  transaction.instructions = instructions;
   transaction.feePayer = payer.publicKey;
   transaction.recentBlockhash = (
     await connection.getLatestBlockhash()

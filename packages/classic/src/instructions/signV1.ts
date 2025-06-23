@@ -1,4 +1,8 @@
-import type { AccountMeta, PublicKey } from '@solana/web3.js';
+import {
+  SystemProgram,
+  type AccountMeta,
+  type PublicKey,
+} from '@solana/web3.js';
 
 export type SignV1InstructionAccounts = {
   swig: PublicKey;
@@ -45,4 +49,27 @@ export function getSignV1BaseAccountMetasWithAuthority(
     },
   ];
   return [metas, authorityIndex];
+}
+
+export type SignV1BaseAccountMetasWithSystemProgram = [
+  ...SignV1BaseAccountMetas,
+  AccountMeta,
+  ...AccountMeta[],
+];
+
+export function getSignV1BaseAccountMetasWithSystemProgram(
+  accounts: SignV1InstructionAccounts,
+  otherMetas: AccountMeta[] = [],
+): SignV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getSignV1BaseAccountMetas(accounts);
+
+  return [
+    ...accountMetas,
+    {
+      pubkey: SystemProgram.programId,
+      isSigner: false,
+      isWritable: false,
+    },
+    ...otherMetas,
+  ];
 }

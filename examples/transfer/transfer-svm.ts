@@ -21,18 +21,17 @@ import {
   TransactionMetadata,
 } from 'litesvm';
 import { readFileSync } from 'node:fs';
-import { buffer } from 'node:stream/consumers';
 
 //
 // Helpers
 //
 function sendSVMTransaction(
   svm: LiteSVM,
-  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[],
   payer: Keypair,
 ) {
   let transaction = new Transaction();
-  transaction.instructions = [instruction];
+  transaction.instructions = instructions;
   transaction.feePayer = payer.publicKey;
   transaction.recentBlockhash = svm.latestBlockhash();
 
@@ -49,7 +48,10 @@ function sendSVMTransaction(
   }
 }
 
-function fetchSwig(svm: LiteSVM, swigAddress: PublicKey): ReturnType<typeof Swig.fromRawAccountData> {
+function fetchSwig(
+  svm: LiteSVM,
+  swigAddress: PublicKey,
+): ReturnType<typeof Swig.fromRawAccountData> {
   let swigAccount = svm.getAccount(swigAddress);
   if (!swigAccount) throw new Error('swig account not created');
   // Ensure we have a proper Uint8Array for the account data
@@ -91,7 +93,7 @@ let id = Uint8Array.from(Array(32).fill(2));
 //
 let [swigAddress] = findSwigPda(id);
 
-console.log("swig address:", swigAddress.toBase58())
+console.log('swig address:', swigAddress.toBase58());
 
 //
 // * create swig instruction
@@ -107,7 +109,7 @@ let createSwigInstruction = Swig.create({
   actions: rootActions,
 });
 
-sendSVMTransaction(svm, createSwigInstruction, userRootKeypair);
+sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
 
 //
 // * fetch swig

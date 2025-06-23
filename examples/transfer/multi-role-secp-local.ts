@@ -85,7 +85,7 @@ import {
         .solLimit({ amount: BigInt(amount * LAMPORTS_PER_SOL) })
         .get();
   
-      const ix = await addAuthorityInstruction(
+      const ixs = await addAuthorityInstruction(
         rootRole,
         payer.publicKey,
         roleAuthorityInfo,
@@ -93,7 +93,7 @@ import {
         instOptions,
       );
   
-      const tx = new Transaction().add(ix);
+      const tx = new Transaction().add(...ixs);
       const sig = await sendAndConfirmTransaction(connection, tx, [payer]);
   
       console.log(`Role '${name}' added`);

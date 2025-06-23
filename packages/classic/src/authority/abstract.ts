@@ -82,7 +82,7 @@ export abstract class Authority implements CreateAuthorityInfo {
     roleId: number;
     innerInstructions: TransactionInstruction[];
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 
   /**
    * Creates an `AddAuthority` Instructon
@@ -104,7 +104,7 @@ export abstract class Authority implements CreateAuthorityInfo {
     actions: Actions;
     newAuthorityInfo: CreateAuthorityInfo;
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 
   /**
    * Creates an `RemoveAuthority` Instructon
@@ -123,7 +123,7 @@ export abstract class Authority implements CreateAuthorityInfo {
     roleId: number;
     roleIdToRemove: number;
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 
   abstract subAccountCreate(args: {
     payer: PublicKey;
@@ -131,7 +131,7 @@ export abstract class Authority implements CreateAuthorityInfo {
     swigId: Uint8Array;
     roleId: number;
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 
   abstract subAccountSign(args: {
     payer: PublicKey;
@@ -140,7 +140,7 @@ export abstract class Authority implements CreateAuthorityInfo {
     roleId: number;
     innerInstructions: TransactionInstruction[];
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 
   abstract subAccountToggle(args: {
     payer: PublicKey;
@@ -149,7 +149,7 @@ export abstract class Authority implements CreateAuthorityInfo {
     roleId: number;
     enabled: boolean;
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 
   abstract subAccountWithdrawSol(args: {
     payer: PublicKey;
@@ -158,7 +158,7 @@ export abstract class Authority implements CreateAuthorityInfo {
     roleId: number;
     amount: bigint;
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 
   abstract subAccountWithdrawToken(args: {
     payer: PublicKey;
@@ -169,7 +169,7 @@ export abstract class Authority implements CreateAuthorityInfo {
     amount: bigint;
     tokenProgram?: PublicKey;
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 
   /**
    * Data required to create a new authority.
@@ -245,7 +245,7 @@ export abstract class SessionBasedAuthority extends Authority {
     newSessionKey: PublicKey;
     sessionDuration?: bigint;
     options?: InstructionDataOptions;
-  }): Promise<TransactionInstruction>;
+  }): Promise<TransactionInstruction[]>;
 }
 
 /**

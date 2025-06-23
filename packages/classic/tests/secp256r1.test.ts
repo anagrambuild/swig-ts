@@ -2,7 +2,7 @@ import { bytesToHex } from '@noble/curves/abstract/utils';
 import { p256 } from '@noble/curves/p256';
 import { PublicKey } from '@solana/web3.js';
 import { AuthorityType } from '@swig-wallet/coder';
-import { beforeAll, describe, expect } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { getAuthority } from '../src/authority/getAuthority';
 import {
   Secp256r1Authority,
@@ -12,12 +12,14 @@ import {
 describe('Secp256r1Authority', () => {
   let testPrivateKey: Uint8Array;
   let compressedPublicKey: Uint8Array;
+  let uncompressedPublicKey: Uint8Array;
 
   beforeAll(() => {
     // Generate a test secp256r1 key pair
     testPrivateKey = p256.utils.randomPrivateKey();
     const point = p256.ProjectivePoint.fromPrivateKey(testPrivateKey);
     compressedPublicKey = point.toRawBytes(true); // compressed (33 bytes)
+    uncompressedPublicKey = point.toRawBytes(false); // compressed (33 bytes)
   });
 
   describe('Secp256r1SessionAuthority', () => {
@@ -153,7 +155,7 @@ describe('Secp256r1Authority', () => {
         AuthorityType.Secp256r1,
         compressedPublicKey,
         1,
-      );
+      ) as Secp256r1Authority;
 
       expect(authority).toBeInstanceOf(Secp256r1Authority);
       expect(authority.type).toBe(AuthorityType.Secp256r1);

@@ -2,6 +2,7 @@ import { AuthorityType } from '@swig-wallet/coder';
 import type { Authority } from './abstract';
 import { Ed25519Authority, Ed25519SessionAuthority } from './ed25519';
 import { Secp256k1Authority, Secp256k1SessionAuthority } from './secp256k1';
+import { Secp256r1Authority, Secp256r1SessionAuthority } from './secp256r1';
 
 /**
  * Get a parsed authority from the authority raw bytes.
@@ -29,6 +30,14 @@ export function getAuthority(
 
   if (type === AuthorityType.Secp256k1Session) {
     return new Secp256k1SessionAuthority(data, roleId);
+  }
+
+  if (type === AuthorityType.Secp256r1) {
+    return new Secp256r1Authority(data, roleId);
+  }
+
+  if (type === AuthorityType.Secp256r1Session) {
+    return new Secp256r1SessionAuthority(data, roleId);
   }
 
   throw new Error('Invalid authority');

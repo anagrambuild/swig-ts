@@ -191,7 +191,7 @@ export class Secp256r1SessionAuthority
       {
         actingRoleId: args.actingRoleId,
         actions: args.actions.bytes(),
-        authorityData: this.data,
+        authorityData: this.publicKeyBytes,
         newAuthorityData: args.newAuthorityInfo.createAuthorityInfo.data,
         newAuthorityType: args.newAuthorityInfo.createAuthorityInfo.type,
         noOfActions: args.actions.count,
@@ -214,7 +214,7 @@ export class Secp256r1SessionAuthority
       },
       {
         actingRoleId: args.roleId,
-        authorityData: this.data,
+        authorityData: this.publicKeyBytes,
         authorityToRemoveId: args.roleIdToRemove,
       },
       { ...args.options, odometer: this.odometer() ?? args.options.odometer },
@@ -235,7 +235,7 @@ export class Secp256r1SessionAuthority
         swig: args.swigAddress,
       },
       {
-        authorityData: this.data,
+        authorityData: this.publicKeyBytes,
         roleId: args.roleId,
         sessionDuration: args.sessionDuration ?? this.maxDuration,
         sessionKey: args.newSessionKey.toBytes(),
@@ -260,7 +260,7 @@ export class Secp256r1SessionAuthority
       },
       {
         roleId: args.roleId,
-        authorityData: this.data,
+        authorityData: this.publicKeyBytes,
         bump,
       },
       { ...args.options, odometer: this.odometer() ?? args.options.odometer },
@@ -304,7 +304,7 @@ export class Secp256r1SessionAuthority
       },
       {
         roleId: args.roleId,
-        authorityData: this.data,
+        authorityData: this.publicKeyBytes,
         enabled: args.enabled,
       },
       { ...args.options, odometer: this.odometer() ?? args.options.odometer },
@@ -327,7 +327,7 @@ export class Secp256r1SessionAuthority
       },
       {
         roleId: args.roleId,
-        authorityData: this.data,
+        authorityData: this.publicKeyBytes,
         amount: args.amount,
       },
       { ...args.options, odometer: this.odometer() ?? args.options.odometer },
@@ -368,7 +368,7 @@ export class Secp256r1SessionAuthority
       },
       {
         roleId: args.roleId,
-        authorityData: this.data,
+        authorityData: this.publicKeyBytes,
         amount: args.amount,
       },
       { ...args.options, odometer: this.odometer() ?? args.options.odometer },

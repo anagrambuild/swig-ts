@@ -2,8 +2,8 @@ import { PublicKey } from '@solana/web3.js';
 import {
   AuthorityType,
   getCreateSecp256k1SessionEncoder,
-  getEd25519SessionEncoder,
   getCreateSecp256r1SessionEncoder,
+  getEd25519SessionEncoder,
 } from '@swig-wallet/coder';
 import { getUnprefixedSecpBytes } from '../utils';
 

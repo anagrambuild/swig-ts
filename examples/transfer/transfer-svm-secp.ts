@@ -29,11 +29,11 @@ import { readFileSync } from 'node:fs';
 //
 function sendSVMTransaction(
   svm: LiteSVM,
-  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[],
   payer: Keypair,
 ) {
   let transaction = new Transaction();
-  transaction.instructions = [instruction];
+  transaction.instructions = instructions;
   transaction.feePayer = payer.publicKey;
   transaction.recentBlockhash = svm.latestBlockhash();
 
@@ -107,7 +107,9 @@ let createSwigInstruction = Swig.create({
   actions: rootActions,
 });
 
-sendSVMTransaction(svm, createSwigInstruction, userRootKeypair);
+console.log("create ix:", Uint8Array.from(createSwigInstruction.data))
+
+sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
 
 //
 // * fetch swig
@@ -153,8 +155,6 @@ let signTransfer = await signInstruction(
   instOptions,
 );
 
-console.log('sign ix:', Uint8Array.from(signTransfer.data));
-
 sendSVMTransaction(svm, signTransfer, userAuthorityManagerKeypair);
 
 console.log('balance after first transfer:', svm.getBalance(swigAddress));
@@ -187,7 +187,7 @@ svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
 
 swig = fetchSwig(svm, swigAddress);
 
-console.log('balance before first transfer:', svm.getBalance(swigAddress));
+console.log('balance before second transfer:', svm.getBalance(swigAddress));
 
 //
 // * spend max sol permitted
@@ -207,4 +207,4 @@ signTransfer = await signInstruction(
 
 sendSVMTransaction(svm, signTransfer, userAuthorityManagerKeypair);
 
-console.log('balance after first transfer:', svm.getBalance(swigAddress));
+console.log('balance after second transfer:', svm.getBalance(swigAddress));
