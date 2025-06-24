@@ -377,7 +377,6 @@ export async function prepareSecp256r1Payload(
 
   // For secp256r1, use keccak directly (not sha256+keccak like secp256k1)
   const messageHash = keccak_256(message);
-
   // Note: For secp256r1, the signature is handled by the secp256r1 precompile instruction
   // The signingFn is called to trigger the signature creation, but we don't use the result here
   const {

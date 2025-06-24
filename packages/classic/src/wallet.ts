@@ -35,11 +35,15 @@ export function getEvmPersonalSignPrefix(messageLen: number): Uint8Array {
   return utf8ToBytes(`\x19Ethereum Signed Message:\n${messageLen}`);
 }
 
-export function getWebAuthnPrefix(
+export async function getWebAuthnPrefix(
   clientJson: Uint8Array,
   authData: Uint8Array,
-): Uint8Array {
-  const prefix = new Uint8Array(4 + clientJson.length + authData.length);
+): Promise<Uint8Array> {
+  // Compute SHA256 of clientDataJSON instead of sending the full JSON
+  const clientDataJsonHash = await crypto.subtle.digest('SHA-256', clientJson);
+  const clientDataJsonHashBytes = new Uint8Array(clientDataJsonHash);
+  
+  const prefix = new Uint8Array(4 + 32 + authData.length); // 32 bytes for SHA256 hash
 
   const authDataLen = new Uint8Array(2);
   const authDataLenView = new DataView(authDataLen.buffer);
@@ -47,7 +51,7 @@ export function getWebAuthnPrefix(
 
   prefix.set(authDataLen, 2);
   prefix.set(authData, 4);
-  prefix.set(clientJson, 4 + authData.length);
+  prefix.set(clientDataJsonHashBytes, 4 + authData.length);
 
   return prefix;
 }

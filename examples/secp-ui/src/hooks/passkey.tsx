@@ -224,7 +224,7 @@ export function useSwigTransferWithPasskey() {
           // Note: We need to return the WebAuthn message hash for the precompile to verify correctly
           return {
             signature: passkeySignature.signature,
-            prefix: getWebAuthnPrefix(
+            prefix: await getWebAuthnPrefix(
               new Uint8Array(passkeySignature.clientDataJSON),
               new Uint8Array(passkeySignature.authenticatorData),
             ),
