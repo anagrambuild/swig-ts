@@ -215,19 +215,31 @@ export function useSwigTransferWithPasskey() {
         authority,
         payerKeypair.publicKey,
         [payerKeypair],
-        async (message: Uint8Array) => {
+        async (message: Uint8Array, counter?: number) => {
+          if (counter === undefined) {
+            throw new Error('Counter is required for secp256r1 WebAuthn signatures');
+          }
+
           // Sign with passkey (this will trigger browser authentication)
           const passkeySignature =
-            await PasskeyManager.signWithPasskey(message);
+            await PasskeyManager.signWithPasskey(message, counter);
 
           // Return in the format expected by secp256r1 authority
           // Note: We need to return the WebAuthn message hash for the precompile to verify correctly
+          const prefix = await getWebAuthnPrefix(
+            new Uint8Array(passkeySignature.clientDataJSON),
+            new Uint8Array(passkeySignature.authenticatorData),
+            counter,
+          );
+          
+          console.log('Generated WebAuthn prefix for counter', counter, ':', {
+            length: prefix.length,
+            firstBytes: Array.from(prefix.slice(0, 50))
+          });
+          
           return {
             signature: passkeySignature.signature,
-            prefix: await getWebAuthnPrefix(
-              new Uint8Array(passkeySignature.clientDataJSON),
-              new Uint8Array(passkeySignature.authenticatorData),
-            ),
+            prefix,
             message: passkeySignature.webAuthnMessage, // The actual message WebAuthn signed
           };
         },

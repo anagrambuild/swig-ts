@@ -15,9 +15,23 @@ import {
   usePasskeySupport,
   useSwigTransferWithPasskey,
 } from '@/hooks/passkey';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { AuthorityType } from '@swig-wallet/classic';
+import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
+import { AuthorityType, signAndSend, getWebAuthnPrefix } from '@swig-wallet/classic';
 import { useState } from 'react';
+import { PasskeyManager } from '@/helpers/passkey';
+import { payerKeypair } from '@/helpers/solana';
+import { useConnection } from '@solana/wallet-adapter-react';
+import { toast } from 'sonner';
+import { GoToExplorer } from './GoToExplorer';
+
+// Interface for storing previous signature data
+interface StoredSignatureData {
+  signature: Uint8Array;
+  prefix: Uint8Array;
+  message: Uint8Array;
+  authority: any;
+  timestamp: number;
+}
 
 export function PasskeySwig() {
   const { isSupported } = usePasskeySupport();
@@ -27,15 +41,213 @@ export function PasskeySwig() {
   const { createSwigWithPasskey, isPending: isCreatingSwig } =
     useCreateSwigWithPasskey();
   const {
-    transferWithPasskey,
     isPending: isTransferring,
     swig,
   } = useSwigTransferWithPasskey();
   const { requestAirdropAsync } = useRequestAirdrop();
   const { swigBalance } = useSwigBalance();
   const { swigAddress } = useSwigAddres();
+  const { connection } = useConnection();
 
   const [username, setUsername] = useState('');
+  const [storedSignature, setStoredSignature] = useState<StoredSignatureData | null>(null);
+  const [isReplayTransferring, setIsReplayTransferring] = useState(false);
+
+  // Modified transfer function that stores signature data
+  const transferAndStoreSignature = async () => {
+    if (!credential) {
+      throw new Error('No passkey credential found');
+    }
+
+    if (!swig) {
+      throw new Error('Swig wallet not found. Please create one first.');
+    }
+
+    // Find the secp256r1 authority role
+    await swig.refetch(connection);
+    let authority: any | undefined;
+
+    // Look for secp256r1 authorities that match our passkey public key
+    for (const role of swig.roles) {
+      if (role.authority.type === AuthorityType.Secp256r1) {
+        const authorityData = role.authority.data;
+        if (authorityData.length >= 33) {
+          const authorityPublicKey = authorityData.slice(0, 33);
+
+          if (
+            authorityPublicKey.length === credential.publicKey.length &&
+            authorityPublicKey.every(
+              (byte: number, index: number) =>
+                byte === credential.publicKey[index],
+            )
+          ) {
+            authority = role.authority;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!authority) {
+      throw new Error(
+        'No matching secp256r1 authority found for this passkey',
+      );
+    }
+
+    let capturedSignatureData: StoredSignatureData | null = null;
+
+    const tx = await signAndSend(
+      connection,
+      [
+        SystemProgram.transfer({
+          lamports: 0.1 * LAMPORTS_PER_SOL,
+          fromPubkey: swigAddress!,
+          toPubkey: Keypair.generate().publicKey,
+        }),
+      ],
+      swigAddress!,
+      authority,
+      payerKeypair.publicKey,
+      [payerKeypair],
+      async (message: Uint8Array, counter?: number) => {
+        if (counter === undefined) {
+          throw new Error('Counter is required for secp256r1 WebAuthn signatures');
+        }
+
+        // Sign with passkey (this will trigger browser authentication)
+        const passkeySignature =
+          await PasskeyManager.signWithPasskey(message, counter);
+
+        // Get the prefix
+        const prefix = await getWebAuthnPrefix(
+          new Uint8Array(passkeySignature.clientDataJSON),
+          new Uint8Array(passkeySignature.authenticatorData),
+          counter,
+        );
+
+        // Store the signature data for potential replay
+        capturedSignatureData = {
+          signature: passkeySignature.signature,
+          prefix,
+          message: passkeySignature.webAuthnMessage,
+          authority,
+          timestamp: Date.now(),
+        };
+
+        // Return in the format expected by secp256r1 authority
+        return {
+          signature: passkeySignature.signature,
+          prefix,
+          message: passkeySignature.webAuthnMessage,
+        };
+      },
+    );
+
+    // Store the captured signature data
+    if (capturedSignatureData) {
+      setStoredSignature(capturedSignatureData);
+      toast.success('Signature data captured for replay test!');
+    }
+
+    return tx;
+  };
+
+  // Replay transfer function that reuses stored signature data
+  const replayTransfer = async () => {
+    if (!storedSignature) {
+      toast.error('No stored signature data found. Complete a transfer first.');
+      return;
+    }
+
+    if (!swig) {
+      throw new Error('Swig wallet not found.');
+    }
+
+    setIsReplayTransferring(true);
+
+    try {
+      // IMPORTANT: Refetch the swig state to get the updated authority with current counter
+      await swig.refetch(connection);
+      
+      // Find the CURRENT authority (with updated counter) 
+      let currentAuthority: any | undefined;
+      for (const role of swig.roles) {
+        if (role.authority.type === AuthorityType.Secp256r1) {
+          const authorityData = role.authority.data;
+          if (authorityData.length >= 33) {
+            const authorityPublicKey = authorityData.slice(0, 33);
+            if (
+              authorityPublicKey.length === credential!.publicKey.length &&
+              authorityPublicKey.every(
+                (byte: number, index: number) =>
+                  byte === credential!.publicKey[index],
+              )
+            ) {
+              currentAuthority = role.authority;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!currentAuthority) {
+        throw new Error('Current authority not found');
+      }
+
+      console.log('Stored authority counter:', storedSignature.authority.odometer?.());
+      console.log('Current authority counter:', currentAuthority.odometer?.());
+
+      // Attempt to use the stored signature data for a new transaction
+      const tx = await signAndSend(
+        connection,
+        [
+          SystemProgram.transfer({
+            lamports: 0.05 * LAMPORTS_PER_SOL, // Different amount to show it's a new transaction
+            fromPubkey: swigAddress!,
+            toPubkey: Keypair.generate().publicKey, // Different recipient
+          }),
+        ],
+        swigAddress!,
+        currentAuthority, // Use CURRENT authority (with updated counter)
+        payerKeypair.publicKey,
+        [payerKeypair],
+        async (message: Uint8Array, counter?: number) => {
+          // This should fail because we're reusing the old signature
+          // The counter will be different, but we're returning the old signature data
+          console.log('Attempting replay with stored signature data...');
+          console.log('New message:', Array.from(message));
+          console.log('Stored message:', Array.from(storedSignature.message));
+          console.log('Expected counter (from current authority):', counter);
+          console.log('Stored signature prefix length:', storedSignature.prefix?.length || 0);
+          console.log('Stored signature prefix (first 50 bytes):', storedSignature.prefix ? Array.from(storedSignature.prefix.slice(0, 50)) : 'NO PREFIX');
+          
+          // Return the OLD signature data (this should fail due to counter verification)
+          return {
+            signature: storedSignature.signature,
+            prefix: storedSignature.prefix,
+            message: storedSignature.message,
+          };
+        },
+      );
+
+      // If we get here, the replay attack succeeded (which would be bad!)
+      toast.error('🚨 SECURITY ISSUE: Signature replay attack succeeded!', {
+        action: <GoToExplorer tx={tx} />,
+        className: 'w-max',
+      });
+    } catch (error: any) {
+      // This is the expected behavior - the replay should fail
+      console.log('Replay attack failed (as expected):', error);
+      
+      if (error.message?.includes('0xbca') || error.message?.includes('3018')) {
+        toast.success('✅ Replay attack blocked! Counter verification working correctly.');
+      } else {
+        toast.success(`✅ Replay attack failed: ${error.message || error}`);
+      }
+    } finally {
+      setIsReplayTransferring(false);
+    }
+  };
 
   const lamports = swigBalance ?? 0;
   const sol = (lamports / LAMPORTS_PER_SOL).toFixed(2);
@@ -100,6 +312,14 @@ export function PasskeySwig() {
               : '❌ Passkey not authorized'}
           </CardDescription>
         )}
+
+        {storedSignature && (
+          <CardDescription className="text-sm text-blue-600">
+            🔐 Signature captured at {new Date(storedSignature.timestamp).toLocaleTimeString()}
+            <br />
+            Ready for replay attack test!
+          </CardDescription>
+        )}
       </CardContent>
 
       <CardFooter className="flex flex-col space-y-4">
@@ -144,11 +364,33 @@ export function PasskeySwig() {
             )}
 
             <Button
-              onClick={() => transferWithPasskey()}
-              disabled={hasMatchingAuthority && isTransferring}
+              onClick={async () => {
+                try {
+                  const tx = await transferAndStoreSignature();
+                  toast.success('Transfer completed with passkey authentication!', {
+                    action: <GoToExplorer tx={tx} />,
+                    className: 'w-max',
+                  });
+                } catch (error: any) {
+                  console.error('Transfer error:', error);
+                  toast.error(`Transfer failed: ${error.message || error}`);
+                }
+              }}
+              disabled={!hasMatchingAuthority || isTransferring}
             >
-              {isTransferring ? 'Transferring...' : 'Transfer 0.1 SOL'}
+              {isTransferring ? 'Transferring...' : 'Transfer 0.1 SOL & Store Signature'}
             </Button>
+
+            {storedSignature && (
+              <Button
+                onClick={replayTransfer}
+                disabled={isReplayTransferring}
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isReplayTransferring ? 'Attempting Replay...' : '🚨 Test Signature Replay Attack'}
+              </Button>
+            )}
           </div>
         )}
 
@@ -156,7 +398,9 @@ export function PasskeySwig() {
           {!hasCredential
             ? 'Create a passkey to get started with secure authentication'
             : hasMatchingAuthority
-              ? 'Ready to sign transactions with your passkey!'
+              ? storedSignature
+                ? 'Ready to test signature replay protection! Click the red button to attempt replay attack.'
+                : 'Ready to sign transactions with your passkey! The first transfer will store signature data for replay testing.'
               : 'Create a Swig wallet or add this passkey as an authority'}
         </CardDescription>
       </CardFooter>

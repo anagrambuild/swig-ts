@@ -379,11 +379,14 @@ export async function prepareSecp256r1Payload(
   const messageHash = keccak_256(message);
   // Note: For secp256r1, the signature is handled by the secp256r1 precompile instruction
   // The signingFn is called to trigger the signature creation, but we don't use the result here
+
+  // Counter is mandatory
+  const counter = options.odometer ?? 1;
   const {
     signature,
     prefix,
     message: msg,
-  } = await options.signingFn(messageHash);
+  } = await options.signingFn(messageHash, counter);
 
   const msgHash = msg ?? messageHash;
 

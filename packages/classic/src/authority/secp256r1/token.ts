@@ -84,9 +84,15 @@ export class Secp256r1Authority
   }
 
   odometer(): number {
-    // const bytes = this.data.slice(36)
-    const view = new DataView(this.data.buffer);
-    return view.getUint32(36, true) + 1;
+    // Check if we have the full authority data (40 bytes) or just the public key (33 bytes)
+    if (this.data.length >= 40) {
+      // Full authority data: 33 bytes pubkey + 3 bytes padding + 4 bytes odometer
+      const view = new DataView(this.data.buffer, this.data.byteOffset);
+      return view.getUint32(36, true) + 1;
+    } else {
+      // Only public key data - authority not yet initialized, start with counter 1
+      return 1;
+    }
   }
 
   create(args: { payer: PublicKey; id: Uint8Array; actions: Actions }) {

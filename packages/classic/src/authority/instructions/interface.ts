@@ -103,7 +103,10 @@ export interface AuthorityInstruction {
 /**
  * Signing interface that takes a message and returns a signature of the signed message
  */
-export type SigningFn = (message: Uint8Array) => Promise<SigningResult>;
+export type SigningFn = (
+  message: Uint8Array,
+  counter?: number,
+) => Promise<SigningResult>;
 
 /**
  * @property signature - Signature of the message

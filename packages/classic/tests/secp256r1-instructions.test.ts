@@ -58,9 +58,10 @@ describe('Secp256r1 Instructions', () => {
       ];
 
       // Mock signing function that returns a signature result
-      const mockSigningFn = async (message: Uint8Array) => {
+      const mockSigningFn = async (message: Uint8Array, counter?: number) => {
         expect(message).toBeInstanceOf(Uint8Array);
         expect(message.length).toBe(32); // Keccak hash should be 32 bytes
+        expect(counter).toBeDefined(); // Counter should be provided for secp256r1
 
         // Create a mock signature with secp256r1
         const signature = p256.sign(message, testPrivateKey);
@@ -112,9 +113,12 @@ describe('Secp256r1 Instructions', () => {
         },
       ];
 
-      const mockSigningFn = async () => ({
-        signature: new Uint8Array(64),
-      });
+      const mockSigningFn = async (message: Uint8Array, counter?: number) => {
+        expect(counter).toBeDefined(); // Counter should be provided for secp256r1
+        return {
+          signature: new Uint8Array(64),
+        };
+      };
 
       const options: InstructionDataOptions = {
         signingFn: mockSigningFn,
@@ -153,8 +157,9 @@ describe('Secp256r1 Instructions', () => {
       ];
 
       let capturedMessage: Uint8Array | null = null;
-      const mockSigningFn = async (message: Uint8Array) => {
+      const mockSigningFn = async (message: Uint8Array, counter?: number) => {
         capturedMessage = new Uint8Array(message);
+        expect(counter).toBeDefined(); // Counter should be provided for secp256r1
         return { signature: new Uint8Array(64) };
       };
 

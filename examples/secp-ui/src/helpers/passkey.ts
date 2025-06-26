@@ -121,15 +121,21 @@ export class PasskeyManager {
    */
   static async signWithPasskey(
     messageHash: Uint8Array,
+    counter: number,
   ): Promise<PasskeySignature & { webAuthnMessage: Uint8Array }> {
     const credential = this.getStoredCredential();
     if (!credential) {
       throw new Error('No passkey credential found. Please create one first.');
     }
 
-    // Use the message hash as the challenge for WebAuthn
-    // WebAuthn expects the challenge to be the actual data we want to sign
-    const challenge = messageHash.slice(0, 32); // Use first 32 bytes as challenge
+    // Create a challenge that includes the counter
+    // Embed the counter in the challenge to ensure it's signed by WebAuthn
+    const challenge = new Uint8Array(36); // 32 bytes message hash + 4 bytes counter
+    challenge.set(messageHash.slice(0, 32), 0);
+
+    // Add counter in little-endian format
+    const counterView = new DataView(challenge.buffer, 32, 4);
+    counterView.setUint32(0, counter, true);
 
     const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions =
       {
