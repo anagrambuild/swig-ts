@@ -40,7 +40,7 @@ export async function createSwig(
   payer: TransactionSigner,
   options?: { commitment?: Commitment },
 ): Promise<string> {
-  const createInstruction = Swig.create({
+  const createInstruction = await Swig.create({
     authorityInfo,
     payer: payer.address,
     id,
