@@ -7,4 +7,5 @@ export * from './role';
 export * from './rpc';
 export * from './swig';
 export * from './utils';
+export * from './utils/huffman';
 export * from './wallet';
