@@ -1,0 +1,18 @@
+{
+  "name": "kit-transfer",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tutorial-3": "bun run ./tutorial/tutorial-3.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "@solana/kit": "^2.1.0",
+    "@solana-program/system": "^0.7.0"
+  }
+}

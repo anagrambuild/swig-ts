@@ -142,6 +142,8 @@ export const Secp256k1Instruction: AuthorityInstruction = {
       signInstructionsAccount,
       data.innerInstructions as IInstruction[],
     );
+    // Deep clone metas to prevent mutation bugs
+    const metasCloned = metas.map((x) => ({ ...x })) as typeof metas;
     const { roleId } = data;
 
     const encodedCompactInstructions = getArrayEncoder(
@@ -153,11 +155,11 @@ export const Secp256k1Instruction: AuthorityInstruction = {
 
     const authorityPayload = await prepareSecpPayload(
       Uint8Array.from(encodedCompactInstructions),
-      metas,
+      metasCloned,
       options,
     );
 
-    return SwigInstructionV1.sign(metas, {
+    return SwigInstructionV1.sign(metasCloned, {
       roleId,
       authorityPayload,
       compactInstructions: compactIxs,
@@ -231,6 +233,8 @@ export const Secp256k1Instruction: AuthorityInstruction = {
       data.innerInstructions as IInstruction[],
       accounts.subAccount,
     );
+    // Deep clone metas to prevent mutation bugs
+    const metasCloned2 = metas.map((x) => ({ ...x })) as typeof metas;
     const { roleId } = data;
 
     const encodedCompactInstructions = getArrayEncoder(
@@ -240,15 +244,15 @@ export const Secp256k1Instruction: AuthorityInstruction = {
       },
     ).encode(compactIxs);
 
-    const authorityPayload = await prepareSecpPayload(
+    const authorityPayload2 = await prepareSecpPayload(
       Uint8Array.from(encodedCompactInstructions),
-      metas,
+      metasCloned2,
       options,
     );
 
-    return SwigInstructionV1.subAccountSign(metas, {
+    return SwigInstructionV1.subAccountSign(metasCloned2, {
       roleId,
-      authorityPayload,
+      authorityPayload: authorityPayload2,
       compactInstructions: compactIxs,
     });
   },

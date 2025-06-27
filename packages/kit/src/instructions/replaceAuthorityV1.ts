@@ -15,20 +15,38 @@ export type ReplaceAuthorityV1BaseAccountMetas = [
 export function getReplaceAuthorityV1BaseAccountMetas(
   accounts: ReplaceAuthorityV1InstructionAccounts,
 ): ReplaceAuthorityV1BaseAccountMetas {
-  return [
-    {
-      address: accounts.swig,
-      role: AccountRole.WRITABLE,
-    },
-    {
-      address: accounts.payer,
-      role: AccountRole.WRITABLE_SIGNER,
-    },
-    {
-      address: SYSTEM_PROGRAM_ADDRESS,
-      role: AccountRole.READONLY,
-    },
+  const metas = [
+    { address: accounts.swig, role: AccountRole.READONLY },
+    { address: SYSTEM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
+    { address: accounts.payer, role: AccountRole.READONLY_SIGNER },
   ];
+  metas.forEach((meta, i) => {
+    if (
+      !meta.address ||
+      meta.address === 'undefined' ||
+      (typeof meta.address === 'string' && meta.address.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] replaceAuthorityV1.ts: meta.address is undefined:',
+        meta,
+        'at index',
+        i,
+        'accounts:',
+        accounts,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] replaceAuthorityV1.ts: meta.address is undefined: ' +
+          JSON.stringify(meta) +
+          ' at index ' +
+          i +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
+  });
+  return metas as ReplaceAuthorityV1BaseAccountMetas;
 }
 
 export type ReplaceAuthorityV1BaseAccountMetasWithAuthority = [

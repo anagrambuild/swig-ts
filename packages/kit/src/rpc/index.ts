@@ -40,12 +40,39 @@ export async function createSwig(
   payer: TransactionSigner,
   options?: { commitment?: Commitment },
 ): Promise<string> {
+  console.log('[debug][kit-createSwig-impl] args:', {
+    id,
+    authorityInfo,
+    actions,
+    payer,
+    payerAddress: payer.address,
+    payerType: typeof payer.address,
+  });
   const createInstruction = await Swig.create({
     authorityInfo,
     payer: payer.address,
     id,
     actions,
   });
+  // Log and guard all keys/addresses in the instruction
+  if (createInstruction && Array.isArray(createInstruction.accounts)) {
+    createInstruction.accounts.forEach((meta, i) => {
+      const m = meta as { address: string };
+      console.log(
+        `[kit][debug] createSwig instruction meta.address [${i}]:`,
+        m.address,
+      );
+      if (
+        !m.address ||
+        m.address === 'undefined' ||
+        (typeof m.address === 'string' && m.address.length < 32)
+      ) {
+        throw new Error(
+          `[kit][guard] Invalid address in createSwig instruction: ${m.address}`,
+        );
+      }
+    });
+  }
   const signedTransaction = await createLegacyTransaction(
     rpc,
     [createInstruction],

@@ -44,6 +44,17 @@ export async function createSwigInstruction(
   data: Omit<CreateV1InstructionDataArgs, 'bump'>,
 ): Promise<IInstruction> {
   const [swigAddress, bump] = await findSwigPda(Uint8Array.from(data.id));
+  [swigAddress, accounts.payer].forEach((address) => {
+    if (
+      !address ||
+      address === 'undefined' ||
+      (typeof address === 'string' && address.length < 32)
+    ) {
+      throw new Error(
+        `[kit][guard] Invalid address in createSwigInstruction: ${address}`,
+      );
+    }
+  });
   const createIxAccountMetas = getCreateV1BaseAccountMetas({
     ...accounts,
     swig: swigAddress,
@@ -67,6 +78,17 @@ export class SwigInstructionV1 {
     accounts: T,
     data: CreateV1InstructionDataArgs,
   ): IInstruction {
+    accounts.forEach((meta) => {
+      if (
+        !meta.address ||
+        meta.address === 'undefined' ||
+        (typeof meta.address === 'string' && meta.address.length < 32)
+      ) {
+        throw new Error(
+          `[kit][guard] Invalid meta address in SwigInstructionV1.create: ${meta.address}`,
+        );
+      }
+    });
     const createV1InstructionDataEncoder =
       getCreateV1InstructionDataCodec().encoder;
 
@@ -140,13 +162,62 @@ export class SwigInstructionV1 {
       ...{ address: Address; role: AccountRole }[],
     ],
   >(accounts: T, data: SignV1InstructionDataArgs): IInstruction {
+    // Deep clone and guard
+    const cloned = accounts.map((x) => ({ ...x })) as T;
+    cloned.forEach((meta, i) => {
+      if (
+        !meta.address ||
+        meta.address === 'undefined' ||
+        (typeof meta.address === 'string' && meta.address.length < 32)
+      ) {
+        console.error(
+          '[kit][FATAL] SwigInstructionV1.sign: meta.address is undefined:',
+          meta,
+          'at index',
+          i,
+          'stack:',
+          new Error().stack,
+        );
+        throw new Error(
+          '[kit][FATAL] SwigInstructionV1.sign: meta.address is undefined: ' +
+            JSON.stringify(meta) +
+            ' at index ' +
+            i +
+            ' stack: ' +
+            new Error().stack,
+        );
+      }
+    });
     const signV1InstructionDataEncoder = getSignV1InstructionCodec(
       data.authorityPayload.length,
     ).encoder;
-
     const signV1InstructionData = signV1InstructionDataEncoder.encode(data);
-
-    return swigInstruction(accounts, new Uint8Array(signV1InstructionData));
+    // Temporary workaround: filter out invalid metas
+    const filtered = cloned.filter(
+      (meta) =>
+        meta.address &&
+        meta.address !== 'undefined' &&
+        (typeof meta.address !== 'string' || meta.address.length >= 32),
+    );
+    if (filtered.length !== cloned.length) {
+      console.warn(
+        '[kit][WARN] SwigInstructionV1.sign: filtered out invalid metas:',
+        cloned.filter(
+          (meta) =>
+            !meta.address ||
+            meta.address === 'undefined' ||
+            (typeof meta.address === 'string' && meta.address.length < 32),
+        ),
+      );
+    }
+    console.log(
+      '[kit][FINAL] SwigInstructionV1.sign: passing metas to SDK:',
+      JSON.stringify(filtered),
+    );
+    return swigInstruction(
+      filtered as T,
+      new Uint8Array(signV1InstructionData),
+    );
   }
 
   static createSession<
@@ -191,11 +262,57 @@ export class SwigInstructionV1 {
       ...{ address: Address; role: AccountRole }[],
     ],
   >(accounts: T, data: SubAccountSignV1InstructionDataArgs): IInstruction {
+    // Deep clone and guard
+    const cloned = accounts.map((x) => ({ ...x })) as T;
+    cloned.forEach((meta, i) => {
+      if (
+        !meta.address ||
+        meta.address === 'undefined' ||
+        (typeof meta.address === 'string' && meta.address.length < 32)
+      ) {
+        console.error(
+          '[kit][FATAL] SwigInstructionV1.subAccountSign: meta.address is undefined:',
+          meta,
+          'at index',
+          i,
+          'stack:',
+          new Error().stack,
+        );
+        throw new Error(
+          '[kit][FATAL] SwigInstructionV1.subAccountSign: meta.address is undefined: ' +
+            JSON.stringify(meta) +
+            ' at index ' +
+            i +
+            ' stack: ' +
+            new Error().stack,
+        );
+      }
+    });
     const encoder = getSubAccountSignV1InstructionDataCodec().encoder;
-
     const instructionData = encoder.encode(data);
-
-    return swigInstruction(accounts, new Uint8Array(instructionData));
+    // Temporary workaround: filter out invalid metas
+    const filtered2 = cloned.filter(
+      (meta) =>
+        meta.address &&
+        meta.address !== 'undefined' &&
+        (typeof meta.address !== 'string' || meta.address.length >= 32),
+    );
+    if (filtered2.length !== cloned.length) {
+      console.warn(
+        '[kit][WARN] SwigInstructionV1.subAccountSign: filtered out invalid metas:',
+        cloned.filter(
+          (meta) =>
+            !meta.address ||
+            meta.address === 'undefined' ||
+            (typeof meta.address === 'string' && meta.address.length < 32),
+        ),
+      );
+    }
+    console.log(
+      '[kit][FINAL] SwigInstructionV1.subAccountSign: passing metas to SDK:',
+      JSON.stringify(filtered2),
+    );
+    return swigInstruction(filtered2 as T, new Uint8Array(instructionData));
   }
 
   static subAccountWithdraw<

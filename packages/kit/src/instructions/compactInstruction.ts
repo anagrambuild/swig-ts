@@ -21,12 +21,56 @@ export function compactInstructions<
   subAccount?: Address,
 ): { accounts: T; compactIxs: CompactInstruction[] } {
   const compactIxs: CompactInstruction[] = [];
+
+  // Guard all addresses before using as keys in the hashmap
+  accounts.forEach((x, i) => {
+    if (
+      !x.address ||
+      x.address === 'undefined' ||
+      (typeof x.address === 'string' && x.address.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] compactInstructions: accounts meta.address is undefined:',
+        x,
+        'at index',
+        i,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] compactInstructions: accounts meta.address is undefined: ' +
+          JSON.stringify(x) +
+          ' at index ' +
+          i +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
+  });
   const hashmap = new Map<string, number>(
     accounts.map((x, i) => [x.address, i]),
   );
 
   for (const ix of innerInstructions) {
     const programIdIndex = accounts.length;
+    if (
+      !ix.programAddress ||
+      ix.programAddress === 'undefined' ||
+      (typeof ix.programAddress === 'string' && ix.programAddress.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] compactInstructions: programAddress is undefined:',
+        ix,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] compactInstructions: programAddress is undefined: ' +
+          JSON.stringify(ix) +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
     accounts.push({
       address: ix.programAddress,
       role: AccountRole.READONLY,
@@ -34,6 +78,24 @@ export function compactInstructions<
 
     const accts: number[] = [];
     for (const ixAccount of ix.accounts ?? []) {
+      if (
+        !ixAccount.address ||
+        ixAccount.address === 'undefined' ||
+        (typeof ixAccount.address === 'string' && ixAccount.address.length < 32)
+      ) {
+        console.error(
+          '[kit][FATAL] compactInstructions: ixAccount.address is undefined:',
+          ixAccount,
+          'stack:',
+          new Error().stack,
+        );
+        throw new Error(
+          '[kit][FATAL] compactInstructions: ixAccount.address is undefined: ' +
+            JSON.stringify(ixAccount) +
+            ' stack: ' +
+            new Error().stack,
+        );
+      }
       if (
         ixAccount.address === swigAccount ||
         (subAccount && ixAccount.address === subAccount)
@@ -47,6 +109,26 @@ export function compactInstructions<
         accts.push(accountIndex);
       } else {
         const idx = accounts.length;
+        // Guard before using ixAccount.address as a key
+        if (
+          !ixAccount.address ||
+          ixAccount.address === 'undefined' ||
+          (typeof ixAccount.address === 'string' &&
+            ixAccount.address.length < 32)
+        ) {
+          console.error(
+            '[kit][FATAL] compactInstructions: ixAccount.address is undefined (hashmap set):',
+            ixAccount,
+            'stack:',
+            new Error().stack,
+          );
+          throw new Error(
+            '[kit][FATAL] compactInstructions: ixAccount.address is undefined (hashmap set): ' +
+              JSON.stringify(ixAccount) +
+              ' stack: ' +
+              new Error().stack,
+          );
+        }
         hashmap.set(ixAccount.address, idx);
         accounts.push(ixAccount as T[number]);
         accts.push(idx);

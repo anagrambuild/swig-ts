@@ -116,13 +116,13 @@ export class Swig {
    * @param args.id Swig ID
    * @returns Instruction for creating a Swig
    */
-  static create(args: {
+  static async create(args: {
     payer: Address;
     id: Uint8Array;
     actions: Actions;
     authorityInfo: CreateAuthorityInfo;
   }) {
-    return createSwigInstruction(
+    return await createSwigInstruction(
       { payer: args.payer },
       {
         id: args.id,

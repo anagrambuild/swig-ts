@@ -35,50 +35,84 @@ export type SubAccountWithdrawV1TokenAccountMetas = [
 export function getSubAccountWithdrawV1SolAccountMetas(
   accounts: SubAccountWithdrawV1SolInstructionAccounts,
 ): SubAccountWithdrawV1SolAccountMetas {
-  return [
-    {
-      address: accounts.swig,
-      role: AccountRole.READONLY,
-    },
-    {
-      address: accounts.payer,
-      role: AccountRole.READONLY_SIGNER,
-    },
-    {
-      address: accounts.subAccount,
-      role: AccountRole.WRITABLE,
-    },
+  const metas = [
+    { address: accounts.swig, role: AccountRole.READONLY },
+    { address: accounts.payer, role: AccountRole.READONLY_SIGNER },
+    { address: accounts.subAccount, role: AccountRole.WRITABLE },
   ];
+  metas.forEach((meta, i) => {
+    if (
+      !meta.address ||
+      meta.address === 'undefined' ||
+      (typeof meta.address === 'string' && meta.address.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] subAccountWithdrawV1.ts: meta.address is undefined:',
+        meta,
+        'at index',
+        i,
+        'accounts:',
+        accounts,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] subAccountWithdrawV1.ts: meta.address is undefined: ' +
+          JSON.stringify(meta) +
+          ' at index ' +
+          i +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
+  });
+  return metas as [(typeof metas)[0], (typeof metas)[1], (typeof metas)[2]];
 }
 
 export function getSubAccountWithdrawV1TokenAccountMetas(
   accounts: SubAccountWithdrawV1TokenInstructionAccounts,
 ): SubAccountWithdrawV1TokenAccountMetas {
-  return [
-    {
-      address: accounts.swig,
-      role: AccountRole.READONLY,
-    },
-    {
-      address: accounts.payer,
-      role: AccountRole.READONLY_SIGNER,
-    },
-    {
-      address: accounts.subAccount,
-      role: AccountRole.WRITABLE,
-    },
-    {
-      address: accounts.subAccountToken,
-      role: AccountRole.WRITABLE,
-    },
-    {
-      address: accounts.swigToken,
-      role: AccountRole.WRITABLE,
-    },
-    {
-      address: accounts.tokenProgram,
-      role: AccountRole.READONLY,
-    },
+  const metas = [
+    { address: accounts.swig, role: AccountRole.READONLY },
+    { address: accounts.payer, role: AccountRole.READONLY_SIGNER },
+    { address: accounts.subAccount, role: AccountRole.WRITABLE },
+    { address: accounts.subAccountToken, role: AccountRole.WRITABLE },
+    { address: accounts.swigToken, role: AccountRole.WRITABLE },
+    { address: accounts.tokenProgram, role: AccountRole.READONLY },
+  ];
+  metas.forEach((meta, i) => {
+    if (
+      !meta.address ||
+      meta.address === 'undefined' ||
+      (typeof meta.address === 'string' && meta.address.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] subAccountWithdrawV1.ts: meta.address is undefined:',
+        meta,
+        'at index',
+        i,
+        'accounts:',
+        accounts,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] subAccountWithdrawV1.ts: meta.address is undefined: ' +
+          JSON.stringify(meta) +
+          ' at index ' +
+          i +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
+  });
+  return metas as [
+    (typeof metas)[0],
+    (typeof metas)[1],
+    (typeof metas)[2],
+    (typeof metas)[3],
+    (typeof metas)[4],
+    (typeof metas)[5],
   ];
 }
 
@@ -101,6 +135,32 @@ export function getSubAccountWithdrawV1SolAccountMetasWithAuthority(
       role: AccountRole.READONLY_SIGNER,
     },
   ];
+  metas.forEach((meta, i) => {
+    if (
+      !meta.address ||
+      meta.address === 'undefined' ||
+      (typeof meta.address === 'string' && meta.address.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] subAccountWithdrawV1.ts: meta.address is undefined:',
+        meta,
+        'at index',
+        i,
+        'accounts:',
+        accounts,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] subAccountWithdrawV1.ts: meta.address is undefined: ' +
+          JSON.stringify(meta) +
+          ' at index ' +
+          i +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
+  });
   return [metas, authorityIndex];
 }
 
@@ -128,5 +188,31 @@ export function getSubAccountWithdrawV1TokenAccountMetasWithAuthority(
     accountMetas[4], // swigToken
     accountMetas[5], // tokenProgram
   ];
+  metas.forEach((meta, i) => {
+    if (
+      !meta.address ||
+      meta.address === 'undefined' ||
+      (typeof meta.address === 'string' && meta.address.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] subAccountWithdrawV1.ts: meta.address is undefined:',
+        meta,
+        'at index',
+        i,
+        'accounts:',
+        accounts,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] subAccountWithdrawV1.ts: meta.address is undefined: ' +
+          JSON.stringify(meta) +
+          ' at index ' +
+          i +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
+  });
   return [metas, authorityIndex];
 }

@@ -14,16 +14,37 @@ export type CreateSessionV1BaseAccountMetas = [
 export function getCreateSessionV1BaseAccountMetas(
   accounts: CreateSessionV1InstructionAccounts,
 ): CreateSessionV1BaseAccountMetas {
-  return [
-    {
-      address: accounts.swig,
-      role: AccountRole.WRITABLE,
-    },
-    {
-      address: accounts.payer,
-      role: AccountRole.WRITABLE_SIGNER,
-    },
+  const metas = [
+    { address: accounts.swig, role: AccountRole.READONLY },
+    { address: accounts.payer, role: AccountRole.READONLY_SIGNER },
   ];
+  metas.forEach((meta, i) => {
+    if (
+      !meta.address ||
+      meta.address === 'undefined' ||
+      (typeof meta.address === 'string' && meta.address.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] createSessionV1.ts: meta.address is undefined:',
+        meta,
+        'at index',
+        i,
+        'accounts:',
+        accounts,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] createSessionV1.ts: meta.address is undefined: ' +
+          JSON.stringify(meta) +
+          ' at index ' +
+          i +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
+  });
+  return metas as [(typeof metas)[0], (typeof metas)[1]];
 }
 
 export type CreateSessionV1BaseAccountMetasWithAuthority = [
@@ -45,6 +66,32 @@ export function getCreateSessionV1BaseAccountMetasWithAuthority(
       role: AccountRole.READONLY_SIGNER,
     },
   ];
+  metas.forEach((meta, i) => {
+    if (
+      !meta.address ||
+      meta.address === 'undefined' ||
+      (typeof meta.address === 'string' && meta.address.length < 32)
+    ) {
+      console.error(
+        '[kit][FATAL] createSessionV1.ts: meta.address is undefined:',
+        meta,
+        'at index',
+        i,
+        'accounts:',
+        accounts,
+        'stack:',
+        new Error().stack,
+      );
+      throw new Error(
+        '[kit][FATAL] createSessionV1.ts: meta.address is undefined: ' +
+          JSON.stringify(meta) +
+          ' at index ' +
+          i +
+          ' stack: ' +
+          new Error().stack,
+      );
+    }
+  });
   return [metas, authorityIndex];
 }
 
