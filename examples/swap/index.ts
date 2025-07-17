@@ -1,73 +1,83 @@
-import { Connection, Keypair, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, sendAndConfirmTransaction, TransactionInstruction, TransactionMessage, VersionedTransaction, ComputeBudgetProgram, SendTransactionError } from '@solana/web3.js';
+import {
+  ComputeBudgetProgram,
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  sendAndConfirmTransaction,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js';
+
 import {
   Actions,
-  createSwig,
-  Ed25519Authority,
-  findSwigPda,
-  signInstruction,
-  Swig,
+  createEd25519AuthorityInfo,
   fetchSwig,
+  findSwigPda,
+  getCreateSwigInstruction,
+  getSignInstructions,
+  Swig,
 } from '@swig-wallet/classic';
-import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token';
-import chalk from 'chalk';
+
+import {
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+  getAssociatedTokenAddress,
+} from '@solana/spl-token';
+
 import { createJupiterApiClient } from '@jup-ag/api';
+import chalk from 'chalk';
 import * as fs from 'fs';
 
-// Helper to format numbers with commas
-const formatNumber = (n: number) => {
-  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-};
+function formatNumber(n: number) {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
-// Helper to convert instruction to TransactionInstruction
-const toTransactionInstruction = (instruction: any): TransactionInstruction => {
+function toTransactionInstruction(instruction: any): TransactionInstruction {
   return new TransactionInstruction({
     programId: new PublicKey(instruction.programId),
-    keys: instruction.accounts.map((key: any) => ({
-      pubkey: new PublicKey(key.pubkey),
-      isSigner: key.isSigner,
-      isWritable: key.isWritable,
+    keys: instruction.accounts.map((k: any) => ({
+      pubkey: new PublicKey(k.pubkey),
+      isSigner: k.isSigner,
+      isWritable: k.isWritable,
     })),
     data: Buffer.from(instruction.data, 'base64'),
   });
-};
+}
 
-async function createSwigAccount(
+function randomBytes(length: number): Uint8Array {
+  const randomArray = new Uint8Array(length);
+  crypto.getRandomValues(randomArray);
+  return randomArray;
+}
+
+async function sendTransaction(
   connection: Connection,
-  user: Keypair,
-) {
-  try {
-    const id = new Uint8Array(32);
-    crypto.getRandomValues(id);
-    const [swigAddress] = findSwigPda(id);
-    const rootAuthority = Ed25519Authority.fromPublicKey(user.publicKey);
-    // Create with all permissions
-    const rootActions = Actions.set().all().get();
-    const tx = await createSwig(
-      connection,
-      id,
-      rootAuthority,
-      rootActions,
-      user.publicKey,
-      [user]
-    );
-
-    console.log(chalk.green("✓ Swig account created at:"), chalk.cyan(swigAddress.toBase58()));
-    return swigAddress;
-  } catch (error) {
-    console.error(chalk.red("✗ Error creating Swig account:"), chalk.red(error));
-    throw error;
-  }
+  instructions: TransactionInstruction[],
+  payer: Keypair,
+): Promise<string> {
+  const tx = new Transaction().add(...instructions);
+  tx.feePayer = payer.publicKey;
+  tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  tx.sign(payer);
+  const sig = await connection.sendRawTransaction(tx.serialize());
+  await connection.confirmTransaction(sig);
+  return sig;
 }
 
 async function main() {
   // Check for keypair file argument
   if (process.argv.length < 3) {
     console.error(chalk.red('Please provide the path to your keypair file'));
-    console.error(chalk.yellow('Usage: bun run index.ts <path-to-keypair> [swig-address]'));
+    console.error(
+      chalk.yellow('Usage: bun run index.ts <path-to-keypair> [swig-address]'),
+    );
     process.exit(1);
   }
 
-  // Load keypair from file
   const keypairPath = process.argv[2];
   if (!fs.existsSync(keypairPath)) {
     console.error(chalk.red(`Keypair file not found at ${keypairPath}`));
@@ -75,244 +85,229 @@ async function main() {
   }
 
   const rootUser = Keypair.fromSecretKey(
-    new Uint8Array(JSON.parse(fs.readFileSync(keypairPath, 'utf-8')))
+    new Uint8Array(JSON.parse(fs.readFileSync(keypairPath, 'utf-8'))),
   );
 
-  console.log(chalk.red('🚨 This example must be run on mainnet'));
-  // Initialize connection
-  const connection = new Connection(process.env.RPC_URL!, 'confirmed');
-  console.log(chalk.cyan('🌐 Connected to Solana mainnet'));
-  console.log(chalk.green("👤 Root user public key:"), chalk.cyan(rootUser.publicKey.toBase58()));
-
-  // Check root user balance
-  const balance = await connection.getBalance(rootUser.publicKey);
-  if (balance < 0.02 * LAMPORTS_PER_SOL) {
-    console.error(chalk.red('Root user has insufficient SOL. Need at least 0.02 SOL for fees and transfer.'));
+  const rpcUrl = process.env.RPC_URL;
+  if (!rpcUrl) {
+    console.error(chalk.red('Please set RPC_URL in your environment.'));
     process.exit(1);
   }
-  console.log(chalk.blue(`💰 Root user balance: ${balance / LAMPORTS_PER_SOL} SOL`));
 
-  // Get or create Swig account
+  const connection = new Connection(rpcUrl, 'confirmed');
+  console.log(chalk.cyan(`🌐 Connected to Solana RPC: ${rpcUrl}`));
+  console.log(
+    chalk.green('👤 Root user public key:'),
+    chalk.cyan(rootUser.publicKey.toBase58()),
+  );
+
+  const balance = await connection.getBalance(rootUser.publicKey);
+  if (balance < 0.02 * LAMPORTS_PER_SOL) {
+    console.error(chalk.red('❌ Insufficient SOL. Need at least 0.02 SOL.'));
+    process.exit(1);
+  }
+  console.log(
+    chalk.blue(
+      `💰 Root user balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`,
+    ),
+  );
+
   let swigAddress: PublicKey;
-  if (process.argv[3]) {
-    // Use existing Swig account
-    try {
-      swigAddress = new PublicKey(process.argv[3]);
-      console.log(chalk.yellow("\n📝 Using existing Swig account:"), chalk.cyan(swigAddress.toBase58()));
+  let swig: Swig;
 
-      // Verify the Swig account exists and root user has authority
-      const swig = await fetchSwig(connection, swigAddress);
-      const rootRole = swig.findRolesByEd25519SignerPk(rootUser.publicKey)[0];
-      if (!rootRole) {
-        throw new Error('Root user does not have authority over this Swig account');
-      }
-    } catch (error) {
-      console.error(chalk.red("Error verifying Swig account:"), error);
+  if (process.argv[3]) {
+    swigAddress = new PublicKey(process.argv[3]);
+    console.log(
+      chalk.yellow('📝 Using existing Swig account:'),
+      chalk.cyan(swigAddress.toBase58()),
+    );
+    swig = await fetchSwig(connection, swigAddress);
+
+    const rootRole = swig.findRolesByEd25519SignerPk(rootUser.publicKey)[0];
+    if (!rootRole) {
+      console.error(
+        chalk.red(
+          '❌ Root user does not have authority over this Swig account',
+        ),
+      );
       process.exit(1);
     }
   } else {
-    // Create new Swig account
-    console.log(chalk.yellow("\n📝 Creating new Swig account..."));
-    swigAddress = await createSwigAccount(connection, rootUser);
+    const id = randomBytes(32);
+    swigAddress = findSwigPda(id);
+    const rootActions = Actions.set().all().get();
+
+    const createIx = await getCreateSwigInstruction({
+      payer: rootUser.publicKey,
+      actions: rootActions,
+      authorityInfo: createEd25519AuthorityInfo(rootUser.publicKey),
+      id,
+    });
+
+    await sendTransaction(connection, [createIx], rootUser);
+    swig = await fetchSwig(connection, swigAddress);
+    console.log(
+      chalk.green('✓ Swig account created at:'),
+      chalk.cyan(swigAddress.toBase58()),
+    );
   }
 
-  // Example: Swap SOL to USDC
-  const usdcMint = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
-  const wrappedSolMint = new PublicKey('So11111111111111111111111111111111111111112');
+  const usdcMint = new PublicKey(
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  );
+  const wrappedSolMint = new PublicKey(
+    'So11111111111111111111111111111111111111112',
+  );
 
-  // Check if Swig has USDC ATA
-  const swigUsdcAta = await getAssociatedTokenAddress(usdcMint, swigAddress, true);
-  let createAtaIx: TransactionInstruction | null = null;
-
+  const swigUsdcAta = await getAssociatedTokenAddress(
+    usdcMint,
+    swigAddress,
+    true,
+  );
   try {
     await getAccount(connection, swigUsdcAta);
-    console.log(chalk.green("✓ USDC token account exists:"), chalk.cyan(swigUsdcAta.toBase58()));
-  } catch (error) {
-    console.log(chalk.yellow("⚠️  Creating USDC token account for Swig..."));
-    createAtaIx = createAssociatedTokenAccountInstruction(
+    console.log(
+      chalk.green('✓ USDC ATA exists:'),
+      chalk.cyan(swigUsdcAta.toBase58()),
+    );
+  } catch {
+    const createAtaIx = createAssociatedTokenAccountInstruction(
       rootUser.publicKey,
       swigUsdcAta,
       swigAddress,
-      usdcMint
+      usdcMint,
     );
-
-    // Create ATA
-    const createAtaTx = new Transaction().add(createAtaIx);
-    await sendAndConfirmTransaction(connection, createAtaTx, [rootUser]);
-    console.log(chalk.green("✓ Created USDC token account:"), chalk.cyan(swigUsdcAta.toBase58()));
+    await sendTransaction(connection, [createAtaIx], rootUser);
+    console.log(
+      chalk.green('✓ Created USDC ATA:'),
+      chalk.cyan(swigUsdcAta.toBase58()),
+    );
   }
 
-  // Check if Swig has Wrapped SOL ATA
-  const swigWrappedSolAta = await getAssociatedTokenAddress(wrappedSolMint, swigAddress, true);
-  let createWrappedSolAtaIx: TransactionInstruction | null = null;
-
+  const swigWrappedSolAta = await getAssociatedTokenAddress(
+    wrappedSolMint,
+    swigAddress,
+    true,
+  );
   try {
     await getAccount(connection, swigWrappedSolAta);
-    console.log(chalk.green("✓ Wrapped SOL token account exists:"), chalk.cyan(swigWrappedSolAta.toBase58()));
-  } catch (error) {
-    console.log(chalk.yellow("⚠️  Creating Wrapped SOL token account for Swig..."));
-    createWrappedSolAtaIx = createAssociatedTokenAccountInstruction(
+    console.log(
+      chalk.green('✓ Wrapped SOL ATA exists:'),
+      chalk.cyan(swigWrappedSolAta.toBase58()),
+    );
+  } catch {
+    const createAtaIx = createAssociatedTokenAccountInstruction(
       rootUser.publicKey,
       swigWrappedSolAta,
       swigAddress,
-      wrappedSolMint
+      wrappedSolMint,
     );
-
-    // Create ATA
-    const createAtaTx = new Transaction().add(createWrappedSolAtaIx);
-    await sendAndConfirmTransaction(connection, createAtaTx, [rootUser]);
-    console.log(chalk.green("✓ Created Wrapped SOL token account:"), chalk.cyan(swigWrappedSolAta.toBase58()));
+    await sendTransaction(connection, [createAtaIx], rootUser);
+    console.log(
+      chalk.green('✓ Created Wrapped SOL ATA:'),
+      chalk.cyan(swigWrappedSolAta.toBase58()),
+    );
   }
 
-  // Transfer 0.01 SOL to the Swig account
-  console.log(chalk.yellow("\n💸 Transferring 0.01 SOL to Swig..."));
   const transferAmount = 0.01 * LAMPORTS_PER_SOL;
   const transferTx = new Transaction().add(
     SystemProgram.transfer({
       fromPubkey: rootUser.publicKey,
       toPubkey: swigAddress,
       lamports: transferAmount,
-    })
+    }),
   );
   await sendAndConfirmTransaction(connection, transferTx, [rootUser]);
-  console.log(chalk.green("✓ Transferred 0.01 SOL to Swig"));
+  console.log(chalk.green('✓ Transferred 0.01 SOL to Swig'));
 
-  // Initialize Jupiter API client
-  const jupiterQuoteApi = createJupiterApiClient();
-  console.log(chalk.magenta('🚀 Jupiter API initialized'));
-
-  // Example: Swap SOL to USDC
-
-  // Get quote
-  const quoteResponse = await jupiterQuoteApi.quoteGet({
-    inputMint: "So11111111111111111111111111111111111111112", // SOL
-    outputMint: usdcMint.toBase58(), // USDC
-    amount: Math.floor(transferAmount), // 0.01 SOL in lamports
-    slippageBps: 50, // 0.5%
+  const jupiter = createJupiterApiClient();
+  const quote = await jupiter.quoteGet({
+    inputMint: wrappedSolMint.toBase58(),
+    outputMint: usdcMint.toBase58(),
+    amount: Math.floor(transferAmount),
+    slippageBps: 50,
     maxAccounts: 64,
   });
 
-  if (!quoteResponse) {
+  if (!quote) {
     console.log(chalk.red('❌ No quote available'));
     return;
   }
 
-  // Get best route
-  console.log(chalk.blue('📊 Quote found:'));
-  console.log(chalk.gray(`   Input: ${formatNumber(Number(quoteResponse.inAmount))} lamports`));
-  console.log(chalk.gray(`   Output: ${formatNumber(Number(quoteResponse.outAmount))} USDC (in smallest units)`));
+  console.log(chalk.blue('📊 Quote received:'));
+  console.log(`   Input: ${formatNumber(Number(quote.inAmount))} lamports`);
+  console.log(`   Output: ${formatNumber(Number(quote.outAmount))} USDC (raw)`);
 
-  // Execute swap
-  try {
-    // Get swap instructions
-    const swapInstructions = await jupiterQuoteApi.swapInstructionsPost({
-      swapRequest: {
-        quoteResponse,
-        userPublicKey: swigAddress.toBase58(),
-        wrapAndUnwrapSol: true,
-        useSharedAccounts: true,
-      }
-    });
+  const swapInstructionsRes = await jupiter.swapInstructionsPost({
+    swapRequest: {
+      quoteResponse: quote,
+      userPublicKey: swigAddress.toBase58(),
+      wrapAndUnwrapSol: true,
+      useSharedAccounts: true,
+    },
+  });
 
-    if (!swapInstructions) {
-      throw new Error('No swap instructions received');
-    }
+  const swapInstructions: TransactionInstruction[] = [
+    ...(swapInstructionsRes.setupInstructions || []).map(
+      toTransactionInstruction,
+    ),
+    toTransactionInstruction(swapInstructionsRes.swapInstruction),
+  ];
 
-    // Get the Swig account
-    const swig = await fetchSwig(connection, swigAddress);
-    const rootRole = swig.findRolesByEd25519SignerPk(rootUser.publicKey)[0];
-    if (!rootRole) {
-      throw new Error('Root role not found');
-    }
-    const outerInstructions: TransactionInstruction[] = [
-      ComputeBudgetProgram.setComputeUnitLimit({
-        units: 150_000,
-      }),
-      ComputeBudgetProgram.setComputeUnitPrice({
-        microLamports: 50,
-      }),
-    ];
+  const rootRole = swig.findRolesByEd25519SignerPk(rootUser.publicKey)[0];
+  const signIxs = await getSignInstructions(
+    swig,
+    rootRole.id,
+    swapInstructions,
+  );
 
-    // Convert instructions to TransactionInstructions
-    const swigInstructions: TransactionInstruction[] = [
-      ...(swapInstructions.setupInstructions || []).map(toTransactionInstruction),
-      toTransactionInstruction(swapInstructions.swapInstruction),
-    ];
+  const lookupTables = await Promise.all(
+    swapInstructionsRes.addressLookupTableAddresses.map(async (addr) => {
+      const res = await connection.getAddressLookupTable(new PublicKey(addr));
+      return res.value!;
+    }),
+  );
 
-    // Get address lookup tables
-    const addressLookupTableAccounts = await Promise.all(
-      swapInstructions.addressLookupTableAddresses.map(async (address) => {
-        const account = await connection.getAddressLookupTable(new PublicKey(address))
-          .then((res) => res.value);
-        if (!account) {
-          throw new Error(`Could not find address lookup table: ${address}`);
-        }
-        return account;
-      })
-    );
+  const { blockhash, lastValidBlockHeight } =
+    await connection.getLatestBlockhash();
+  const outerIxs = [
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 150_000 }),
+    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 50 }),
+  ];
 
-    // Get latest blockhash
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    const signIxs = await Promise.all(
-      swigInstructions.map(async (instruction) => {
-        return await signInstruction(
-          rootRole,
-          rootUser.publicKey,
-          [instruction]
-        );
-      })
-    );
+  const messageV0 = new TransactionMessage({
+    payerKey: rootUser.publicKey,
+    recentBlockhash: blockhash,
+    instructions: [...outerIxs, ...signIxs],
+  }).compileToV0Message(lookupTables);
 
-    // Create versioned transaction
-    const messageV0 = new TransactionMessage({
-      payerKey: rootUser.publicKey,
-      recentBlockhash: blockhash,
-      instructions: [...outerInstructions, ...signIxs],
-    }).compileToV0Message(addressLookupTableAccounts);
+  const tx = new VersionedTransaction(messageV0);
+  tx.sign([rootUser]);
 
-    const transaction = new VersionedTransaction(messageV0);
-    // Sign the instructions with root user
-    try {
-      transaction.sign([rootUser]);
-    } catch (error) {
-      console.error(chalk.red('Error signing transaction:'), error);
-      process.exit(1);
-    }
-    console.log(chalk.green('✅ Swap transaction signed'));
+  const signature = await connection.sendTransaction(tx, {
+    skipPreflight: true,
+    preflightCommitment: 'confirmed',
+  });
 
-    try {
-      // Send the transaction
-      const signature = await connection.sendTransaction(transaction, {
-        skipPreflight: true,
-        preflightCommitment: 'confirmed'
-      });
-      const tx = await connection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight
-      });
-      if (tx.value.err) {
-        throw new Error(`Transaction failed: ${JSON.stringify(tx.value.err)}`);
-      }
+  const result = await connection.confirmTransaction({
+    signature,
+    blockhash,
+    lastValidBlockHeight,
+  });
 
-      // Check token balance after swap
-      const postSwapBalance = await connection.getTokenAccountBalance(swigUsdcAta);
-      console.log(chalk.green('🎉 Swap transaction sent and confirmed!'));
-      console.log(chalk.gray(`   Transaction signature: ${signature}`));
-      console.log(chalk.blue(`💰 New USDC balance: ${postSwapBalance.value.uiAmount} USDC`));
-    } catch (error) {
-
-      console.error(chalk.red('Error sending transaction:'), error);
-      process.exit(1);
-    }
-
-
-  } catch (error) {
-    console.error(chalk.red('Error executing swap:'), error);
+  if (result.value.err) {
+    throw new Error(`Transaction failed: ${JSON.stringify(result.value.err)}`);
   }
+
+  const postSwapBalance = await connection.getTokenAccountBalance(swigUsdcAta);
+  console.log(chalk.green('🎉 Swap successful!'));
+  console.log(chalk.gray(`   Signature: ${signature}`));
+  console.log(
+    chalk.blue(`💰 New USDC balance: ${postSwapBalance.value.uiAmount}`),
+  );
 }
 
-main().catch((error) => {
-  console.error(chalk.red('Error in main:'), error);
+main().catch((err) => {
+  console.error(chalk.red('Fatal Error:'), err);
   process.exit(1);
 });
