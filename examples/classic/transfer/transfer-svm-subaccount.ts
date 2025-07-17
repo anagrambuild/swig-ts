@@ -67,8 +67,9 @@ function fetchSwig(
 ): ReturnType<typeof Swig.fromRawAccountData> {
   const swigAccount = fetchSwigAccount(svm, swigAddress);
 
+  // swigAddress: SolPublicKey
   const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, swigAddress as PublicKey);
+    fetchSwigAccount(svm, new PublicKey((swigAddress as any).toBase58()));
 
   return new Swig(swigAddress, swigAccount, swigFetchFn);
 }
