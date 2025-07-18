@@ -41,7 +41,7 @@ import { sleepSync } from 'bun';
 console.log('Starting Swig viem transfer on localnet...');
 console.log('This example demonstrates three different ways to sign transactions using Viem:');
 console.log('1. Direct keccak256 hash signing (raw message bytes)');
-console.log('2. Manual Ethereum personal sign prefix (adds \\x19Ethereum Signed Message... manually)');
+console.log('2. Manual Ethereum personal sign prefix');
 console.log('3. Viem signMessage method (automatically adds Ethereum personal sign prefix)');
 console.log('Each method will transfer 0.1 SOL to show they all work equivalently.\n');
 
