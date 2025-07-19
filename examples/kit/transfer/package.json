@@ -6,17 +6,18 @@
   "type": "module",
   "scripts": {
     "start-validator": "solana-test-validator --reset --bpf-program swigypWHEksbC64pWKwah1WTeh9JXwx8H1rJHLdbQMB ../../../swig.so",
-    "local-subscription": "bun local-subscription.ts",
-    "transfer-local": "bun transfer-local.ts",
-    "transfer-local-session": "bun transfer-local-session.ts",
-    "transfer-local-session-secp": "bun transfer-local-session-secp256k1.ts",
-    "transfer-sponsor": "bun transfer-sponsor.ts",
-    "transfer-local-secp": "bun transfer-local-secp.ts",
-    "multi-role-local": "bun multi-role-local.ts",
-    "multi-role-secp-local": "bun multi-role-secp-local.ts",
     "tutorial-1": "bun tutorial/tutorial-1.ts",
     "tutorial-2": "bun tutorial/tutorial-2.ts",
-    "tutorial-3": "bun tutorial/tutorial-3.ts"
+    "tutorial-3": "bun tutorial/tutorial-3.ts",
+    "local-subscription": "bun run local-subscription.ts",
+    "multi-role-local": "bun run multi-role-local.ts",
+    "multi-role-secp-local": "bun run multi-role-secp-local.ts",
+    "transfer-local-secp": "bun run transfer-local-secp.ts",
+    "transfer-local-session-secp256k1": "bun run transfer-local-session-secp256k1.ts",
+    "transfer-local-session": "bun run transfer-local-session.ts",
+    "transfer-local-viem": "bun run transfer-local-viem.ts",
+    "transfer-local": "bun run transfer-local.ts",
+    "transfer-sponsor": "bun run transfer-sponsor.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.2.5",
