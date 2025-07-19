@@ -15,6 +15,7 @@
     "transfer-local-secp": "bun run transfer-local-secp.ts",
     "transfer-local-session-secp256k1": "bun run transfer-local-session-secp256k1.ts",
     "transfer-local-session": "bun run transfer-local-session.ts",
+    "transfer-local-subaccount": "bun run transfer-local-subaccount.ts",
     "transfer-local-viem": "bun run transfer-local-viem.ts",
     "transfer-local": "bun run transfer-local.ts",
     "transfer-sponsor": "bun run transfer-sponsor.ts"

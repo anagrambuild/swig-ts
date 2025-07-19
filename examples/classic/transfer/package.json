@@ -18,6 +18,7 @@
     "transfer-local": "bun run transfer-local.ts",
     "transfer-sponsor": "bun run transfer-sponsor.ts",
     "transfer-svm-secp-session": "bun run transfer-svm-secp-session.ts",
+    "transfer-svm-subaccount": "bun run transfer-svm-subaccount.ts",
     "transfer-svm-secp": "bun run transfer-svm-secp.ts",
     "transfer-svm-session": "bun run transfer-svm-session.ts",
     "transfer-svm-viem": "bun run transfer-svm-viem.ts",
