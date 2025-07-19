@@ -1,4 +1,5 @@
 import { AccountRole } from '@solana/kit';
+import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
 import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 
 export type SignV1InstructionAccounts = {
@@ -49,4 +50,27 @@ export function getSignV1BaseAccountMetasWithAuthority(
     }),
   ];
   return [metas, authorityIndex];
+}
+
+export type SignV1BaseAccountMetasWithSystemProgram = [
+  ...SignV1BaseAccountMetas,
+  SolAccountMeta,
+  ...SolAccountMeta[],
+];
+
+export function getSignV1BaseAccountMetasWithSystemProgram(
+  accounts: SignV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
+): SignV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getSignV1BaseAccountMetas(accounts);
+
+  return [
+    ...accountMetas,
+    SolAccountMeta.from({
+      pubkey: new SolPublicKey(SYSTEM_PROGRAM_ADDRESS_STRING),
+      isSigner: false,
+      isWritable: false,
+    }),
+    ...otherMetas,
+  ];
 }
