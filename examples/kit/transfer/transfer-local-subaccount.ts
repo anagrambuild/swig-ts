@@ -163,7 +163,7 @@ await sendTransaction(connection, [createSwigIx], rootAuthority);
 
 sleepSync(3000);
 
-let swig = await fetchSwig(connection.rpc, swigAddress);
+const swig = await fetchSwig(connection.rpc, swigAddress);
 
 let rootRole = swig.roles[0];
 
