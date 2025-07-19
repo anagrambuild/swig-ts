@@ -1,7 +1,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { utf8ToBytes } from '@noble/hashes/utils';
-import { HuffmanEncoder } from '@swig-wallet/coder';
+import { HuffmanEncoder, R1AuthenticationType, WebAuthnField } from '@swig-wallet/coder';
 import type { SigningFn } from './authority';
 import { getUnprefixedSecpBytes } from './utils';
 
@@ -55,9 +55,13 @@ export async function getWebAuthnPrefix(
 
   // Parse clientDataJSON to extract origin
   let origin = '';
+  let fieldOrder: Uint8Array = new Uint8Array(4);
 
   try {
     const clientDataStr = new TextDecoder().decode(clientJson);
+
+    fieldOrder = clientDataFieldOrder(clientDataStr)
+
     console.log('🔍 WebAuthn Debug: clientDataJSON:', clientDataStr);
     const clientData = JSON.parse(clientDataStr);
 
@@ -67,50 +71,6 @@ export async function getWebAuthnPrefix(
     }
     origin = clientData.origin;
     console.log('🔍 WebAuthn Debug: extracted origin:', origin);
-
-    //   // Verify that the challenge in clientDataJSON matches what we expect
-    //   // The challenge should be base64url(computed_hash + counter)
-    //   if (clientData.challenge) {
-    //     console.log(
-    //       '🔍 WebAuthn Debug: challenge from clientData:',
-    //       clientData.challenge,
-    //     );
-    //     const challengeB64 = clientData.challenge
-    //       .replace(/-/g, '+')
-    //       .replace(/_/g, '/');
-    //     // const challengePadded =
-    //     //   challengeB64 + '='.repeat((4 - (challengeB64.length % 4)) % 4);
-    //     // const challengeBytes = new Uint8Array(
-    //     //   atob(challengePadded)
-    //     //     .split('')
-    //     //     .map((c) => c.charCodeAt(0)),
-    //     // );
-
-    //     // // Verify the challenge is 36 bytes (32 bytes hash + 4 bytes counter)
-    //     // if (challengeBytes.length !== 32) {
-    //     //   throw new Error(
-    //     //     `Invalid challenge length: expected 36 bytes, got ${challengeBytes.length}`,
-    //     //   );
-    //     // }
-
-    //     // // Verify the counter matches
-    //     // const challengeCounter = new DataView(
-    //     //   challengeBytes.buffer,
-    //     //   challengeBytes.byteOffset + 32,
-    //     //   4,
-    //     // ).getUint32(0, true);
-    //     // console.log(
-    //     //   '🔍 WebAuthn Debug: counter from challenge:',
-    //     //   challengeCounter,
-    //     //   'expected:',
-    //     //   counter,
-    //     // );
-    //     // if (challengeCounter !== counter) {
-    //     //   throw new Error(
-    //     //     `Counter mismatch: expected ${counter}, got ${challengeCounter}`,
-    //     //   );
-    //     // }
-    //   }
   } catch (error) {
     console.error('🔍 WebAuthn Debug: Error parsing clientDataJSON:', error);
     throw new Error(`Failed to parse clientDataJSON: ${error}`);
@@ -163,6 +123,7 @@ export async function getWebAuthnPrefix(
   // Build the new WebAuthn prefix format:
   // [2 bytes auth_type]
   // [2 bytes auth_len][auth_data]
+  // [4 bytes client json field_order]
   // [2 bytes huffman_tree_len][huffman_tree]
   // [2 bytes huffman_encoded_len][huffman_encoded_origin]
 
@@ -170,6 +131,7 @@ export async function getWebAuthnPrefix(
     2 + // auth_type
     2 + // auth_len
     authData.length + // auth_data
+    4 + // client json field order
     2 + // huffman_tree_len
     huffmanTree.length + // huffman_tree
     2 + // huffman_encoded_len
@@ -182,7 +144,7 @@ export async function getWebAuthnPrefix(
 
   const authTypeView = new DataView(prefix.buffer, offset, 2);
   // auth type: 1 for WebAuthn
-  authTypeView.setUint16(0, 1, true);
+  authTypeView.setUint16(0, R1AuthenticationType.WebAuthn, true);
 
   // auth_type (2 bytes, zeroed for backward compatibility)
   console.log(
@@ -212,6 +174,16 @@ export async function getWebAuthnPrefix(
   );
   prefix.set(authData, offset);
   offset += authData.length;
+  
+  // auth_data
+  console.log(
+    '🔍 WebAuthn Debug: field_order at offset',
+    offset,
+    'length:',
+    4,
+  );
+  prefix.set(fieldOrder, offset);
+  offset += 4;
 
   // huffman_tree_len (2 bytes, little-endian)
   console.log(
@@ -263,4 +235,26 @@ export async function getWebAuthnPrefix(
   console.log('🔍 WebAuthn Debug: Final payload total length:', prefix.length);
 
   return prefix;
+}
+
+function clientDataFieldOrder(jsonStr: string): Uint8Array {
+  const keyToEnum: Record<string, WebAuthnField> = {
+    type: WebAuthnField.Type,
+    challenge: WebAuthnField.Challenge,
+    origin: WebAuthnField.Origin,
+    crossOrigin: WebAuthnField.CrossOrigin,
+  };
+
+  const json = JSON.parse(jsonStr);
+  const keysInOrder = Object.keys(json);
+
+  const result = new Uint8Array(4)
+
+  keysInOrder.forEach((key, index) => {
+    if (index < 4 && key in keyToEnum) {
+      result[index] = keyToEnum[key];
+    }
+  });
+
+  return result;
 }

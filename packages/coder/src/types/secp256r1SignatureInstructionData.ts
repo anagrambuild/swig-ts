@@ -47,3 +47,15 @@ export function getSecp256r1SignatureInstructionDataEncoder(): Encoder<Secp256r1
     },
   );
 }
+
+export enum WebAuthnField {
+  None,
+  Type,
+  Challenge,
+  Origin,
+  CrossOrigin
+}
+
+export enum R1AuthenticationType {
+  WebAuthn = 1
+}
