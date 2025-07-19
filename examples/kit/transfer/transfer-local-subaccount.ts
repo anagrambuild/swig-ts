@@ -165,6 +165,7 @@ sleepSync(3000);
 
 const swig = await fetchSwig(connection.rpc, swigAddress);
 
+
 let rootRole = swig.roles[0];
 
 // add a sub account authority
