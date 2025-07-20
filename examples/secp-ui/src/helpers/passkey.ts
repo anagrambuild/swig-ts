@@ -9,21 +9,15 @@ export interface PasskeyCredential {
   rawId: ArrayBuffer;
 }
 
-export interface PasskeySignature {
-  signature: Uint8Array;
-  clientDataJSON: ArrayBuffer;
-  authenticatorData: ArrayBuffer;
-}
-
 export class PasskeyManager {
   private static readonly STORAGE_KEY = 'swig-passkey-credential';
 
   /**
    * Create a new passkey credential for authentication
    */
-  static async createPasskey(
+  static createPasskey = async(
     username: string = 'swig-user',
-  ): Promise<PasskeyCredential> {
+  ): Promise<PasskeyCredential> => {
     if (!window.navigator.credentials) {
       throw new Error('WebAuthn not supported in this browser');
     }
@@ -82,7 +76,7 @@ export class PasskeyManager {
     return passkeyCredential;
   }
 
-  private static spkiToCompressedPublicKey(spkiPublicKey: ArrayBuffer) {
+  private static spkiToCompressedPublicKey = (spkiPublicKey: ArrayBuffer) => {
     // Ensure the input is a Uint8Array for easier manipulation
     const keyBytes = new Uint8Array(spkiPublicKey);
 
@@ -122,9 +116,9 @@ export class PasskeyManager {
   /**
    * Sign a message using the stored passkey
    */
-  static async signWithPasskey(
+  static signWithPasskey = async(
     messageHash: Uint8Array,
-  ): Promise<SigningResult> {
+  ): Promise<SigningResult> => {
     const credential = this.getStoredCredential();
     if (!credential) {
       throw new Error('No passkey credential found. Please create one first.');
@@ -146,7 +140,7 @@ export class PasskeyManager {
   /**
    * Get the stored passkey credential
    */
-  static getStoredCredential(): PasskeyCredential | null {
+  static getStoredCredential = (): PasskeyCredential | null => {
     const stored = localStorage.getItem(this.STORAGE_KEY);
     if (!stored) return null;
 
@@ -166,7 +160,7 @@ export class PasskeyManager {
   /**
    * Store the passkey credential
    */
-  private static storeCredential(credential: PasskeyCredential): void {
+  private static storeCredential = (credential: PasskeyCredential): void  => {
     const toStore = {
       id: credential.id,
       publicKey: Array.from(credential.publicKey),
@@ -179,14 +173,14 @@ export class PasskeyManager {
   /**
    * Clear the stored passkey credential
    */
-  static clearStoredCredential(): void {
+  static clearStoredCredential = (): void => {
     localStorage.removeItem(this.STORAGE_KEY);
   }
 
   /**
    * Check if passkey is supported
    */
-  static isSupported(): boolean {
+  static isSupported = (): boolean => {
     return !!(
       typeof window !== 'undefined' &&
       window.navigator?.credentials &&
@@ -199,7 +193,7 @@ export class PasskeyManager {
   /**
    * Convert ArrayBuffer to base64 string
    */
-  private static arrayBufferToBase64(buffer: ArrayBuffer): string {
+  private static arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
@@ -211,7 +205,7 @@ export class PasskeyManager {
   /**
    * Convert base64 string to ArrayBuffer
    */
-  private static base64ToArrayBuffer(base64: string): ArrayBuffer {
+  private static base64ToArrayBuffer = (base64: string): ArrayBuffer => {
     const binary = window.atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {

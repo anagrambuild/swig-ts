@@ -46,7 +46,11 @@ export function PasskeySwig() {
   const { clearPasskey, isPending: isClearingPasskey } = useClearPasskey();
   const { createSwigWithPasskey, isPending: isCreatingSwig } =
     useCreateSwigWithPasskey();
-  const { isPending: isTransferring, swig } = useSwigTransferWithPasskey();
+  const {
+    isPending: isTransferring,
+    swig,
+    transferWithPasskeyAsync,
+  } = useSwigTransferWithPasskey();
   const { requestAirdropAsync } = useRequestAirdrop();
   const { swigBalance } = useSwigBalance();
   const { swigAddress } = useSwigAddres();
@@ -369,75 +373,88 @@ export function PasskeySwig() {
             </Button>
           </div>
         ) : (
-          <div className="items-center w-full space-x-4">
-            <Button
-              variant="destructive"
-              onClick={() => clearPasskey()}
-              disabled={isClearingPasskey}
-            >
-              {isClearingPasskey ? 'Clearing...' : 'Clear Passkey'}
-            </Button>
-
-            {!swig ? (
+          <div className="items-center w-full space-y-4">
+            <div className="items-center w-full space-x-4">
               <Button
-                onClick={() => createSwigWithPasskey()}
-                disabled={isCreatingSwig}
-              >
-                {isCreatingSwig ? 'Creating...' : 'Create Swig Wallet'}
-              </Button>
-            ) : (
-              <Button onClick={() => requestAirdropAsync()} variant="outline">
-                Request Airdrop
-              </Button>
-            )}
-
-            <Button
-              onClick={async () => {
-                try {
-                  const tx = await transferAndStoreSignature();
-                  toast.success(
-                    'Transfer completed with passkey authentication!',
-                    {
-                      action: <GoToExplorer tx={tx} />,
-                      className: 'w-max',
-                    },
-                  );
-                } catch (error: any) {
-                  console.error('Transfer error:', error);
-                  toast.error(`Transfer failed: ${error.message || error}`);
-                }
-              }}
-              disabled={!hasMatchingAuthority || isTransferring}
-            >
-              {isTransferring
-                ? 'Transferring...'
-                : 'Transfer 0.1 SOL & Store Signature'}
-            </Button>
-
-            {storedSignature && (
-              <Button
-                onClick={replayTransfer}
-                disabled={isReplayTransferring}
                 variant="destructive"
-                className="bg-red-600 hover:bg-red-700"
+                onClick={() => clearPasskey()}
+                disabled={isClearingPasskey}
               >
-                {isReplayTransferring
-                  ? 'Attempting Replay...'
-                  : '🚨 Test Signature Replay Attack'}
+                {isClearingPasskey ? 'Clearing...' : 'Clear Passkey'}
               </Button>
-            )}
+
+              {!swig ? (
+                <Button
+                  onClick={() => createSwigWithPasskey()}
+                  disabled={isCreatingSwig}
+                >
+                  {isCreatingSwig ? 'Creating...' : 'Create Swig Wallet'}
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={() => requestAirdropAsync()}
+                    variant="outline"
+                  >
+                    Request Airdrop
+                  </Button>
+                  <Button
+                    onClick={() => transferWithPasskeyAsync()}
+                    disabled={!hasMatchingAuthority || isTransferring}
+                  >
+                    {isTransferring ? 'Transferring...' : 'Transfer 0.1 SOL'}
+                  </Button>
+                </>
+              )}
+            </div>
+            <CardDescription className="text-xs text-gray-500 text-center">
+              {!hasCredential
+                ? 'Create a passkey to get started with secure authentication'
+                : hasMatchingAuthority
+                  ? storedSignature
+                    ? 'Ready to test signature replay protection! Click the red button to attempt replay attack.'
+                    : 'Ready to sign transactions with your passkey! The first transfer will store signature data for replay testing.'
+                  : 'Create a Swig wallet or add this passkey as an authority'}
+            </CardDescription>
+            <div className="items-center w-full space-x-4">
+              <Button
+                onClick={async () => {
+                  try {
+                    const tx = await transferAndStoreSignature();
+                    toast.success(
+                      'Transfer completed with passkey authentication!',
+                      {
+                        action: <GoToExplorer tx={tx} />,
+                        className: 'w-max',
+                      },
+                    );
+                  } catch (error: any) {
+                    console.error('Transfer error:', error);
+                    toast.error(`Transfer failed: ${error.message || error}`);
+                  }
+                }}
+                disabled={!hasMatchingAuthority || isTransferring}
+              >
+                {isTransferring
+                  ? 'Transferring...'
+                  : 'Transfer 0.1 SOL & Store Signature'}
+              </Button>
+
+              {storedSignature && (
+                <Button
+                  onClick={replayTransfer}
+                  disabled={isReplayTransferring}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {isReplayTransferring
+                    ? 'Attempting Replay...'
+                    : '🚨 Test Signature Replay Attack'}
+                </Button>
+              )}
+            </div>
           </div>
         )}
-
-        <CardDescription className="text-xs text-gray-500 text-center">
-          {!hasCredential
-            ? 'Create a passkey to get started with secure authentication'
-            : hasMatchingAuthority
-              ? storedSignature
-                ? 'Ready to test signature replay protection! Click the red button to attempt replay attack.'
-                : 'Ready to sign transactions with your passkey! The first transfer will store signature data for replay testing.'
-              : 'Create a Swig wallet or add this passkey as an authority'}
-        </CardDescription>
       </CardFooter>
     </Card>
   );
