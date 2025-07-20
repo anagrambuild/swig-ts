@@ -123,7 +123,7 @@ export class HuffmanEncoder {
     return this.treeData;
   }
 
-  decode(encodedData: Uint8Array): string {
+  decode(encodedData: Uint8Array, original_string_len: number): string {
     const NODE_SIZE = 3;
     const LEAF_NODE = 0;
     const INTERNAL_NODE = 1;
@@ -159,8 +159,7 @@ export class HuffmanEncoder {
           currentNode = rootIndex;
 
           // Simple padding detection for testing
-          if (decoded.length >= 21) {
-            // "http://localhost:3000".length
+          if (decoded.length >= original_string_len) {
             // Reached expected length, stop decoding
             break;
           }

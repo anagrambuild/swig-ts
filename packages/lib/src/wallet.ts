@@ -105,7 +105,7 @@ export async function getWebAuthnPrefix(
 
   // Test decode to verify encoding
   try {
-    const testDecoded = encoder.decode(huffmanEncodedOrigin);
+    const testDecoded = encoder.decode(huffmanEncodedOrigin, origin.length);
     console.log('🔍 WebAuthn Debug: test decode result:', testDecoded);
     if (testDecoded !== origin) {
       console.error(
@@ -124,6 +124,7 @@ export async function getWebAuthnPrefix(
   // [2 bytes auth_type]
   // [2 bytes auth_len][auth_data]
   // [4 bytes client json field_order]
+  // [2 bytes origin_len]
   // [2 bytes huffman_tree_len][huffman_tree]
   // [2 bytes huffman_encoded_len][huffman_encoded_origin]
 
@@ -132,6 +133,7 @@ export async function getWebAuthnPrefix(
     2 + // auth_len
     authData.length + // auth_data
     4 + // client json field order
+    2 + // origin_len
     2 + // huffman_tree_len
     huffmanTree.length + // huffman_tree
     2 + // huffman_encoded_len
@@ -175,7 +177,7 @@ export async function getWebAuthnPrefix(
   prefix.set(authData, offset);
   offset += authData.length;
   
-  // auth_data
+  // field_order
   console.log(
     '🔍 WebAuthn Debug: field_order at offset',
     offset,
@@ -184,6 +186,17 @@ export async function getWebAuthnPrefix(
   );
   prefix.set(fieldOrder, offset);
   offset += 4;
+  
+  // origin_Len
+  console.log(
+    '🔍 WebAuthn Debug: origin len at offset',
+    offset,
+    'length:',
+    2,
+  );
+  const originLenView = new DataView(prefix.buffer, offset, 2);
+  originLenView.setUint16(0, origin.length, true);
+  offset += 2;
 
   // huffman_tree_len (2 bytes, little-endian)
   console.log(
