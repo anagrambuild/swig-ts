@@ -17,7 +17,6 @@ import {
   fetchSwig,
   getCreateSwigInstruction,
   getSignInstructions,
-  getWebAuthnPrefix,
 } from '@swig-wallet/classic';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -227,24 +226,7 @@ export function useSwigTransferWithPasskey() {
         {
           payer: payerKeypair.publicKey,
           currentSlot: BigInt(await connection.getSlot()),
-          signingFn: async (message: Uint8Array) => {
-            // Sign with passkey (this will trigger browser authentication)
-            const passkeySignature =
-              await PasskeyManager.signWithPasskey(message);
-
-            // Return in the format expected by secp256r1 authority
-            // Note: We need to return the WebAuthn message hash for the precompile to verify correctly
-            const prefix = await getWebAuthnPrefix(
-              new Uint8Array(passkeySignature.clientDataJSON),
-              new Uint8Array(passkeySignature.authenticatorData),
-            );
-
-            return {
-              signature: passkeySignature.signature,
-              prefix,
-              message: passkeySignature.webAuthnMessage, // The actual message WebAuthn signed
-            };
-          },
+          signingFn: PasskeyManager.signWithPasskey,
         },
       );
 

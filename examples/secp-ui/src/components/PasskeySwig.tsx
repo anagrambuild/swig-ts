@@ -25,12 +25,7 @@ import {
   SystemProgram,
   Transaction,
 } from '@solana/web3.js';
-import {
-  AuthorityType,
-  getSignInstructions,
-  getWebAuthnPrefix,
-  Role,
-} from '@swig-wallet/classic';
+import { AuthorityType, getSignInstructions, Role } from '@swig-wallet/classic';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { GoToExplorer } from './GoToExplorer';
@@ -119,30 +114,18 @@ export function PasskeySwig() {
         currentSlot: BigInt(await connection.getSlot()),
         signingFn: async (message: Uint8Array) => {
           // Sign with passkey (this will trigger browser authentication)
-          const passkeySignature =
-            await PasskeyManager.signWithPasskey(message);
-
-          // Return in the format expected by secp256r1 authority
-          // Note: We need to return the WebAuthn message hash for the precompile to verify correctly
-          const prefix = await getWebAuthnPrefix(
-            new Uint8Array(passkeySignature.clientDataJSON),
-            new Uint8Array(passkeySignature.authenticatorData),
-          );
+          const signingResult = await PasskeyManager.signWithPasskey(message);
 
           // Store the signature data for potential replay
           capturedSignatureData = {
-            signature: passkeySignature.signature,
-            prefix,
-            message: passkeySignature.webAuthnMessage,
+            signature: signingResult.signature,
+            prefix: signingResult.prefix!,
+            message: signingResult.message!,
             authority: signerRole.authority,
             timestamp: Date.now(),
           };
 
-          return {
-            signature: passkeySignature.signature,
-            prefix,
-            message: passkeySignature.webAuthnMessage, // The actual message WebAuthn signed
-          };
+          return signingResult;
         },
       },
     );
@@ -238,30 +221,27 @@ export function PasskeySwig() {
           payer: payerKeypair.publicKey,
           currentSlot: BigInt(await connection.getSlot()),
           signingFn: async (message: Uint8Array) => {
-             console.log('Attempting replay with stored signature data...');
-             console.log('New message:', Array.from(message));
-             console.log(
-               'Stored message:',
-               Array.from(storedSignature.message),
-             );
+            console.log('Attempting replay with stored signature data...');
+            console.log('New message:', Array.from(message));
+            console.log('Stored message:', Array.from(storedSignature.message));
             //  console.log('Expected counter (from current authority):', counter);
-             console.log(
-               'Stored signature prefix length:',
-               storedSignature.prefix?.length || 0,
-             );
-             console.log(
-               'Stored signature prefix (first 50 bytes):',
-               storedSignature.prefix
-                 ? Array.from(storedSignature.prefix.slice(0, 50))
-                 : 'NO PREFIX',
-             );
+            console.log(
+              'Stored signature prefix length:',
+              storedSignature.prefix?.length || 0,
+            );
+            console.log(
+              'Stored signature prefix (first 50 bytes):',
+              storedSignature.prefix
+                ? Array.from(storedSignature.prefix.slice(0, 50))
+                : 'NO PREFIX',
+            );
 
-             // Return the OLD signature data (this should fail due to counter verification)
-             return {
-               signature: storedSignature.signature,
-               prefix: storedSignature.prefix,
-               message: storedSignature.message,
-             };
+            // Return the OLD signature data (this should fail due to counter verification)
+            return {
+              signature: storedSignature.signature,
+              prefix: storedSignature.prefix,
+              message: storedSignature.message,
+            };
           },
         },
       );

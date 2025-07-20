@@ -1,8 +1,13 @@
+import { p256 } from '@noble/curves/p256';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { utf8ToBytes } from '@noble/hashes/utils';
-import { HuffmanEncoder, R1AuthenticationType, WebAuthnField } from '@swig-wallet/coder';
-import type { SigningFn } from './authority';
+import {
+  HuffmanEncoder,
+  R1AuthenticationType,
+  WebAuthnField,
+} from '@swig-wallet/coder';
+import type { SigningFn, SigningResult } from './authority';
 import { getUnprefixedSecpBytes } from './utils';
 
 /**
@@ -44,18 +49,66 @@ export async function dummySigningFn(_: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(0);
 }
 
+export async function signWithSecp256r1Webauthn(
+  publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions,
+): Promise<SigningResult> {
+  const assertion = (await navigator.credentials.get({
+    publicKey: publicKeyCredentialRequestOptions,
+  })) as PublicKeyCredential | null;
+
+  if (!assertion || !assertion.response) {
+    throw new Error('Failed to get passkey assertion');
+  }
+
+  const response = assertion.response as AuthenticatorAssertionResponse;
+
+  // Convert DER signature to raw 64-byte format for secp256r1 precompile
+  const derSignature = new Uint8Array(response.signature);
+  const rawSignature = secp256r1DerToRawSignature(derSignature);
+
+  // Calculate the actual message that WebAuthn signed
+  // WebAuthn signs: hash(authenticatorData + SHA256(clientDataJSON))
+  const clientDataJSONHash = await crypto.subtle.digest(
+    'SHA-256',
+    response.clientDataJSON,
+  );
+
+  const authenticatorData = new Uint8Array(response.authenticatorData);
+
+  // Concatenate authenticatorData + clientDataJSONHash to get message that
+  // was hashed and signed, to use with secp256r1 precompile
+  const webAuthnMessage = new Uint8Array(
+    authenticatorData.length + clientDataJSONHash.byteLength,
+  );
+  webAuthnMessage.set(authenticatorData, 0);
+  webAuthnMessage.set(
+    new Uint8Array(clientDataJSONHash),
+    authenticatorData.length,
+  );
+
+  const prefix = await getWebAuthnPrefix(
+    new Uint8Array(response.clientDataJSON),
+    new Uint8Array(response.authenticatorData),
+  );
+
+  return {
+    signature: rawSignature,
+    prefix,
+    message: webAuthnMessage,
+  };
+}
+
 export async function getWebAuthnPrefix(
   clientJson: Uint8Array,
   authData: Uint8Array,
 ): Promise<Uint8Array> {
-
   // Parse clientDataJSON to extract origin
   let origin = '';
   let fieldOrder: Uint8Array = new Uint8Array(4);
 
   try {
     const clientDataStr = new TextDecoder().decode(clientJson);
-    fieldOrder = clientDataFieldOrder(clientDataStr)
+    fieldOrder = clientDataFieldOrder(clientDataStr);
     const clientData = JSON.parse(clientDataStr);
 
     // Extract origin
@@ -121,7 +174,7 @@ export async function getWebAuthnPrefix(
   offset += huffmanTree.length;
 
   prefix.set(huffmanEncodedOrigin, offset);
-  
+
   return prefix;
 }
 
@@ -136,7 +189,7 @@ function clientDataFieldOrder(jsonStr: string): Uint8Array {
   const json = JSON.parse(jsonStr);
   const keysInOrder = Object.keys(json);
 
-  const result = new Uint8Array(4)
+  const result = new Uint8Array(4);
 
   keysInOrder.forEach((key, index) => {
     if (index < 4 && key in keyToEnum) {
@@ -145,4 +198,14 @@ function clientDataFieldOrder(jsonStr: string): Uint8Array {
   });
 
   return result;
+}
+
+export function secp256r1DerToRawSignature(
+  derSignature: Uint8Array,
+): Uint8Array {
+  const signature = p256.Signature.fromDER(derSignature);
+  const normalizedSignature = signature.normalizeS();
+  const rawSignature = normalizedSignature.toCompactRawBytes();
+
+  return rawSignature;
 }

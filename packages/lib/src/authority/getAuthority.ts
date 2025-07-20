@@ -27,7 +27,7 @@ export function getAuthority(type: AuthorityType, data: Uint8Array): Authority {
   if (type === AuthorityType.Secp256k1Session) {
     return new Secp256k1SessionAuthority(data);
   }
-  
+
   if (type === AuthorityType.Secp256r1) {
     return new Secp256r1Authority(data);
   }

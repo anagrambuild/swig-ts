@@ -1,4 +1,7 @@
-import { p256 } from '@noble/curves/p256';
+import {
+  signWithSecp256r1Webauthn,
+  type SigningResult,
+} from '@swig-wallet/classic';
 
 export interface PasskeyCredential {
   id: string;
@@ -121,77 +124,23 @@ export class PasskeyManager {
    */
   static async signWithPasskey(
     messageHash: Uint8Array,
-  ): Promise<PasskeySignature & { webAuthnMessage: Uint8Array }> {
+  ): Promise<SigningResult> {
     const credential = this.getStoredCredential();
     if (!credential) {
       throw new Error('No passkey credential found. Please create one first.');
     }
 
-    // Create a challenge that includes the counter
-    // Embed the counter in the challenge to ensure it's signed by WebAuthn
-    // const challenge = new Uint8Array(36); // 32 bytes message hash + 4 bytes counter
-    // challenge.set(messageHash.slice(0, 32), 0);
-
-    // // Add counter in little-endian format
-    // const counterView = new DataView(challenge.buffer, 32, 4);
-    // counterView.setUint32(0, counter, true);
-
-    const challenge = messageHash
-
-    const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions =
-      {
-        challenge,
-        allowCredentials: [
-          {
-            id: credential.rawId,
-            type: 'public-key',
-          },
-        ],
-        timeout: 60000,
-        userVerification: 'preferred',
-      };
-
-    const assertion = (await navigator.credentials.get({
-      publicKey: publicKeyCredentialRequestOptions,
-    })) as PublicKeyCredential | null;
-
-    if (!assertion || !assertion.response) {
-      throw new Error('Failed to get passkey assertion');
-    }
-
-    const response = assertion.response as AuthenticatorAssertionResponse;
-
-    // Convert DER signature to raw 64-byte format for secp256r1 precompile
-    const derSignature = new Uint8Array(response.signature);
-    const rawSignature = this.derToRawSignature(derSignature);
-
-    // Calculate the actual message that WebAuthn signed
-    // WebAuthn signs: hash(authenticatorData + SHA256(clientDataJSON))
-    const clientDataJSONHash = await crypto.subtle.digest(
-      'SHA-256',
-      response.clientDataJSON,
-    );
-    console.log("client data json hash:", new Uint8Array(clientDataJSONHash))
-
-    const authenticatorData = new Uint8Array(response.authenticatorData);
-
-    // Concatenate authenticatorData + clientDataJSONHash to get message that
-    // was hashed and signed, to use with secp256r1 precompile
-    const webAuthnMessage = new Uint8Array(
-      authenticatorData.length + clientDataJSONHash.byteLength,
-    );
-    webAuthnMessage.set(authenticatorData, 0);
-    webAuthnMessage.set(
-      new Uint8Array(clientDataJSONHash),
-      authenticatorData.length,
-    );
-
-    return {
-      signature: rawSignature,
-      clientDataJSON: response.clientDataJSON,
-      authenticatorData: response.authenticatorData,
-      webAuthnMessage,
-    };
+    return signWithSecp256r1Webauthn({
+      challenge: messageHash,
+      allowCredentials: [
+        {
+          id: credential.rawId,
+          type: 'public-key',
+        },
+      ],
+      timeout: 60000,
+      userVerification: 'preferred',
+    });
   }
 
   /**
@@ -269,13 +218,5 @@ export class PasskeyManager {
       bytes[i] = binary.charCodeAt(i);
     }
     return bytes.buffer;
-  }
-
-  private static derToRawSignature(derSignature: Uint8Array): Uint8Array {
-    const signature = p256.Signature.fromDER(derSignature);
-    const normalizedSignature = signature.normalizeS();
-    const rawSignature = normalizedSignature.toCompactRawBytes();
-
-    return rawSignature;
   }
 }

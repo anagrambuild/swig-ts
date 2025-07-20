@@ -7,7 +7,6 @@
 - 286f8c4: v1.0 Prod Release.
 
   ### Key Changes
-
   1. **Modular Architecture**: Core logic moved to `@swig-wallet/lib`
   2. **Instruction-Based API**: Functions return `TransactionInstruction[]` instead of single instructions
   3. **Simplified Package Structure**: `@swig-wallet/classic` now acts as a thin wrapper
@@ -188,13 +187,11 @@
   ## Import Changes
 
   ### Core Classes
-
   - `Actions` class is now imported from `@swig-wallet/lib` (re-exported by `@swig-wallet/classic`)
   - `Swig` class is now imported from `@swig-wallet/lib` (re-exported by `@swig-wallet/classic`)
   - Authority classes have been replaced with info creation functions
 
   ### Function Naming
-
   - `createSwig()` → `getCreateSwigInstruction()`
   - `addAuthorityInstruction()` → `getAddAuthorityInstructions()`
   - `signInstruction()` → `getSignInstructions()`
@@ -239,7 +236,6 @@
   ```
 
   ## Migration Checklist
-
   - [ ] Update package dependencies
   - [ ] Replace single instruction functions with instruction array functions
   - [ ] Update authority creation from classes to info functions
@@ -293,7 +289,6 @@
   ## Getting Help
 
   If you encounter issues during migration:
-
   1. Check the [API documentation](https://anagrambuild.github.io/swig-ts/modules.html)
   2. Review the updated [tutorials](./index)
   3. Examine the [example code](https://github.com/anagrambuild/swig-ts/tree/main/examples/classic/transfer/tutorial)

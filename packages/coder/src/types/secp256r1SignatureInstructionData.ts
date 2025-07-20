@@ -53,9 +53,9 @@ export enum WebAuthnField {
   Type,
   Challenge,
   Origin,
-  CrossOrigin
+  CrossOrigin,
 }
 
 export enum R1AuthenticationType {
-  WebAuthn = 1
+  WebAuthn = 1,
 }
