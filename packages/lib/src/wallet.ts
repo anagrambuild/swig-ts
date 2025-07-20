@@ -48,10 +48,6 @@ export async function getWebAuthnPrefix(
   clientJson: Uint8Array,
   authData: Uint8Array,
 ): Promise<Uint8Array> {
-  console.log('🔍 WebAuthn Debug: Starting getWebAuthnPrefix');
-  console.log('🔍 WebAuthn Debug: clientJson length:', clientJson.length);
-  console.log('🔍 WebAuthn Debug: authData length:', authData.length);
-  // console.log('🔍 WebAuthn Debug: counter:', counter);
 
   // Parse clientDataJSON to extract origin
   let origin = '';
@@ -59,10 +55,7 @@ export async function getWebAuthnPrefix(
 
   try {
     const clientDataStr = new TextDecoder().decode(clientJson);
-
     fieldOrder = clientDataFieldOrder(clientDataStr)
-
-    console.log('🔍 WebAuthn Debug: clientDataJSON:', clientDataStr);
     const clientData = JSON.parse(clientDataStr);
 
     // Extract origin
@@ -70,55 +63,14 @@ export async function getWebAuthnPrefix(
       throw new Error('No origin found in clientDataJSON');
     }
     origin = clientData.origin;
-    console.log('🔍 WebAuthn Debug: extracted origin:', origin);
   } catch (error) {
-    console.error('🔍 WebAuthn Debug: Error parsing clientDataJSON:', error);
     throw new Error(`Failed to parse clientDataJSON: ${error}`);
   }
 
   // Encode origin URL using huffman encoding
-  console.log(
-    '🔍 WebAuthn Debug: Creating huffman encoder for origin:',
-    origin,
-  );
   const encoder = new HuffmanEncoder(origin);
   const huffmanTree = encoder.getTreeData();
   const huffmanEncodedOrigin = encoder.encode(origin);
-
-  console.log('🔍 WebAuthn Debug: huffman tree length:', huffmanTree.length);
-  console.log(
-    '🔍 WebAuthn Debug: huffman tree (first 16 bytes):',
-    Array.from(huffmanTree.slice(0, 16))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join(' '),
-  );
-  console.log(
-    '🔍 WebAuthn Debug: huffman encoded origin length:',
-    huffmanEncodedOrigin.length,
-  );
-  console.log(
-    '🔍 WebAuthn Debug: huffman encoded origin:',
-    Array.from(huffmanEncodedOrigin)
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join(' '),
-  );
-
-  // Test decode to verify encoding
-  try {
-    const testDecoded = encoder.decode(huffmanEncodedOrigin, origin.length);
-    console.log('🔍 WebAuthn Debug: test decode result:', testDecoded);
-    if (testDecoded !== origin) {
-      console.error(
-        '🔍 WebAuthn Debug: ENCODING ERROR - decoded does not match original!',
-      );
-      console.error('🔍 WebAuthn Debug: original:', origin);
-      console.error('🔍 WebAuthn Debug: decoded:', testDecoded);
-    } else {
-      console.log('🔍 WebAuthn Debug: ✅ Huffman encoding/decoding verified');
-    }
-  } catch (decodeError) {
-    console.error('🔍 WebAuthn Debug: Error testing decode:', decodeError);
-  }
 
   // Build the new WebAuthn prefix format:
   // [2 bytes auth_type]
@@ -139,114 +91,37 @@ export async function getWebAuthnPrefix(
     2 + // huffman_encoded_len
     huffmanEncodedOrigin.length; // huffman_encoded_origin
 
-  console.log('🔍 WebAuthn Debug: total payload size:', totalSize);
-
   const prefix = new Uint8Array(totalSize);
+  const prefixView = new DataView(prefix.buffer);
+
   let offset = 0;
 
-  const authTypeView = new DataView(prefix.buffer, offset, 2);
-  // auth type: 1 for WebAuthn
-  authTypeView.setUint16(0, R1AuthenticationType.WebAuthn, true);
-
-  // auth_type (2 bytes, zeroed for backward compatibility)
-  console.log(
-    '🔍 WebAuthn Debug: auth_type at offset',
-    offset,
-    '(2 bytes, set to 1 as webauthn discriminator)',
-  );
+  prefixView.setUint16(offset, R1AuthenticationType.WebAuthn, true);
   offset += 2;
 
-  // auth_len (2 bytes, little-endian)
-  console.log(
-    '🔍 WebAuthn Debug: auth_len at offset',
-    offset,
-    ':',
-    authData.length,
-  );
-  const authDataLenView = new DataView(prefix.buffer, offset, 2);
-  authDataLenView.setUint16(0, authData.length, true);
+  prefixView.setUint16(offset, authData.length, true);
   offset += 2;
 
-  // auth_data
-  console.log(
-    '🔍 WebAuthn Debug: auth_data at offset',
-    offset,
-    'length:',
-    authData.length,
-  );
   prefix.set(authData, offset);
   offset += authData.length;
-  
-  // field_order
-  console.log(
-    '🔍 WebAuthn Debug: field_order at offset',
-    offset,
-    'length:',
-    4,
-  );
+
   prefix.set(fieldOrder, offset);
   offset += 4;
-  
-  // origin_Len
-  console.log(
-    '🔍 WebAuthn Debug: origin len at offset',
-    offset,
-    'length:',
-    2,
-  );
-  const originLenView = new DataView(prefix.buffer, offset, 2);
-  originLenView.setUint16(0, origin.length, true);
+
+  prefixView.setUint16(offset, origin.length, true);
   offset += 2;
 
-  // huffman_tree_len (2 bytes, little-endian)
-  console.log(
-    '🔍 WebAuthn Debug: huffman_tree_len at offset',
-    offset,
-    ':',
-    huffmanTree.length,
-  );
-  const treeLen = new DataView(prefix.buffer, offset, 2);
-  treeLen.setUint16(0, huffmanTree.length, true);
+  prefixView.setUint16(offset, huffmanTree.length, true);
   offset += 2;
 
-  // huffman_encoded_len (2 bytes, little-endian)
-  console.log(
-    '🔍 WebAuthn Debug: huffman_encoded_len at offset',
-    offset,
-    ':',
-    huffmanEncodedOrigin.length,
-  );
-  const encodedLen = new DataView(prefix.buffer, offset, 2);
-  encodedLen.setUint16(0, huffmanEncodedOrigin.length, true);
+  prefixView.setUint16(offset, huffmanEncodedOrigin.length, true);
   offset += 2;
 
-  // huffman_tree
-  console.log(
-    '🔍 WebAuthn Debug: huffman_tree at offset',
-    offset,
-    'length:',
-    huffmanTree.length,
-  );
   prefix.set(huffmanTree, offset);
   offset += huffmanTree.length;
 
-  // huffman_encoded_origin
-  console.log(
-    '🔍 WebAuthn Debug: huffman_encoded_origin at offset',
-    offset,
-    'length:',
-    huffmanEncodedOrigin.length,
-  );
   prefix.set(huffmanEncodedOrigin, offset);
-
-  console.log(
-    '🔍 WebAuthn Debug: Final payload (first 32 bytes):',
-    Array.from(prefix.slice(0, 32))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join(' '),
-  );
-  console.log('🔍 WebAuthn Debug: Final payload total length:', prefix.length);
-
+  
   return prefix;
 }
 
