@@ -1,5 +1,6 @@
-import { p256 } from '@noble/curves/p256';
+import { p256 } from '@noble/curves/nist';
 import { secp256k1 } from '@noble/curves/secp256k1';
+import { sha256 } from '@noble/hashes/sha2';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { utf8ToBytes } from '@noble/hashes/utils';
 import {
@@ -47,6 +48,22 @@ export function getEvmPersonalSignPrefix(messageLen: number): Uint8Array {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function dummySigningFn(_: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(0);
+}
+
+export function getSigningFnForSecp256r1PrivateKey(
+  privateKey: Uint8Array | string,
+): SigningFn {
+  return async (message: Uint8Array) => {
+    const sig = p256.sign(
+      sha256(message),
+      getUnprefixedSecpBytes(privateKey, 32),
+      {
+        lowS: true,
+      },
+    );
+
+    return { signature: sig.toBytes('compact') };
+  };
 }
 
 export async function signWithSecp256r1Webauthn(
@@ -203,9 +220,9 @@ function clientDataFieldOrder(jsonStr: string): Uint8Array {
 export function secp256r1DerToRawSignature(
   derSignature: Uint8Array,
 ): Uint8Array {
-  const signature = p256.Signature.fromDER(derSignature);
+  const signature = p256.Signature.fromBytes(derSignature, 'der');
   const normalizedSignature = signature.normalizeS();
-  const rawSignature = normalizedSignature.toCompactRawBytes();
+  const rawSignature = normalizedSignature.toBytes('compact');
 
   return rawSignature;
 }

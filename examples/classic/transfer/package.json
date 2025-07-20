@@ -35,12 +35,12 @@
   "dependencies": {
     "@ethereumjs/wallet": "^2.0.4",
     "@noble/secp256k1": "^2.2.3",
+    "@noble/curves": "^1.9.4",
     "@solana-program/system": "^0.7.0",
     "@solana/kit": "^2.1.1",
     "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.98.0",
     "@swig-wallet/classic": "workspace:*",
-    "@swig-wallet/lib": "workspace:*",
     "chalk": "5",
     "ethers": "^6.13.5",
     "gill": "^0.10.2",
