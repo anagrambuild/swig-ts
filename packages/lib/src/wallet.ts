@@ -66,6 +66,19 @@ export function getSigningFnForSecp256r1PrivateKey(
   };
 }
 
+export function getSecp256r1WebAuthnSigningFn(
+  publicKeyCredentialRequestOptions: Omit<
+    PublicKeyCredentialRequestOptions,
+    'challenge'
+  >,
+): SigningFn {
+  return (message) =>
+    signWithSecp256r1Webauthn({
+      ...publicKeyCredentialRequestOptions,
+      challenge: message,
+    });
+}
+
 export async function signWithSecp256r1Webauthn(
   publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions,
 ): Promise<SigningResult> {
