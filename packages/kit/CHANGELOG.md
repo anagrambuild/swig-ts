@@ -1,5 +1,16 @@
 # @swig-wallet/classic
 
+## 1.1.0
+
+### Patch Changes
+
+- d6411d4: Remove `Buffer` from @/lib and @/kit packages to eliminate need for Node polyfills
+- Updated dependencies [d6411d4]
+- Updated dependencies [3c1437e]
+- Updated dependencies [cb54f9d]
+  - @swig-wallet/lib@1.1.0
+  - @swig-wallet/coder@1.1.0
+
 ## 1.0.0
 
 ### Major Changes
