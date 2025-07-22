@@ -107,7 +107,7 @@ const createSwigIx = await getCreateSwigInstruction({
 });
 sendSVMTransaction(svm, [createSwigIx], rootAuthority);
 
-let swig = fetchSwig(svm, swigAddress);
+const swig = fetchSwig(svm, swigAddress);
 
 let rootRole = swig.roles[0];
 
