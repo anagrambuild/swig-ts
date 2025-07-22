@@ -1,5 +1,11 @@
 # @swig-wallet/coder
 
+## 1.1.0
+
+### Minor Changes
+
+- cb54f9d: Add R1 Session encoder, R1 Instruciton data encoder, Huffman Encoder
+
 ## 1.0.0
 
 ### Major Changes

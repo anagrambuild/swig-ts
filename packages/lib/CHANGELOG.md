@@ -1,5 +1,17 @@
 # @swig-wallet/classic
 
+## 1.1.0
+
+### Minor Changes
+
+- 3c1437e: Add R1 to lib package. `isSecp256k1BasedAuthority` patch fix
+
+### Patch Changes
+
+- d6411d4: Remove `Buffer` from @/lib and @/kit packages to eliminate need for Node polyfills
+- Updated dependencies [cb54f9d]
+  - @swig-wallet/coder@1.1.0
+
 ## 1.0.0
 
 ### Major Changes
