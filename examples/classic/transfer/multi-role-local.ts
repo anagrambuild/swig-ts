@@ -147,7 +147,7 @@ async function sendTransaction(
     // if token recurring is enabled
     const enableTokenRecurring = false;
     if (enableTokenRecurring) {
-      builder.tokenReccuringLimit({
+      builder.tokenRecurringLimit({
         mint: tokenMint,
         recurringAmount: BigInt(tokenLimit),
         window: BigInt(ONE_DAY_SECS),
