@@ -25,20 +25,20 @@ export type TokenRecurringLimit = {
 export function getTokenRecurringLimitEncoder(): Encoder<TokenRecurringLimit> {
   return getStructEncoder([
     ['mint', fixEncoderSize(getBytesEncoder(), 32)],
-    ['recurringAmount', getU64Encoder()],
     ['window', getU64Encoder()],
-    ['lastReset', getU64Encoder()],
+    ['recurringAmount', getU64Encoder()],
     ['currentAmount', getU64Encoder()],
+    ['lastReset', getU64Encoder()],
   ]);
 }
 
 export function getTokenRecurringLimitDecoder(): Decoder<TokenRecurringLimit> {
   return getStructDecoder([
     ['mint', fixDecoderSize(getBytesDecoder(), 32)],
-    ['recurringAmount', getU64Decoder()],
     ['window', getU64Decoder()],
-    ['lastReset', getU64Decoder()],
+    ['recurringAmount', getU64Decoder()],
     ['currentAmount', getU64Decoder()],
+    ['lastReset', getU64Decoder()],
   ]);
 }
 

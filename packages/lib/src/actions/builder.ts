@@ -266,13 +266,13 @@ export class ActionsBuilder {
    * @param payload.recurringAmount recurring amount per window
    * @param payload.window period in slots until amount reset
    */
-  tokenReccuringLimit(payload: {
+  tokenRecurringLimit(payload: {
     mint: SolPublicKeyData;
     recurringAmount: bigint;
     window: bigint;
   }): this {
     this._actionConfigs.push(
-      new TokenReccuringLimitConfig({
+      new TokenRecurringLimitConfig({
         ...payload,
         mint: new SolPublicKey(payload.mint).toBytes(),
         currentAmount: payload.recurringAmount,
@@ -442,7 +442,7 @@ class TokenLimitConfig extends ActionConfig {
   }
 }
 
-class TokenReccuringLimitConfig extends ActionConfig {
+class TokenRecurringLimitConfig extends ActionConfig {
   constructor(private payload: TokenRecurringLimit) {
     super();
   }
