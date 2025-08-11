@@ -1,5 +1,13 @@
 # @swig-wallet/classic
 
+## 1.1.1
+
+### Patch Changes
+
+- 6c4afdd: Fix TokenRecurring spelling
+- Updated dependencies [a6671df]
+  - @swig-wallet/coder@1.1.1
+
 ## 1.1.0
 
 ### Minor Changes
