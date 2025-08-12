@@ -80,6 +80,11 @@ export enum Permission {
    * Grants permission to sign on behalf of the Swig account for curated programs.
    */
   ProgramCurated,
+  /**
+   * Grants all available permissions without the ability 
+   * to manage other authorities and their permissions.
+   */
+  AllButManageAuthority,
 }
 
 /**
