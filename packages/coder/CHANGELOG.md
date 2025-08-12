@@ -1,5 +1,11 @@
 # @swig-wallet/coder
 
+## 1.1.1
+
+### Patch Changes
+
+- a6671df: Fix `TokenRecurringLimit` coder
+
 ## 1.1.0
 
 ### Minor Changes
