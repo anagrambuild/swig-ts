@@ -81,7 +81,7 @@ export enum Permission {
    */
   ProgramCurated,
   /**
-   * Grants all available permissions without the ability 
+   * Grants all available permissions without the ability
    * to manage other authorities and their permissions.
    */
   AllButManageAuthority,

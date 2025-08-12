@@ -4,6 +4,8 @@ import type {
   ProgramScope,
   SolLimit,
   SolRecurringLimit,
+  StakeLimit,
+  StakeRecurringLimit,
   SubAccount,
   TokenLimit,
   TokenRecurringLimit,
@@ -22,6 +24,9 @@ import {
 
 export type ActionPayload =
   | { permission: Permission.All }
+  | {
+      permission: Permission.AllButManageAuthority;
+    }
   | {
       permission: Permission.ManageAuthority;
     }
@@ -47,6 +52,17 @@ export type ActionPayload =
   | {
       permission: Permission.SolRecurringLimit;
       data: SolRecurringLimit;
+    }
+  | {
+      permission: Permission.StakeAll;
+    }
+  | {
+      permission: Permission.StakeLimit;
+      data: StakeLimit;
+    }
+  | {
+      permission: Permission.StakeRecurringLimit;
+      data: StakeRecurringLimit;
     }
   | {
       permission: Permission.SubAccount;
@@ -114,6 +130,10 @@ export function decodeActionPayload(
 
   if (permission === Permission.TokenRecurringLimit) {
     return { permission, data: getTokenRecurringLimitDecoder().decode(data) };
+  }
+
+  if (permission === Permission.AllButManageAuthority) {
+    return { permission };
   }
 
   throw new Error('Invalid Permission');
