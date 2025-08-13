@@ -1,5 +1,11 @@
 # @swig-wallet/coder
 
+## 1.2.0
+
+### Minor Changes
+
+- 7a87665: `AllButManageAuthority` permission
+
 ## 1.1.1
 
 ### Patch Changes

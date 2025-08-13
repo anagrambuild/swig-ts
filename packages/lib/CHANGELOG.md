@@ -1,5 +1,16 @@
 # @swig-wallet/classic
 
+## 1.2.0
+
+### Minor Changes
+
+- 28298bf: `AllButManageAuthority`, `StakeAll`, `StakeLimit`, `StakeRecurringLimit` action builder
+
+### Patch Changes
+
+- Updated dependencies [7a87665]
+  - @swig-wallet/coder@1.2.0
+
 ## 1.1.1
 
 ### Patch Changes
