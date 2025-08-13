@@ -6,6 +6,8 @@ import {
   getProgramScopeEncoder,
   getSolLimitEncoder,
   getSolRecurringLimitEncoder,
+  getStakeLimitEncoder,
+  getStakeRecurringLimitEncoder,
   getSubAccountEncoder,
   getTokenLimitEncoder,
   getTokenRecurringLimitEncoder,
@@ -17,6 +19,8 @@ import {
   type ProgramScope,
   type SolLimit,
   type SolRecurringLimit,
+  type StakeLimit,
+  type StakeRecurringLimit,
   type SubAccount,
   type TokenLimit,
   type TokenRecurringLimit,
@@ -84,6 +88,14 @@ export class ActionsBuilder {
    */
   manageAuthority(): this {
     this._actionConfigs.push(new ManageAuthorityConfig());
+    return this;
+  }
+
+  /**
+   * Enable AllButMangeAuthority action
+   */
+  allButManageAuthority(): this {
+    this._actionConfigs.push(new AllButManageAuthorityConfig());
     return this;
   }
 
@@ -218,6 +230,42 @@ export class ActionsBuilder {
   }
 
   /**
+   * Enables a StakeAll action
+   */
+  stakeAll(): this {
+    this._actionConfigs.push(new StakeAllConfig());
+    return this;
+  }
+
+  /**
+   * Enables a Spend-once SOL Spend
+   * @param payload.amount ID of the program to enable
+   */
+  stakeLimit(payload: { amount: bigint }): this {
+    this._actionConfigs.push(new StakeLimitConfig(payload));
+    return this;
+  }
+
+  /**
+   * Enables a Spend-recurring SOL Spend
+   * @param payload.recurringAmount recurring amount per window
+   * @param payload.window period in slots until amount reset.
+   */
+  stakeRecurringLimit(payload: {
+    recurringAmount: bigint;
+    window: bigint;
+  }): this {
+    this._actionConfigs.push(
+      new StakeRecurringLimitConfig({
+        ...payload,
+        currentAmount: payload.recurringAmount,
+        lastReset: 0n,
+      }),
+    );
+    return this;
+  }
+
+  /**
    * Enables a Spend-once SOL Spend
    * @param payload.amount ID of the program to enable
    */
@@ -236,7 +284,7 @@ export class ActionsBuilder {
     window: bigint;
   }): this {
     this._actionConfigs.push(
-      new SolReccuringLimitConfig({
+      new SolRecurringLimitConfig({
         ...payload,
         currentAmount: payload.recurringAmount,
         lastReset: 0n,
@@ -352,6 +400,24 @@ class ManageAuthorityConfig extends ActionConfig {
   }
 }
 
+class AllButManageAuthorityConfig extends ActionConfig {
+  constructor() {
+    super();
+  }
+
+  get length() {
+    return 0;
+  }
+
+  get permission() {
+    return Permission.AllButManageAuthority;
+  }
+
+  encode(): Uint8Array {
+    return new Uint8Array(0);
+  }
+}
+
 class ProgramLimitConfig extends ActionConfig {
   constructor(private payload: ProgramLimit) {
     super();
@@ -388,6 +454,62 @@ class SubAccountConfig extends ActionConfig {
   }
 }
 
+class StakeAllConfig extends ActionConfig {
+  constructor() {
+    super();
+  }
+
+  get length() {
+    return 0;
+  }
+
+  get permission() {
+    return Permission.StakeAll;
+  }
+
+  encode(): Uint8Array {
+    return new Uint8Array(0);
+  }
+}
+
+class StakeLimitConfig extends ActionConfig {
+  constructor(private payload: StakeLimit) {
+    super();
+  }
+
+  get length() {
+    return 8;
+  }
+
+  get permission() {
+    return Permission.StakeLimit;
+  }
+
+  encode(): Uint8Array {
+    return Uint8Array.from(getStakeLimitEncoder().encode(this.payload));
+  }
+}
+
+class StakeRecurringLimitConfig extends ActionConfig {
+  constructor(private payload: StakeRecurringLimit) {
+    super();
+  }
+
+  get length() {
+    return 32;
+  }
+
+  get permission() {
+    return Permission.StakeRecurringLimit;
+  }
+
+  encode(): Uint8Array {
+    return Uint8Array.from(
+      getStakeRecurringLimitEncoder().encode(this.payload),
+    );
+  }
+}
+
 class SolLimitConfig extends ActionConfig {
   constructor(private payload: SolLimit) {
     super();
@@ -406,7 +528,7 @@ class SolLimitConfig extends ActionConfig {
   }
 }
 
-class SolReccuringLimitConfig extends ActionConfig {
+class SolRecurringLimitConfig extends ActionConfig {
   constructor(private payload: SolRecurringLimit) {
     super();
   }
