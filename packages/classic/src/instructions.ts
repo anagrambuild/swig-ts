@@ -1,10 +1,13 @@
 import { PublicKey, type TransactionInstruction } from '@solana/web3.js';
 import {
   Actions,
+  AddAuthorityInstructionContextsBuilder,
   getAddAuthorityInstructionContext,
+  getAddMultipleAuthoritiesInstructionsContextBuilder,
   getCreateSessionInstructionContext,
   getCreateSubAccountInstructionContext,
   getCreateSwigInstructionContext,
+  getCreateSwigInstructionsBuilder,
   getRemoveAuthorityInstructionContext,
   getSignInstructionContext,
   getToggleSubAccountInstructionContext,
@@ -13,6 +16,7 @@ import {
   Swig,
   SwigInstructionContext,
   type CreateAuthorityInfo,
+  type SigningFn,
   type SwigOptions,
   type Web3Instruction,
   type WithdrawSubAccountArgs,
@@ -164,4 +168,80 @@ export function getInstructionsFromContext(
   return swigContext
     .getWeb3Instructions()
     .map(getTransactionInstructionFromWeb3Instruction);
+}
+
+export class CreateSwigInstructionBuilder {
+  #builder: AddAuthorityInstructionContextsBuilder;
+
+  constructor(args: {
+    payer: PublicKey;
+    swigAddress: PublicKey;
+    id: Uint8Array;
+    actions: Actions;
+    authorityInfo: CreateAuthorityInfo;
+    options: {
+      signingFn?: SigningFn;
+      currentSlot?: bigint;
+    };
+  }) {
+    this.#builder = getCreateSwigInstructionsBuilder(args);
+  }
+
+  addAuthority = (newAuthorityInfo: CreateAuthorityInfo, actions: Actions) => {
+    return this.#builder.addAuthority(newAuthorityInfo, actions);
+  };
+
+  getInstructions = async (): Promise<TransactionInstruction[]> => {
+    const ixContexts = await this.#builder.getInstructionContexts();
+    return ixContexts.flatMap(getInstructionsFromContext);
+  };
+}
+
+export function getCreateSwigInstructionBuilder(args: {
+  payer: PublicKey;
+  swigAddress: PublicKey;
+  id: Uint8Array;
+  actions: Actions;
+  authorityInfo: CreateAuthorityInfo;
+  options: {
+    signingFn?: SigningFn;
+    currentSlot?: bigint;
+  };
+}) {
+  return new CreateSwigInstructionBuilder(args);
+}
+
+export class AddMultipleAuthoritiesInstructionBuilder {
+  #builder: AddAuthorityInstructionContextsBuilder;
+
+  constructor(builder: AddAuthorityInstructionContextsBuilder) {
+    this.#builder = builder;
+  }
+
+  static async create(swig: Swig, roleId: number, options?: SwigOptions) {
+    const ixBuilder = await getAddMultipleAuthoritiesInstructionsContextBuilder(
+      swig,
+      roleId,
+      options,
+    );
+
+    return new AddMultipleAuthoritiesInstructionBuilder(ixBuilder);
+  }
+
+  addAuthority = (newAuthorityInfo: CreateAuthorityInfo, actions: Actions) => {
+    return this.#builder.addAuthority(newAuthorityInfo, actions);
+  };
+
+  getInstructions = async (): Promise<TransactionInstruction[]> => {
+    const ixContexts = await this.#builder.getInstructionContexts();
+    return ixContexts.flatMap(getInstructionsFromContext);
+  };
+}
+
+export async function getAddMultipleAuthoritiesInstructionBuilder(
+  swig: Swig,
+  roleId: number,
+  options?: SwigOptions,
+) {
+  return AddMultipleAuthoritiesInstructionBuilder.create(swig, roleId, options);
 }

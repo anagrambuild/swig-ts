@@ -26,7 +26,7 @@ export const getCreateSwigInstructionsBuilder = (args: {
       noOfActions: args.actions.count,
     },
   );
-  return new AddAuthorityInstructionsBuilder(
+  return new AddAuthorityInstructionContextsBuilder(
     args.swigAddress,
     args.authorityInfo.writeOnlyAuthority,
     0,
@@ -40,7 +40,7 @@ export const getAddAuthoritiesInstructionsBuilder = (args: {
   roleId: number;
   options?: AddAuthoritiesInstructionContextsConfig;
 }) => {
-  return new AddAuthorityInstructionsBuilder(
+  return new AddAuthorityInstructionContextsBuilder(
     args.swigAddress,
     args.authority,
     args.roleId,
@@ -48,7 +48,7 @@ export const getAddAuthoritiesInstructionsBuilder = (args: {
   );
 };
 
-export class AddAuthorityInstructionsBuilder {
+export class AddAuthorityInstructionContextsBuilder {
   #instructionContextPromises: Promise<SwigInstructionContext>[];
 
   constructor(
