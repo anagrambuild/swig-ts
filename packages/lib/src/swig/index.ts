@@ -2,6 +2,8 @@ import { type Commitment } from '@solana/kit';
 import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
 import { Actions } from '../actions';
 import {
+  AddAuthorityInstructionsBuilder,
+  getAddAuthoritiesInstructionsBuilder,
   isEd25519BasedAuthority,
   isSessionBasedAuthority,
   type CreateAuthorityInfo,
@@ -197,6 +199,26 @@ export const getCreateSwigInstructionContext = (args: {
       noOfActions: args.actions.count,
     },
   );
+};
+
+export const getAddMultipleAuthoritiesInstructionsContextBuilder = async (
+  swig: Swig,
+  roleId: number,
+  options?: SwigOptions,
+): Promise<AddAuthorityInstructionsBuilder> => {
+  const { payer, role } = await assertInstructionOptions(
+    swig,
+    roleId,
+    false,
+    options,
+  );
+
+  return getAddAuthoritiesInstructionsBuilder({
+    swigAddress: swig.address,
+    authority: role.authority,
+    roleId: role.id,
+    options: { ...options, payer },
+  });
 };
 
 export const getAddAuthorityInstructionContext = async (
