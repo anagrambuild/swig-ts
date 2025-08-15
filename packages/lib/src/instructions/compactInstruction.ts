@@ -5,6 +5,7 @@ import {
   SolPublicKey,
   type SolPublicKeyData,
 } from '../solana';
+import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
 
 /**
  * Convert TransactionInstructions to CompactInstructions
@@ -26,7 +27,7 @@ export function compactInstructions<
   const hashmap = new Map<string, number>(
     accounts.map((x, i) => [x.publicKey.toBase58(), i]),
   );
-
+  let handleUnbalanced = false;
   for (const ix of innerInstructions) {
     const programIdIndex = accounts.length;
 
@@ -37,7 +38,7 @@ export function compactInstructions<
       const subAcct = subAccount ? new SolPublicKey(subAccount) : undefined;
       if (
         ixAccount.publicKey.toBase58() ===
-          new SolPublicKey(swigAccount).toBase58() ||
+        new SolPublicKey(swigAccount).toBase58() ||
         ixAccount.publicKey.toBase58() === subAcct?.toBase58()
       ) {
         ixAccount.setSigner(false);
@@ -51,6 +52,20 @@ export function compactInstructions<
         hashmap.set(ixAccount.publicKey.toBase58(), idx);
         accounts.push(ixAccount);
         accts.push(idx);
+      }
+    }
+
+    if (handleUnbalanced) {
+      accounts.push(SolAccountMeta.writable(new SolPublicKey(swigAccount)));
+      const accountIndex = hashmap.get(swigAccount.toString());
+      if (accountIndex !== undefined) {
+        accts.push(accountIndex);
+      } else {
+        accts.push(0); // Should be first account until SignV2 changes come
+        handleUnbalanced = false;
+      }
+      if (ix.program.toBase58() === SYSTEM_PROGRAM_ADDRESS_STRING && ix.data.subarray(0, 4) === Buffer.from('0x02000000')) {
+        handleUnbalanced = true;
       }
     }
 
