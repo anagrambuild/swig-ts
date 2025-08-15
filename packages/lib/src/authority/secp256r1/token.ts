@@ -102,7 +102,7 @@ export class Secp256r1Authority
         newAuthorityType: args.newAuthorityInfo.type,
         noOfActions: args.actions.count,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 

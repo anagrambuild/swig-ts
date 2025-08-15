@@ -188,7 +188,8 @@ export class CreateSwigInstructionBuilder {
   }
 
   addAuthority = (newAuthorityInfo: CreateAuthorityInfo, actions: Actions) => {
-    return this.#builder.addAuthority(newAuthorityInfo, actions);
+    this.#builder.addAuthority(newAuthorityInfo, actions);
+    return this;
   };
 
   getInstructions = async (): Promise<TransactionInstruction[]> => {
@@ -229,7 +230,8 @@ export class AddMultipleAuthoritiesInstructionBuilder {
   }
 
   addAuthority = (newAuthorityInfo: CreateAuthorityInfo, actions: Actions) => {
-    return this.#builder.addAuthority(newAuthorityInfo, actions);
+    this.#builder.addAuthority(newAuthorityInfo, actions);
+    return this;
   };
 
   getInstructions = async (): Promise<TransactionInstruction[]> => {

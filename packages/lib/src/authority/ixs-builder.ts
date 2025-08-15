@@ -50,6 +50,7 @@ export const getAddAuthoritiesInstructionsBuilder = (args: {
 
 export class AddAuthorityInstructionContextsBuilder {
   #instructionContextPromises: Promise<SwigInstructionContext>[];
+  #odometer: number;
 
   constructor(
     public swigAddress: SolPublicKeyData,
@@ -63,6 +64,12 @@ export class AddAuthorityInstructionContextsBuilder {
       this.#instructionContextPromises.push(
         options?.createSwigInstructionContextPromise,
       );
+    }
+
+    if (options?.odometer) {
+      this.#odometer = options.odometer;
+    } else {
+      this.#odometer = 1;
     }
   }
 
@@ -82,9 +89,10 @@ export class AddAuthorityInstructionContextsBuilder {
       newAuthorityInfo,
       payer: this.getPayer(),
       swigAddress: this.swigAddress,
-      options: this.options,
+      options: { ...this.options, odometer: this.#odometer },
     });
     this.#instructionContextPromises.push(instructionContextPromise);
+    this.#odometer += 1;
     return this;
   };
 
@@ -98,4 +106,5 @@ export type AddAuthoritiesInstructionContextsConfig = {
   currentSlot?: bigint;
   payer?: SolPublicKeyData;
   createSwigInstructionContextPromise?: Promise<SwigInstructionContext>;
+  odometer?: number;
 };

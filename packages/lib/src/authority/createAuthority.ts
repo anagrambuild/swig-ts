@@ -59,9 +59,16 @@ export function createSecp256k1AuthorityInfo(
   const data = getUnprefixedSecpBytes(publicKey, 64);
   const type = AuthorityType.Secp256k1;
 
-  const writeOnlyAuthority = new Secp256k1SessionAuthority(
-    new Uint8Array(secp256k1.ProjectivePoint.fromHex(data).toRawBytes(true)),
+  const uncompressedPublicKey = new Uint8Array(65);
+  uncompressedPublicKey.set([4]);
+  uncompressedPublicKey.set(data, 1);
+
+  const d = new Uint8Array(40);
+  d.set(
+    secp256k1.ProjectivePoint.fromHex(uncompressedPublicKey).toRawBytes(true),
   );
+
+  const writeOnlyAuthority = new Secp256k1SessionAuthority(d);
 
   return { data, type, writeOnlyAuthority };
 }
@@ -116,7 +123,9 @@ export function createSecp256r1AuthorityInfo(
 ): CreateAuthorityInfo {
   const data = getUnprefixedSecpBytes(publicKey, 33);
   const type = AuthorityType.Secp256r1;
-  const writeOnlyAuthority = new Secp256r1Authority(data);
+  const d = new Uint8Array(40);
+  d.set(data);
+  const writeOnlyAuthority = new Secp256r1Authority(d);
 
   return { data, type, writeOnlyAuthority };
 }
