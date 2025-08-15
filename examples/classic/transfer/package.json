@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start-validator": "solana-test-validator --reset --bpf-program swigypWHEksbC64pWKwah1WTeh9JXwx8H1rJHLdbQMB ../../../swig.so",
+    "start-validator": "solana-test-validator --reset --ticks-per-slot 4 --limit-ledger-size 1000000000  --bpf-program swigypWHEksbC64pWKwah1WTeh9JXwx8H1rJHLdbQMB ../../../swig.so",
     "tutorial-1": "bun run tutorial/tutorial-1.ts",
     "tutorial-2": "bun run tutorial/tutorial-2.ts",
     "tutorial-3": "bun run tutorial/tutorial-3.ts",

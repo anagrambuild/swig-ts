@@ -31,9 +31,7 @@
     "update:program": "./scripts/update-program-latest.sh"
   },
   "workspaces": [
-    "packages/*",
-    "examples/*",
-    "examples/*/*"
+    "packages/*"
   ],
   "devDependencies": {
     "@changesets/cli": "^2.29.3",
