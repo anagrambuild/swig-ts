@@ -128,7 +128,7 @@ export async function getToggleSubAccountInstructions(
   return getInstructionsFromContext(context);
 }
 
-export async function getWithdrawFromSubAccountSubAccountInstructions(
+export async function getWithdrawFromSubAccountInstructions(
   swig: Swig,
   roleId: number,
   withdrawArgs: WithdrawSubAccountArgs<PublicKey>,
