@@ -124,6 +124,7 @@ describe('Ed25519Instruction', () => {
       subAccountId: dummyUint8(),
       amount: 1n,
       roleId: 1,
+      allowBelowRentExempt: false,
     };
     const ix = await Ed25519Instruction.subAccountWithdrawV1SolInstruction(
       accounts,
@@ -146,6 +147,7 @@ describe('Ed25519Instruction', () => {
       subAccountId: dummyUint8(),
       amount: 1n,
       roleId: 1,
+      allowBelowRentExempt: false,
     };
     const ix = await Ed25519Instruction.subAccountWithdrawV1TokenInstruction(
       accounts,
@@ -298,6 +300,7 @@ describe('Secp256k1Instruction', () => {
       authorityData: dummyUint8(32),
       roleId: 1,
       amount: 1n,
+      allowBelowRentExempt: false,
     };
     const ix = await Secp256k1Instruction.subAccountWithdrawV1SolInstruction(
       accounts,
