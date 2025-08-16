@@ -62,7 +62,7 @@ export function getSigningFnForSecp256r1PrivateKey(
       },
     );
 
-    return { signature: sig.toBytes('compact') };
+    return { signature: sig.toCompactRawBytes() };
   };
 }
 
@@ -233,9 +233,9 @@ function clientDataFieldOrder(jsonStr: string): Uint8Array {
 export function secp256r1DerToRawSignature(
   derSignature: Uint8Array,
 ): Uint8Array {
-  const signature = p256.Signature.fromBytes(derSignature, 'der');
+  const signature = p256.Signature.fromDER(derSignature);
   const normalizedSignature = signature.normalizeS();
-  const rawSignature = normalizedSignature.toBytes('compact');
+  const rawSignature = normalizedSignature.toCompactRawBytes();
 
   return rawSignature;
 }
