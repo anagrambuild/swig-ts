@@ -135,6 +135,7 @@ export abstract class Authority {
     subAccount: SolPublicKeyData;
     roleId: number;
     amount: bigint;
+    allowBelowRentExempt?: boolean;
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;
 
