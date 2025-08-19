@@ -1,5 +1,12 @@
 # @swig-wallet/classic
 
+## 1.2.1
+
+### Patch Changes
+
+- 405ff61: Fixes `UnbalancedTransfer` bug due to strict CPI restrictions with SOL/wSOL transfers.
+  - @swig-wallet/coder@1.2.1
+
 ## 1.2.0
 
 ### Minor Changes
