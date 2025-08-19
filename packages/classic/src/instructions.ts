@@ -170,49 +170,6 @@ export function getInstructionsFromContext(
     .map(getTransactionInstructionFromWeb3Instruction);
 }
 
-export class CreateSwigInstructionBuilder {
-  #builder: AddMultipleAuthoritiesInstructionContextBuilder;
-
-  constructor(args: {
-    payer: PublicKey;
-    swigAddress: PublicKey;
-    id: Uint8Array;
-    actions: Actions;
-    authorityInfo: CreateAuthorityInfo;
-    options: {
-      signingFn?: SigningFn;
-      currentSlot?: bigint;
-    };
-  }) {
-    this.#builder =
-      getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder(args);
-  }
-
-  addAuthority = (newAuthorityInfo: CreateAuthorityInfo, actions: Actions) => {
-    this.#builder.addAuthority(newAuthorityInfo, actions);
-    return this;
-  };
-
-  getInstructions = async (): Promise<TransactionInstruction[]> => {
-    const ixContexts = await this.#builder.getInstructionContexts();
-    return ixContexts.flatMap(getInstructionsFromContext);
-  };
-}
-
-export function getCreateSwigInstructionBuilder(args: {
-  payer: PublicKey;
-  swigAddress: PublicKey;
-  id: Uint8Array;
-  actions: Actions;
-  authorityInfo: CreateAuthorityInfo;
-  options: {
-    signingFn?: SigningFn;
-    currentSlot?: bigint;
-  };
-}) {
-  return new CreateSwigInstructionBuilder(args);
-}
-
 export class AddMultipleAuthoritiesInstructionBuilder {
   #builder: AddMultipleAuthoritiesInstructionContextBuilder;
 
@@ -227,6 +184,22 @@ export class AddMultipleAuthoritiesInstructionBuilder {
       options,
     );
 
+    return new AddMultipleAuthoritiesInstructionBuilder(ixBuilder);
+  }
+
+  static withCreateSwigInstruction(args: {
+    payer: PublicKey;
+    swigAddress: PublicKey;
+    id: Uint8Array;
+    actions: Actions;
+    authorityInfo: CreateAuthorityInfo;
+    options: {
+      signingFn?: SigningFn;
+      currentSlot?: bigint;
+    };
+  }) {
+    const ixBuilder =
+      getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder(args);
     return new AddMultipleAuthoritiesInstructionBuilder(ixBuilder);
   }
 
@@ -247,4 +220,20 @@ export async function getAddMultipleAuthoritiesInstructionBuilder(
   options?: SwigOptions,
 ) {
   return AddMultipleAuthoritiesInstructionBuilder.create(swig, roleId, options);
+}
+
+export function getCreateSwigInstructionBuilder(args: {
+  payer: PublicKey;
+  swigAddress: PublicKey;
+  id: Uint8Array;
+  actions: Actions;
+  authorityInfo: CreateAuthorityInfo;
+  options: {
+    signingFn?: SigningFn;
+    currentSlot?: bigint;
+  };
+}) {
+  return AddMultipleAuthoritiesInstructionBuilder.withCreateSwigInstruction(
+    args,
+  );
 }
