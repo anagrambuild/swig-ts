@@ -374,19 +374,22 @@ export const getWithdrawFromSubAccountInstructionContext = async <
   if (!('mint' in args)) {
     const SUB_ACCOUNT_RENT_EXEMPT = 1224960n;
 
-    if (args.allowBelowRentExempt !== undefined && args.currentBalance === undefined) {
+    if (
+      args.allowBelowRentExempt !== undefined &&
+      args.currentBalance === undefined
+    ) {
       throw new Error(
-        `currentBalance is required when allowBelowRentExempt is provided`
+        `currentBalance is required when allowBelowRentExempt is provided`,
       );
     }
-    
+
     if (args.currentBalance && !args.allowBelowRentExempt) {
       const remainingBalance = args.currentBalance - args.amount;
       if (remainingBalance < SUB_ACCOUNT_RENT_EXEMPT) {
         throw new Error(
           `Withdrawing ${args.amount} lamports would drop subaccount below rent-exempt minimum (${SUB_ACCOUNT_RENT_EXEMPT} lamports). ` +
-          `Current balance: ${args.currentBalance}, remaining would be: ${remainingBalance}. ` +
-          `Set allowBelowRentExempt: true to proceed with this withdrawal.`
+            `Current balance: ${args.currentBalance}, remaining would be: ${remainingBalance}. ` +
+            `Set allowBelowRentExempt: true to proceed with this withdrawal.`,
         );
       }
     }
