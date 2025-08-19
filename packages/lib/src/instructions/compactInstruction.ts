@@ -1,11 +1,11 @@
 import { type CompactInstruction } from '@swig-wallet/coder';
+import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
 import {
   SolAccountMeta,
   SolInstruction,
   SolPublicKey,
   type SolPublicKeyData,
 } from '../solana';
-import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
 
 /**
  * Convert TransactionInstructions to CompactInstructions
@@ -38,7 +38,7 @@ export function compactInstructions<
       const subAcct = subAccount ? new SolPublicKey(subAccount) : undefined;
       if (
         ixAccount.publicKey.toBase58() ===
-        new SolPublicKey(swigAccount).toBase58() ||
+          new SolPublicKey(swigAccount).toBase58() ||
         ixAccount.publicKey.toBase58() === subAcct?.toBase58()
       ) {
         ixAccount.setSigner(false);
@@ -55,7 +55,9 @@ export function compactInstructions<
       }
     }
     if (handleUnbalanced) {
-      const accountIndex = subAccount ? hashmap.get(subAccount.toString()) : hashmap.get(swigAccount.toString());
+      const accountIndex = subAccount
+        ? hashmap.get(subAccount.toString())
+        : hashmap.get(swigAccount.toString());
       if (accountIndex !== undefined) {
         accts.push(accountIndex);
       } else {
@@ -63,8 +65,11 @@ export function compactInstructions<
       }
       handleUnbalanced = false;
     }
-    if (ix.program.toBase58() === SYSTEM_PROGRAM_ADDRESS_STRING
-      && ix.data.subarray(0, 4).toString() === Uint8Array.from([2, 0, 0, 0]).toString()) {
+    if (
+      ix.program.toBase58() === SYSTEM_PROGRAM_ADDRESS_STRING &&
+      ix.data.subarray(0, 4).toString() ===
+        Uint8Array.from([2, 0, 0, 0]).toString()
+    ) {
       handleUnbalanced = true;
     }
 
