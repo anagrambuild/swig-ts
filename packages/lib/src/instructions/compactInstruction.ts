@@ -1,4 +1,5 @@
 import { type CompactInstruction } from '@swig-wallet/coder';
+import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
 import {
   SolAccountMeta,
   SolInstruction,
@@ -26,7 +27,7 @@ export function compactInstructions<
   const hashmap = new Map<string, number>(
     accounts.map((x, i) => [x.publicKey.toBase58(), i]),
   );
-
+  let handleUnbalanced = false;
   for (const ix of innerInstructions) {
     const programIdIndex = accounts.length;
 
@@ -52,6 +53,24 @@ export function compactInstructions<
         accounts.push(ixAccount);
         accts.push(idx);
       }
+    }
+    if (handleUnbalanced) {
+      const accountIndex = subAccount
+        ? hashmap.get(subAccount.toString())
+        : hashmap.get(swigAccount.toString());
+      if (accountIndex !== undefined) {
+        accts.push(accountIndex);
+      } else {
+        accts.push(0); // Should be first account until SignV2 changes come
+      }
+      handleUnbalanced = false;
+    }
+    if (
+      ix.program.toBase58() === SYSTEM_PROGRAM_ADDRESS_STRING &&
+      ix.data.subarray(0, 4).toString() ===
+        Uint8Array.from([2, 0, 0, 0]).toString()
+    ) {
+      handleUnbalanced = true;
     }
 
     compactIxs.push({
