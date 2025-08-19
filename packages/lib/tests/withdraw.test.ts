@@ -1,7 +1,6 @@
 import { getAddressDecoder } from '@solana/kit';
 import { SwigInstructionContext } from '../src';
-import { getWithdrawFromSubAccountInstructionContext } from '../src/swig';
-import { Swig } from '../src/swig';
+import { getWithdrawFromSubAccountInstructionContext, Swig } from '../src/swig';
 
 // Dummy data helpers
 const dummyAddress = (label: string) =>
@@ -15,8 +14,10 @@ const createMockSwig = () => {
     signer: dummyUint8(32),
     type: 0, // Ed25519
     ed25519PublicKey: { toAddress: () => dummyAddress('auth') } as any,
-    subAccountWithdrawSol: async () => new SwigInstructionContext({ swigInstruction: {} as any }),
-    subAccountWithdrawToken: async () => new SwigInstructionContext({ swigInstruction: {} as any }),
+    subAccountWithdrawSol: async () =>
+      new SwigInstructionContext({ swigInstruction: {} as any }),
+    subAccountWithdrawToken: async () =>
+      new SwigInstructionContext({ swigInstruction: {} as any }),
   };
 
   const mockSwig = {
@@ -42,16 +43,14 @@ describe('Withdraw Protection', () => {
       const withdrawalAmount = 2000000n;
 
       await expect(
-        getWithdrawFromSubAccountInstructionContext(
-          mockSwig,
-          1,
-          {
-            amount: withdrawalAmount,
-            allowBelowRentExempt: false,
-            currentBalance,
-          }
-        )
-      ).rejects.toThrow('Withdrawing 2000000 lamports would drop subaccount below rent-exempt minimum');
+        getWithdrawFromSubAccountInstructionContext(mockSwig, 1, {
+          amount: withdrawalAmount,
+          allowBelowRentExempt: false,
+          currentBalance,
+        }),
+      ).rejects.toThrow(
+        'Withdrawing 2000000 lamports would drop subaccount below rent-exempt minimum',
+      );
     });
 
     it('should allow withdrawal when allowBelowRentExempt is true', async () => {
@@ -66,7 +65,7 @@ describe('Withdraw Protection', () => {
           amount: withdrawalAmount,
           allowBelowRentExempt: true,
           currentBalance,
-        }
+        },
       );
 
       expect(result).toBeInstanceOf(SwigInstructionContext);
@@ -84,7 +83,7 @@ describe('Withdraw Protection', () => {
           amount: withdrawalAmount,
           allowBelowRentExempt: false,
           currentBalance,
-        }
+        },
       );
 
       expect(result).toBeInstanceOf(SwigInstructionContext);
@@ -94,15 +93,15 @@ describe('Withdraw Protection', () => {
       const mockSwig = createMockSwig();
       const withdrawalAmount = 2000000n;
 
-      await expect(getWithdrawFromSubAccountInstructionContext(
-        mockSwig,
-        1,
-        {
+      await expect(
+        getWithdrawFromSubAccountInstructionContext(mockSwig, 1, {
           amount: withdrawalAmount,
           allowBelowRentExempt: false,
-        }
-      )).rejects.toThrow('currentBalance is required when allowBelowRentExempt is provided');
-    })
+        }),
+      ).rejects.toThrow(
+        'currentBalance is required when allowBelowRentExempt is provided',
+      );
+    });
   });
 
   describe('Token Withdrawals', () => {
@@ -116,7 +115,7 @@ describe('Withdraw Protection', () => {
         {
           amount: 1000000n,
           mint: tokenMint,
-        }
+        },
       );
 
       expect(result).toBeInstanceOf(SwigInstructionContext);
