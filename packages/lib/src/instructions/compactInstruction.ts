@@ -54,19 +54,18 @@ export function compactInstructions<
         accts.push(idx);
       }
     }
-
     if (handleUnbalanced) {
-      accounts.push(SolAccountMeta.writable(new SolPublicKey(swigAccount)));
-      const accountIndex = hashmap.get(swigAccount.toString());
+      const accountIndex = subAccount ? hashmap.get(subAccount.toString()) : hashmap.get(swigAccount.toString());
       if (accountIndex !== undefined) {
         accts.push(accountIndex);
       } else {
         accts.push(0); // Should be first account until SignV2 changes come
-        handleUnbalanced = false;
       }
-      if (ix.program.toBase58() === SYSTEM_PROGRAM_ADDRESS_STRING && ix.data.subarray(0, 4) === Buffer.from('0x02000000')) {
-        handleUnbalanced = true;
-      }
+      handleUnbalanced = false;
+    }
+    if (ix.program.toBase58() === SYSTEM_PROGRAM_ADDRESS_STRING
+      && ix.data.subarray(0, 4).toString() === Uint8Array.from([2, 0, 0, 0]).toString()) {
+      handleUnbalanced = true;
     }
 
     compactIxs.push({

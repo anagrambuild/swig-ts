@@ -31,6 +31,7 @@ import {
 import { createJupiterApiClient } from '@jup-ag/api';
 import chalk from 'chalk';
 import * as fs from 'fs';
+import { getSignV1InstructionCodec } from '@swig-wallet/coder';
 
 function formatNumber(n: number) {
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -210,15 +211,15 @@ async function main() {
   }
 
   const transferAmount = 0.01 * LAMPORTS_PER_SOL;
-  const transferTx = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: rootUser.publicKey,
-      toPubkey: swigAddress,
-      lamports: transferAmount,
-    }),
-  );
-  await sendAndConfirmTransaction(connection, transferTx, [rootUser]);
-  console.log(chalk.green('✓ Transferred 0.01 SOL to Swig'));
+  // const transferTx = new Transaction().add(
+  //   SystemProgram.transfer({
+  //     fromPubkey: rootUser.publicKey,
+  //     toPubkey: swigAddress,
+  //     lamports: transferAmount,
+  //   }),
+  // );
+  // await sendAndConfirmTransaction(connection, transferTx, [rootUser]);
+  // console.log(chalk.green('✓ Transferred 0.01 SOL to Swig'));
 
   const jupiter = createJupiterApiClient();
   const quote = await jupiter.quoteGet({
@@ -261,6 +262,8 @@ async function main() {
     swapInstructions,
   );
 
+
+
   const lookupTables = await Promise.all(
     swapInstructionsRes.addressLookupTableAddresses.map(async (addr) => {
       const res = await connection.getAddressLookupTable(new PublicKey(addr));
@@ -284,11 +287,11 @@ async function main() {
   const tx = new VersionedTransaction(messageV0);
   tx.sign([rootUser]);
 
+
   const signature = await connection.sendTransaction(tx, {
     skipPreflight: true,
     preflightCommitment: 'confirmed',
   });
-
   const result = await connection.confirmTransaction({
     signature,
     blockhash,
