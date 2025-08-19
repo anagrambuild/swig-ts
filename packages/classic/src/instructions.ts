@@ -1,13 +1,13 @@
 import { PublicKey, type TransactionInstruction } from '@solana/web3.js';
 import {
   Actions,
-  AddAuthorityInstructionContextsBuilder,
+  AddMultipleAuthoritiesInstructionContextBuilder,
   getAddAuthorityInstructionContext,
   getAddMultipleAuthoritiesInstructionsContextBuilder,
   getCreateSessionInstructionContext,
   getCreateSubAccountInstructionContext,
   getCreateSwigInstructionContext,
-  getCreateSwigInstructionsBuilder,
+  getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder,
   getRemoveAuthorityInstructionContext,
   getSignInstructionContext,
   getToggleSubAccountInstructionContext,
@@ -171,7 +171,7 @@ export function getInstructionsFromContext(
 }
 
 export class CreateSwigInstructionBuilder {
-  #builder: AddAuthorityInstructionContextsBuilder;
+  #builder: AddMultipleAuthoritiesInstructionContextBuilder;
 
   constructor(args: {
     payer: PublicKey;
@@ -184,7 +184,8 @@ export class CreateSwigInstructionBuilder {
       currentSlot?: bigint;
     };
   }) {
-    this.#builder = getCreateSwigInstructionsBuilder(args);
+    this.#builder =
+      getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder(args);
   }
 
   addAuthority = (newAuthorityInfo: CreateAuthorityInfo, actions: Actions) => {
@@ -213,9 +214,9 @@ export function getCreateSwigInstructionBuilder(args: {
 }
 
 export class AddMultipleAuthoritiesInstructionBuilder {
-  #builder: AddAuthorityInstructionContextsBuilder;
+  #builder: AddMultipleAuthoritiesInstructionContextBuilder;
 
-  constructor(builder: AddAuthorityInstructionContextsBuilder) {
+  constructor(builder: AddMultipleAuthoritiesInstructionContextBuilder) {
     this.#builder = builder;
   }
 

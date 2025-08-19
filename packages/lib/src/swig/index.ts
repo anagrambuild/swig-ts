@@ -2,8 +2,8 @@ import { type Commitment } from '@solana/kit';
 import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
 import { Actions } from '../actions';
 import {
-  AddAuthorityInstructionContextsBuilder,
-  getAddAuthoritiesInstructionsBuilder,
+  AddMultipleAuthoritiesInstructionContextBuilder,
+  getMockAuthorityFromCreateAuthorityInfo,
   isEd25519BasedAuthority,
   isSessionBasedAuthority,
   type CreateAuthorityInfo,
@@ -201,11 +201,42 @@ export const getCreateSwigInstructionContext = (args: {
   );
 };
 
+export const getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder =
+  (args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    id: Uint8Array;
+    actions: Actions;
+    authorityInfo: CreateAuthorityInfo;
+    options: { signingFn?: SigningFn; currentSlot?: bigint };
+  }) => {
+    const createSwigInstructionContextPromise = createV1SwigInstruction(
+      { payer: args.payer },
+      {
+        id: args.id,
+        actions: args.actions.bytes(),
+        authorityData: args.authorityInfo.data,
+        authorityType: args.authorityInfo.type,
+        noOfActions: args.actions.count,
+      },
+    );
+    return new AddMultipleAuthoritiesInstructionContextBuilder(
+      args.swigAddress,
+      getMockAuthorityFromCreateAuthorityInfo(args.authorityInfo),
+      0,
+      {
+        ...args.options,
+        payer: args.payer,
+        createSwigInstructionContextPromise,
+      },
+    );
+  };
+
 export const getAddMultipleAuthoritiesInstructionsContextBuilder = async (
   swig: Swig,
   roleId: number,
   options?: SwigOptions,
-): Promise<AddAuthorityInstructionContextsBuilder> => {
+): Promise<AddMultipleAuthoritiesInstructionContextBuilder> => {
   const { payer, role } = await assertInstructionOptions(
     swig,
     roleId,
@@ -213,7 +244,7 @@ export const getAddMultipleAuthoritiesInstructionsContextBuilder = async (
     options,
   );
 
-  return getAddAuthoritiesInstructionsBuilder({
+  return AddMultipleAuthoritiesInstructionContextBuilder.create({
     swigAddress: swig.address,
     authority: role.authority,
     roleId: role.id,

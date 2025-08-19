@@ -1,6 +1,7 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
 import {
   AuthorityType,
+  getCreateSecp256k1SessionDecoder,
   getCreateSecp256k1SessionEncoder,
   getCreateSecp256r1SessionEncoder,
   getEd25519SessionEncoder,
@@ -10,7 +11,7 @@ import { SolPublicKey, type SolPublicKeyData } from '../solana';
 import { getUnprefixedSecpBytes } from '../utils';
 import type { Authority } from './abstract';
 import { Ed25519Authority, Ed25519SessionAuthority } from './ed25519';
-import { Secp256k1SessionAuthority } from './secp256k1';
+import { Secp256k1Authority, Secp256k1SessionAuthority } from './secp256k1';
 import { Secp256r1Authority, Secp256r1SessionAuthority } from './secp256r1';
 
 export type WriteOnlyAuthority = Authority;
@@ -18,7 +19,6 @@ export type WriteOnlyAuthority = Authority;
 export interface CreateAuthorityInfo {
   data: Uint8Array;
   type: AuthorityType;
-  writeOnlyAuthority: WriteOnlyAuthority;
 }
 
 export function createEd25519AuthorityInfo(
@@ -26,8 +26,7 @@ export function createEd25519AuthorityInfo(
 ): CreateAuthorityInfo {
   const data = new SolPublicKey(publicKey).toBytes();
   const type = AuthorityType.Ed25519;
-  const writeOnlyAuthority = new Ed25519Authority(data);
-  return { data, type, writeOnlyAuthority };
+  return { data, type };
 }
 
 export function createEd25519SessionAuthorityInfo(
@@ -43,9 +42,7 @@ export function createEd25519SessionAuthorityInfo(
   });
   const data = Uint8Array.from(sessionData.slice(0, 72));
   const type = AuthorityType.Ed25519Session;
-  const writeOnlyAuthority = new Ed25519SessionAuthority(data);
-
-  return { data, type, writeOnlyAuthority };
+  return { data, type };
 }
 
 /**
@@ -59,18 +56,7 @@ export function createSecp256k1AuthorityInfo(
   const data = getUnprefixedSecpBytes(publicKey, 64);
   const type = AuthorityType.Secp256k1;
 
-  const uncompressedPublicKey = new Uint8Array(65);
-  uncompressedPublicKey.set([4]);
-  uncompressedPublicKey.set(data, 1);
-
-  const d = new Uint8Array(40);
-  d.set(
-    secp256k1.ProjectivePoint.fromHex(uncompressedPublicKey).toRawBytes(true),
-  );
-
-  const writeOnlyAuthority = new Secp256k1SessionAuthority(d);
-
-  return { data, type, writeOnlyAuthority };
+  return { data, type };
 }
 
 /**
@@ -97,19 +83,8 @@ export function createSecp256k1SessionAuthorityInfo(
 
   const data = Uint8Array.from(sessionData);
   const type = AuthorityType.Secp256k1Session;
-  const mockAuthorityData = getSecp256k1SessionEncoder().encode({
-    currentSessionExpiration: 0n,
-    maxSessionLength: maxSessionDuration,
-    odometer: 0,
-    sessionKey: _sessionKey,
-    publicKey:
-      secp256k1.ProjectivePoint.fromHex(publicKeyBytes).toRawBytes(true),
-  });
-  const writeOnlyAuthority = new Secp256k1SessionAuthority(
-    new Uint8Array(mockAuthorityData),
-  );
 
-  return { data, type, writeOnlyAuthority };
+  return { data, type };
 }
 
 /**
@@ -125,9 +100,8 @@ export function createSecp256r1AuthorityInfo(
   const type = AuthorityType.Secp256r1;
   const d = new Uint8Array(40);
   d.set(data);
-  const writeOnlyAuthority = new Secp256r1Authority(d);
 
-  return { data, type, writeOnlyAuthority };
+  return { data, type };
 }
 
 /**
@@ -156,9 +130,65 @@ export function createSecp256r1SessionAuthorityInfo(
   const data = Uint8Array.from(sessionData);
   const type = AuthorityType.Secp256r1Session;
 
-  const writeOnlyAuthority = new Secp256r1SessionAuthority(
-    new Uint8Array(sessionData),
-  );
+  return { data, type };
+}
 
-  return { data, type, writeOnlyAuthority };
+/////////////////////////
+/// Mock Authority
+/////////////////////////
+
+export function getMockAuthorityFromCreateAuthorityInfo(
+  info: CreateAuthorityInfo,
+): Authority {
+  if (info.type === AuthorityType.Ed25519) {
+    return new Ed25519Authority(info.data);
+  }
+
+  if (info.type === AuthorityType.Ed25519Session) {
+    return new Ed25519SessionAuthority(info.data);
+  }
+
+  if (info.type === AuthorityType.Secp256k1) {
+    const uncompressedPublicKey = new Uint8Array(65);
+    uncompressedPublicKey.set([4]);
+    uncompressedPublicKey.set(info.data, 1);
+
+    const d = new Uint8Array(40);
+    d.set(
+      secp256k1.ProjectivePoint.fromHex(uncompressedPublicKey).toRawBytes(true),
+    );
+
+    return new Secp256k1Authority(d);
+  }
+
+  if (info.type === AuthorityType.Secp256k1Session) {
+    const sessionData = getCreateSecp256k1SessionDecoder().decode(info.data);
+
+    const uncompressedPublicKey = new Uint8Array(65);
+    uncompressedPublicKey.set([4]);
+    uncompressedPublicKey.set(info.data, 1);
+
+    const mockAuthorityData = getSecp256k1SessionEncoder().encode({
+      currentSessionExpiration: 0n,
+      maxSessionLength: sessionData.maxSessionLength,
+      odometer: 0,
+      sessionKey: sessionData.sessionKey,
+      publicKey: secp256k1.ProjectivePoint.fromHex(
+        uncompressedPublicKey,
+      ).toRawBytes(true),
+    });
+    return new Secp256k1SessionAuthority(new Uint8Array(mockAuthorityData));
+  }
+
+  if (info.type === AuthorityType.Secp256r1) {
+    const d = new Uint8Array(40);
+    d.set(info.data);
+    return new Secp256r1Authority(d);
+  }
+
+  if (info.type === AuthorityType.Secp256r1Session) {
+    return new Secp256r1SessionAuthority(info.data);
+  }
+
+  throw new Error('Error creating mock authority from CreateAuthorityInfo');
 }

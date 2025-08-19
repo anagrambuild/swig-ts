@@ -13,7 +13,9 @@ import {
   createSecp256k1AuthorityInfo,
   createSecp256r1AuthorityInfo,
   findSwigPda,
+  getAddMultipleAuthoritiesInstructionBuilder,
   getCreateSwigInstructionBuilder,
+  getSigningFnForSecp256k1PrivateKey,
   getSigningFnForSecp256r1PrivateKey,
   getSwigCodec,
   Swig,
@@ -103,7 +105,7 @@ const swigAddress = findSwigPda(id);
 
 console.log('swig address:', swigAddress.toBase58());
 
-const ixs = await getCreateSwigInstructionBuilder({
+let ixs = await getCreateSwigInstructionBuilder({
   options: {
     signingFn: getSigningFnForSecp256r1PrivateKey(r1Keypair.secretKey),
     currentSlot: svm.getClock().slot,
@@ -124,10 +126,35 @@ const ixs = await getCreateSwigInstructionBuilder({
   )
   .getInstructions();
 
-// console.log('ixs:', ixs);
-
 sendSVMTransaction(svm, ixs, ed25519Keypair);
 
 const swig = fetchSwig(svm, swigAddress);
+
+console.log('swig roles count:', swig.roles.length);
+
+const instructionBuilder = await getAddMultipleAuthoritiesInstructionBuilder(
+  swig,
+  2,
+  {
+    currentSlot: svm.getClock().slot,
+    payer: ed25519Keypair.publicKey,
+    signingFn: getSigningFnForSecp256k1PrivateKey(k1Keypair.getPrivateKey()),
+  },
+);
+
+ixs = await instructionBuilder
+  .addAuthority(
+    createEd25519AuthorityInfo(Keypair.generate().publicKey),
+    Actions.set().all().get(),
+  )
+  .addAuthority(
+    createEd25519AuthorityInfo(Keypair.generate().publicKey),
+    Actions.set().all().get(),
+  )
+  .getInstructions();
+
+sendSVMTransaction(svm, ixs, ed25519Keypair);
+
+await swig.refetch();
 
 console.log('swig roles count:', swig.roles.length);

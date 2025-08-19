@@ -88,7 +88,7 @@ export class Secp256k1Authority
         innerInstructions: args.innerInstructions,
         roleId: args.roleId,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -113,7 +113,7 @@ export class Secp256k1Authority
         newAuthorityType: args.newAuthorityInfo.type,
         noOfActions: args.actions.count,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -134,7 +134,7 @@ export class Secp256k1Authority
         authorityData: this.publicKeyBytes,
         authorityToRemoveId: args.roleIdToRemove,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -160,7 +160,7 @@ export class Secp256k1Authority
         authorityData: this.publicKeyBytes,
         bump,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -183,7 +183,7 @@ export class Secp256k1Authority
         authorityData: this.publicKeyBytes,
         innerInstructions: args.innerInstructions,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -206,7 +206,7 @@ export class Secp256k1Authority
         authorityData: this.publicKeyBytes,
         enabled: args.enabled,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -229,7 +229,7 @@ export class Secp256k1Authority
         authorityData: this.publicKeyBytes,
         amount: args.amount,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -275,7 +275,7 @@ export class Secp256k1Authority
         authorityData: this.publicKeyBytes,
         amount: args.amount,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 }

@@ -77,7 +77,7 @@ export class Secp256r1Authority
         innerInstructions: args.innerInstructions,
         roleId: args.roleId,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -149,7 +149,7 @@ export class Secp256r1Authority
         authorityData: this.publicKeyBytes,
         bump,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -172,7 +172,7 @@ export class Secp256r1Authority
         authorityData: this.publicKeyBytes,
         innerInstructions: args.innerInstructions,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -195,7 +195,7 @@ export class Secp256r1Authority
         authorityData: this.publicKeyBytes,
         enabled: args.enabled,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -218,7 +218,7 @@ export class Secp256r1Authority
         authorityData: this.publicKeyBytes,
         amount: args.amount,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -264,7 +264,7 @@ export class Secp256r1Authority
         authorityData: this.publicKeyBytes,
         amount: args.amount,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 }

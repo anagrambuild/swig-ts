@@ -1,54 +1,11 @@
-import {
-  Authority,
-  isEd25519BasedAuthority,
-  type CreateAuthorityInfo,
-  type SigningFn,
-} from '.';
 import type { Actions } from '../actions';
-import { createV1SwigInstruction } from '../instructions';
 import { type SolPublicKeyData, type SwigInstructionContext } from '../solana';
+import type { Authority } from './abstract';
+import { type CreateAuthorityInfo } from './createAuthority';
+import { isEd25519BasedAuthority } from './ed25519';
+import type { SigningFn } from './instructions/interface';
 
-export const getCreateSwigInstructionsBuilder = (args: {
-  payer: SolPublicKeyData;
-  swigAddress: SolPublicKeyData;
-  id: Uint8Array;
-  actions: Actions;
-  authorityInfo: CreateAuthorityInfo;
-  options: { signingFn?: SigningFn; currentSlot?: bigint };
-}) => {
-  const createSwigInstructionContextPromise = createV1SwigInstruction(
-    { payer: args.payer },
-    {
-      id: args.id,
-      actions: args.actions.bytes(),
-      authorityData: args.authorityInfo.data,
-      authorityType: args.authorityInfo.type,
-      noOfActions: args.actions.count,
-    },
-  );
-  return new AddAuthorityInstructionContextsBuilder(
-    args.swigAddress,
-    args.authorityInfo.writeOnlyAuthority,
-    0,
-    { ...args.options, payer: args.payer, createSwigInstructionContextPromise },
-  );
-};
-
-export const getAddAuthoritiesInstructionsBuilder = (args: {
-  swigAddress: SolPublicKeyData;
-  authority: Authority;
-  roleId: number;
-  options?: AddAuthoritiesInstructionContextsConfig;
-}) => {
-  return new AddAuthorityInstructionContextsBuilder(
-    args.swigAddress,
-    args.authority,
-    args.roleId,
-    args.options,
-  );
-};
-
-export class AddAuthorityInstructionContextsBuilder {
+export class AddMultipleAuthoritiesInstructionContextBuilder {
   #instructionContextPromises: Promise<SwigInstructionContext>[];
   #odometer: number;
 
@@ -56,7 +13,7 @@ export class AddAuthorityInstructionContextsBuilder {
     public swigAddress: SolPublicKeyData,
     public authority: Authority,
     public roleId: number,
-    public options?: AddAuthoritiesInstructionContextsConfig,
+    public options?: AddMultipleAuthoritiesInstructionContextBuilderConfig,
   ) {
     this.#instructionContextPromises = [];
 
@@ -72,6 +29,20 @@ export class AddAuthorityInstructionContextsBuilder {
       this.#odometer = 1;
     }
   }
+
+  static create = (args: {
+    swigAddress: SolPublicKeyData;
+    authority: Authority;
+    roleId: number;
+    options?: AddMultipleAuthoritiesInstructionContextBuilderConfig;
+  }) => {
+    return new AddMultipleAuthoritiesInstructionContextBuilder(
+      args.swigAddress,
+      args.authority,
+      args.roleId,
+      args.options,
+    );
+  };
 
   getPayer(): SolPublicKeyData {
     if (!isEd25519BasedAuthority(this.authority)) {
@@ -101,7 +72,7 @@ export class AddAuthorityInstructionContextsBuilder {
   };
 }
 
-export type AddAuthoritiesInstructionContextsConfig = {
+export type AddMultipleAuthoritiesInstructionContextBuilderConfig = {
   signingFn?: SigningFn;
   currentSlot?: bigint;
   payer?: SolPublicKeyData;

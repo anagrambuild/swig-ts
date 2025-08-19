@@ -66,13 +66,5 @@ export function getAddAuthorityV1BaseAccountMetasWithSystemProgram(
 ): AddAuthorityV1BaseAccountMetasWithSystemProgram {
   const accountMetas = getAddAuthorityV1BaseAccountMetas(accounts);
 
-  return [
-    ...accountMetas,
-    // SolAccountMeta.from({
-    //   pubkey: new SolPublicKey(SYSTEM_PROGRAM_ADDRESS_STRING),
-    //   isSigner: false,
-    //   isWritable: false,
-    // }),
-    ...otherMetas,
-  ];
+  return [...accountMetas, ...otherMetas];
 }
