@@ -16,6 +16,8 @@ import {
   getProgramScopeDecoder,
   getSolLimitDecoder,
   getSolRecurringLimitDecoder,
+  getStakeLimitDecoder,
+  getStakeRecurringLimitDecoder,
   getSubAccountDecoder,
   getTokenLimitDecoder,
   getTokenRecurringLimitDecoder,
@@ -118,6 +120,18 @@ export function decodeActionPayload(
 
   if (permission === Permission.SolRecurringLimit) {
     return { permission, data: getSolRecurringLimitDecoder().decode(data) };
+  }
+
+  if (permission === Permission.StakeAll) {
+    return { permission };
+  }
+
+  if (permission === Permission.StakeLimit) {
+    return { permission, data: getStakeLimitDecoder().decode(data) };
+  }
+
+  if (permission === Permission.StakeRecurringLimit) {
+    return { permission, data: getStakeRecurringLimitDecoder().decode(data) };
   }
 
   if (permission === Permission.SubAccount) {
