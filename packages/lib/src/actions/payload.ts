@@ -16,10 +16,10 @@ import {
   getProgramScopeDecoder,
   getSolLimitDecoder,
   getSolRecurringLimitDecoder,
-  getSubAccountDecoder,
-  getTokenLimitDecoder,
   getStakeLimitDecoder,
   getStakeRecurringLimitDecoder,
+  getSubAccountDecoder,
+  getTokenLimitDecoder,
   getTokenRecurringLimitDecoder,
   Permission,
 } from '@swig-wallet/coder';
@@ -121,7 +121,6 @@ export function decodeActionPayload(
   if (permission === Permission.SolRecurringLimit) {
     return { permission, data: getSolRecurringLimitDecoder().decode(data) };
   }
-
 
   if (permission === Permission.StakeAll) {
     return { permission };
