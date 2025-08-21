@@ -1,5 +1,19 @@
 # @swig-wallet/classic
 
+## 1.3.0
+
+### Minor Changes
+
+- 5889be0: - `AddMultipleAuthoiritiesInstructionBuilder` class for building classic instruction for multi-authority add.
+  - `getCreateSwigInstructionBuilder`, `getAddMultipleAuthoritiesInstructionBuilder` helpers for building multi-authoirity add instructions for new and exsisting swig respectively.
+
+### Patch Changes
+
+- Updated dependencies [6f3a25c]
+- Updated dependencies [5889be0]
+  - @swig-wallet/lib@1.3.0
+  - @swig-wallet/coder@1.3.0
+
 ## 1.2.1
 
 ### Patch Changes
