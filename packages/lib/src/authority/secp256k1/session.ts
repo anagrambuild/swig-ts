@@ -133,7 +133,7 @@ export class Secp256k1SessionAuthority
         newAuthorityType: args.newAuthorityInfo.type,
         noOfActions: args.actions.count,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -154,7 +154,7 @@ export class Secp256k1SessionAuthority
         authorityData: this.data,
         authorityToRemoveId: args.roleIdToRemove,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -177,7 +177,7 @@ export class Secp256k1SessionAuthority
         sessionDuration: args.sessionDuration ?? this.maxDuration,
         sessionKey: new SolPublicKey(args.newSessionKey).toBytes(),
       },
-      { ...args.options, odometer: this.odometer() ?? args.options?.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -203,7 +203,7 @@ export class Secp256k1SessionAuthority
         authorityData: this.data,
         bump,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -247,7 +247,7 @@ export class Secp256k1SessionAuthority
         authorityData: this.data,
         enabled: args.enabled,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -270,7 +270,7 @@ export class Secp256k1SessionAuthority
         authorityData: this.data,
         amount: args.amount,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -316,7 +316,7 @@ export class Secp256k1SessionAuthority
         authorityData: this.publicKeyBytes,
         amount: args.amount,
       },
-      { ...args.options, odometer: this.odometer() ?? args.options.odometer },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 }

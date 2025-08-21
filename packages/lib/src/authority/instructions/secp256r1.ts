@@ -14,7 +14,7 @@ import {
 import {
   SwigInstructionV1,
   compactInstructions,
-  getAddAuthorityV1BaseAccountMetas,
+  getAddAuthorityV1BaseAccountMetasWithSystemProgram,
   getRemoveAuthorityV1BaseAccountMetas,
   getSignV1BaseAccountMetasWithSystemProgram,
   getSubAccountCreateV1BaseAccountMetas,
@@ -40,8 +40,16 @@ export const Secp256r1Instruction: AuthorityInstruction = {
         'instruction data options not provided for Secp256r1 based authority',
       );
 
+    const instructionsSysvar = SolAccountMeta.from({
+      pubkey: new SolPublicKey('Sysvar1nstructions1111111111111111111111111'),
+      isSigner: false,
+      isWritable: false,
+    });
+
     const addAuthorityIxAccountMetas =
-      getAddAuthorityV1BaseAccountMetas(accounts);
+      getAddAuthorityV1BaseAccountMetasWithSystemProgram(accounts, [
+        instructionsSysvar,
+      ]);
 
     const authorityPayloadCodec = getAddAuthorityV1AuthorityPayloadEncoder();
 

@@ -53,3 +53,18 @@ export function getAddV1BaseAccountMetasWithAuthority(
   ];
   return [metas, authorityIndex];
 }
+
+export type AddAuthorityV1BaseAccountMetasWithSystemProgram = [
+  ...AddAuthorityV1BaseAccountMetas,
+  // SolAccountMeta,
+  ...SolAccountMeta[],
+];
+
+export function getAddAuthorityV1BaseAccountMetasWithSystemProgram(
+  accounts: AddAuthorityV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
+): AddAuthorityV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getAddAuthorityV1BaseAccountMetas(accounts);
+
+  return [...accountMetas, ...otherMetas];
+}
