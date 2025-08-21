@@ -18,6 +18,8 @@ import {
   getSolRecurringLimitDecoder,
   getSubAccountDecoder,
   getTokenLimitDecoder,
+  getStakeLimitDecoder,
+  getStakeRecurringLimitDecoder,
   getTokenRecurringLimitDecoder,
   Permission,
 } from '@swig-wallet/coder';
@@ -118,6 +120,19 @@ export function decodeActionPayload(
 
   if (permission === Permission.SolRecurringLimit) {
     return { permission, data: getSolRecurringLimitDecoder().decode(data) };
+  }
+
+
+  if (permission === Permission.StakeAll) {
+    return { permission };
+  }
+
+  if (permission === Permission.StakeLimit) {
+    return { permission, data: getStakeLimitDecoder().decode(data) };
+  }
+
+  if (permission === Permission.StakeRecurringLimit) {
+    return { permission, data: getStakeRecurringLimitDecoder().decode(data) };
   }
 
   if (permission === Permission.SubAccount) {
