@@ -1,5 +1,18 @@
 # @swig-wallet/classic
 
+## 1.3.0
+
+### Minor Changes
+
+- 5889be0: - `AddMultipleAuthoritiesInstructionContextBuilder` for building multiple authority instructions
+  - `getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder`, `getAddMultipleAuthoritiesInstructionsContextBuilder` helpers for building multi-authoirity add instructions for new and exsisting swig respectively.
+  - Fix odometer conditions in Authority methods
+
+### Patch Changes
+
+- 6f3a25c: fix stakes for the decoding of the payload
+  - @swig-wallet/coder@1.3.0
+
 ## 1.2.1
 
 ### Patch Changes
