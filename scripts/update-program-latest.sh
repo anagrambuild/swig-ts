@@ -22,7 +22,7 @@ cd $PROGRAM_DIR
 
 echo "Program directory updated!"
 echo "building swig program..."
-cargo build-sbf -- -q > /dev/null 2>&1
+cargo build-sbf --arch v1 -- -q > /dev/null 2>&1
 cp target/deploy/swig.so $WORKSPACE_DIR 
 
 echo "✅ Program updated: $WORKSPACE_DIR/swig.so"
