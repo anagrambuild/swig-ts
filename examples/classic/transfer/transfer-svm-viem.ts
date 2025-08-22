@@ -9,6 +9,7 @@ import {
 } from '@solana/web3.js';
 import {
   Actions,
+  compressPubkey,
   createSecp256k1AuthorityInfo,
   findSwigPda,
   getCreateSwigInstruction,
@@ -88,8 +89,13 @@ const swigAddress = findSwigPda(id);
 
 const rootActions = Actions.set().all().get();
 
+// Example using compressed pubkey with viem wallet
+// createSecp256k1AuthorityInfo now supports both compressed and uncompressed pubkeys
+// This demonstrates compressed pubkey support with viem wallets
+const compressedPubkey = compressPubkey(privateKeyAccount.publicKey);
+
 const createSwigInstruction = await getCreateSwigInstruction({
-  authorityInfo: createSecp256k1AuthorityInfo(privateKeyAccount.publicKey),
+  authorityInfo: createSecp256k1AuthorityInfo(compressedPubkey),
   id,
   payer: transactionPayer.publicKey,
   actions: rootActions,
@@ -166,7 +172,9 @@ const viemSignWithPrefix: SigningFn = async (message: Uint8Array) => {
   prefixedMessage.set(prefix);
   prefixedMessage.set(message, prefix.length);
 
-  const sig = await privateKeyAccount.sign({ hash: keccak256(prefixedMessage) }); // eth_sign with personal_sign prefix
+  const sig = await privateKeyAccount.sign({
+    hash: keccak256(prefixedMessage),
+  }); // eth_sign with personal_sign prefix
 
   return { signature: hexToBytes(sig), prefix };
 };
@@ -188,7 +196,9 @@ rootRole = swig.findRolesBySecp256k1SignerAddress(privateKeyAccount.address)[0];
 if (!rootRole) throw new Error('Role not found for authority');
 
 const viemSignMessage: SigningFn = async (message: Uint8Array) => {
-  const sig = await privateKeyAccount.signMessage({ message: { raw: message } }); // personal_sign
+  const sig = await privateKeyAccount.signMessage({
+    message: { raw: message },
+  }); // personal_sign
 
   return {
     signature: hexToBytes(sig),
