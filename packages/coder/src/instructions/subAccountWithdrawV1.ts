@@ -29,14 +29,12 @@ export type SubAccountWithdrawV1InstructionData = {
   _padding: ReadonlyUint8Array;
   roleId: number;
   amount: bigint;
-  allowBelowRentExempt: boolean;
   authorityPayload: ReadonlyUint8Array;
 };
 
 export type SubAccountWithdrawV1InstructionDataArgs = {
   roleId: number;
   amount: bigint;
-  allowBelowRentExempt?: boolean;
   authorityPayload: ReadonlyUint8Array;
 };
 
@@ -48,14 +46,12 @@ export function getSubAccountWithdrawV1InstructionDataCodec() {
         ['_padding', fixEncoderSize(getBytesEncoder(), 2)],
         ['roleId', getU32Encoder()],
         ['amount', getU64Encoder()],
-        ['allowBelowRentExempt', getBooleanEncoder()],
         ['authorityPayload', getBytesEncoder()],
       ]),
       (value) => ({
         ...value,
         discriminator: Discriminator.SubAccountWithdrawV1,
         _padding: new Uint8Array(2),
-        allowBelowRentExempt: value.allowBelowRentExempt ?? false,
       }),
     );
 
@@ -67,13 +63,11 @@ export function getSubAccountWithdrawV1InstructionDataCodec() {
       ['_padding', fixEncoderSize(getBytesEncoder(), 2)],
       ['roleId', getU32Encoder()],
       ['amount', getU64Encoder()],
-      ['allowBelowRentExempt', getBooleanEncoder()],
     ]),
     (value) => ({
       ...value,
       discriminator: Discriminator.SubAccountWithdrawV1,
       _padding: new Uint8Array(2),
-      allowBelowRentExempt: value.allowBelowRentExempt ?? false,
     }),
   );
 
@@ -83,7 +77,6 @@ export function getSubAccountWithdrawV1InstructionDataCodec() {
       ['_padding', fixDecoderSize(getBytesDecoder(), 2)],
       ['roleId', getU32Decoder()],
       ['amount', getU64Decoder()],
-      ['allowBelowRentExempt', getBooleanDecoder()],
       ['authorityPayload', getBytesDecoder()],
     ]);
 

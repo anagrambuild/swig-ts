@@ -239,7 +239,6 @@ export class Secp256k1Authority
     subAccount: SolPublicKeyData;
     roleId: number;
     amount: bigint;
-    allowBelowRentExempt?: boolean;
     options: InstructionDataOptions;
   }) {
     return Secp256k1Instruction.subAccountWithdrawV1SolInstruction(
@@ -252,7 +251,6 @@ export class Secp256k1Authority
         roleId: args.roleId,
         authorityData: this.publicKeyBytes,
         amount: args.amount,
-        allowBelowRentExempt: args.allowBelowRentExempt ?? false,
       },
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );

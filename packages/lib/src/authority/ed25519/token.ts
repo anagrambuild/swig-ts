@@ -192,7 +192,6 @@ export class Ed25519Authority
     subAccount: SolPublicKeyData;
     roleId: number;
     amount: bigint;
-    allowBelowRentExempt?: boolean;
     options?: InstructionDataOptions;
   }) {
     return Ed25519Instruction.subAccountWithdrawV1SolInstruction(
@@ -205,7 +204,6 @@ export class Ed25519Authority
         roleId: args.roleId,
         authorityData: this.data,
         amount: args.amount,
-        allowBelowRentExempt: args.allowBelowRentExempt ?? false,
       },
     );
   }
