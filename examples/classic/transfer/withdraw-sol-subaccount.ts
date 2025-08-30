@@ -14,6 +14,7 @@ import {
   getCreateSubAccountInstructions,
   getCreateSwigInstruction,
   getWithdrawFromSubAccountInstructions,
+  getWithdrawFromSubAccountInstructionsChecked,
   getSwigCodec,
   Swig,
   SWIG_PROGRAM_ADDRESS,
@@ -49,7 +50,7 @@ function sendSVMTransaction(
   }
 
   if (tx instanceof TransactionMetadata) {
-    // console.log("tx:", tx.logs())
+    console.log("tx:", tx.logs())
   }
 }
 
@@ -107,7 +108,6 @@ const swig = fetchSwig(svm, swigAddress);
 
 let rootRole = swig.roles[0];
 
-// add a sub account authority
 const addAuthorityIx = await getAddAuthorityInstructions(
   swig,
   rootRole.id,
@@ -120,7 +120,6 @@ await swig.refetch();
 
 let subAccountAuthRole = swig.roles[1];
 
-// create sub account
 const createSubAccountIx = await getCreateSubAccountInstructions(
   swig,
   subAccountAuthRole.id,
@@ -137,38 +136,91 @@ const subAccountAddress = findSwigSubAccountPda(
   subAccountAuthRole.id,
 );
 
-// fund the sub-account
 svm.airdrop(subAccountAddress, BigInt(2 * LAMPORTS_PER_SOL));
 
 const initialBalance = svm.getBalance(subAccountAddress)!;
 console.log('initial sub-account balance:', initialBalance);
 
-// safe withdrawal
-const safeWithdrawIx = await getWithdrawFromSubAccountInstructions(
-  swig,
-  subAccountAuthRole.id,
-  {
-    amount: BigInt(0.5 * LAMPORTS_PER_SOL),
-    currentBalance: initialBalance,
-    allowBelowRentExempt: false,
-  }
-);
-sendSVMTransaction(svm, safeWithdrawIx, subAccountAuthority);
+// basic withdrawal using getWithdrawFromSubAccountInstructions
+try {
+  const basicWithdrawIx = await getWithdrawFromSubAccountInstructions(
+    swig,
+    subAccountAuthRole.id,
+    {
+      amount: BigInt(0.1 * LAMPORTS_PER_SOL),
+    }
+  );
+  sendSVMTransaction(svm, basicWithdrawIx, subAccountAuthority);
+  
+  const balanceAfterBasic = svm.getBalance(subAccountAddress)!;
+  console.log('balance after basic withdrawal:', balanceAfterBasic);
+} catch (error) {
+  console.log('basic withdrawal failed:', error);
+}
+
+// safe withdrawal with validation using checked function
+const currentBalance = svm.getBalance(subAccountAddress)!;
+const withdrawAmount = BigInt(0.5 * LAMPORTS_PER_SOL);
+
+try {
+  console.log('Using Classic SDK checked withdrawal with validation');
+  
+  const safeWithdrawIx = await getWithdrawFromSubAccountInstructionsChecked(
+    swig,
+    subAccountAuthRole.id,
+    {
+      amount: withdrawAmount,
+      currentBalance: currentBalance,
+      allowBelowRentExempt: false, // Default deny behavior
+    }
+  );
+  sendSVMTransaction(svm, safeWithdrawIx, subAccountAuthority);
+} catch (error) {
+  console.log('Withdrawal blocked by safety validation:', error instanceof Error ? error.message : String(error));
+}
 
 const balanceAfterSafe = svm.getBalance(subAccountAddress)!;
 console.log('balance after safe withdrawal:', balanceAfterSafe);
 
-// withdrawal that would drop below rent-exempt
-const largeWithdrawIx = await getWithdrawFromSubAccountInstructions(
-  swig,
-  subAccountAuthRole.id,
-  {
-    amount: BigInt(1.5 * LAMPORTS_PER_SOL),
-    currentBalance: balanceAfterSafe,
-    allowBelowRentExempt: true,
-  }
-);
-sendSVMTransaction(svm, largeWithdrawIx, subAccountAuthority);
+// withdrawal that would drop below rent-exempt (with explicit override)
+console.log('Attempting risky withdrawal that drops below rent exempt...');
+const largeWithdrawAmount = balanceAfterSafe - BigInt(0.001 * LAMPORTS_PER_SOL); // This should leave ~0.001 SOL, below rent-exempt
+
+try {
+  // First trying without override (should fail) using Classic SDK
+  const blockedWithdrawIx = await getWithdrawFromSubAccountInstructionsChecked(
+    swig,
+    subAccountAuthRole.id,
+    {
+      amount: largeWithdrawAmount,
+      currentBalance: balanceAfterSafe,
+      allowBelowRentExempt: false, // Should block this
+    }
+  );
+  console.log('This should not happen - withdrawal should be blocked');
+} catch (error) {
+  console.log('Withdrawal correctly blocked:', error instanceof Error ? error.message : String(error));
+}
+
+try {
+  // Trying with explicit override using Classic SDK
+  console.log('Trying risky withdrawal with explicit override...');
+  
+  const largeWithdrawIx = await getWithdrawFromSubAccountInstructionsChecked(
+    swig,
+    subAccountAuthRole.id,
+    {
+      amount: largeWithdrawAmount,
+      currentBalance: balanceAfterSafe,
+      allowBelowRentExempt: true, // Explicitly allow risky withdrawal
+    }
+  );
+  
+  console.log('Risky withdrawal allowed with explicit override');
+  sendSVMTransaction(svm, largeWithdrawIx, subAccountAuthority);
+} catch (error) {
+  console.log('Large withdrawal failed:', error instanceof Error ? error.message : String(error));
+}
 
 const finalBalance = svm.getBalance(subAccountAddress)!;
 console.log('final balance after allowed withdrawal:', finalBalance);

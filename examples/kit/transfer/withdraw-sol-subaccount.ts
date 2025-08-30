@@ -1,5 +1,4 @@
 import {
-  AccountRole,
   addSignersToTransactionMessage,
   appendTransactionMessageInstructions,
   createSolanaRpc,
@@ -32,9 +31,8 @@ import {
   getAddAuthorityInstructions,
   getCreateSubAccountInstructions,
   getCreateSwigInstruction,
-  getWithdrawFromSubAccountInstructionContext,
+  getWithdrawFromSubAccountSubAccountInstructionsChecked,
 } from '@swig-wallet/kit';
-import { readFileSync } from 'node:fs';
 import { sleepSync } from 'bun';
 
 function getTransactionMessage<Inst extends IInstruction[]>(
@@ -119,7 +117,7 @@ sleepSync(5000);
 
 const id = randomBytes(32);
 
-const [swigAddress] = await findSwigPda(id);
+const swigAddress = await findSwigPda(id);
 
 console.log('swig address:', swigAddress);
 
@@ -167,7 +165,7 @@ await swig.refetch();
 rootRole = swig.roles[0];
 subAccountAuthRole = swig.roles[1];
 
-const [subAccountAddress] = await findSwigSubAccountPda(
+const subAccountAddress = await findSwigSubAccountPda(
   subAccountAuthRole.swigId,
   subAccountAuthRole.id,
 );
@@ -183,18 +181,23 @@ const initialBalance = (await connection.rpc.getBalance(address(subAccountAddres
   .value;
 console.log('initial sub-account balance:', initialBalance);
 
-// safe withdrawal
-const safeWithdrawContext = await getWithdrawFromSubAccountInstructionContext(
-  swig,
-  subAccountAuthRole.id,
-  {
-    amount: lamports(BigInt(0.5 * LAMPORTS_PER_SOL)),
-    currentBalance: initialBalance,
-    allowBelowRentExempt: false,
-  }
-);
-const safeWithdrawIx = safeWithdrawContext.getKitInstructions();
-await sendTransaction(connection, safeWithdrawIx, subAccountAuthority);
+// safe withdrawal with validation using Kit SDK checked function
+try {
+  console.log('Using Kit SDK checked withdrawal with validation');
+  
+  const safeWithdrawIx = await getWithdrawFromSubAccountSubAccountInstructionsChecked(
+    swig,
+    subAccountAuthRole.id,
+    {
+      amount: BigInt(0.5 * LAMPORTS_PER_SOL),
+      currentBalance: initialBalance,
+      allowBelowRentExempt: false,
+    }
+  );
+  await sendTransaction(connection, safeWithdrawIx, subAccountAuthority);
+} catch (error) {
+  console.log('Withdrawal blocked by safety validation:', error instanceof Error ? error.message : String(error));
+}
 
 sleepSync(5000);
 
@@ -202,18 +205,46 @@ const balanceAfterSafe = (await connection.rpc.getBalance(address(subAccountAddr
   .value;
 console.log('balance after safe withdrawal:', balanceAfterSafe);
 
-// withdrawal that would drop below rent-exempt
-const largeWithdrawContext = await getWithdrawFromSubAccountInstructionContext(
-  swig,
-  subAccountAuthRole.id,
-  {
-    amount: lamports(BigInt(1.5 * LAMPORTS_PER_SOL)),
-    currentBalance: balanceAfterSafe,
-    allowBelowRentExempt: true,
-  }
-);
-const largeWithdrawIx = largeWithdrawContext.getKitInstructions();
-await sendTransaction(connection, largeWithdrawIx, subAccountAuthority);
+// withdrawal that would drop below rent-exempt (with explicit override)
+console.log('Attempting risky withdrawal that drops below rent exempt...');
+
+const largeWithdrawAmount = balanceAfterSafe - BigInt(0.001 * LAMPORTS_PER_SOL); // This should leave ~0.001 SOL, below rent-exempt
+
+try {
+  // First trying without override (should fail) using Kit SDK
+  const blockedWithdrawIx = await getWithdrawFromSubAccountSubAccountInstructionsChecked(
+    swig,
+    subAccountAuthRole.id,
+    {
+      amount: largeWithdrawAmount,
+      currentBalance: balanceAfterSafe,
+      allowBelowRentExempt: false, // Should block this
+    }
+  );
+  console.log('This should not happen - withdrawal should be blocked');
+} catch (error) {
+  console.log('Withdrawal correctly blocked:', error instanceof Error ? error.message : String(error));
+}
+
+try {
+  // Trying with explicit override using Kit SDK
+  console.log('✅ Trying risky withdrawal with explicit override...');
+  
+  const largeWithdrawIx = await getWithdrawFromSubAccountSubAccountInstructionsChecked(
+    swig,
+    subAccountAuthRole.id,
+    {
+      amount: largeWithdrawAmount,
+      currentBalance: balanceAfterSafe,
+      allowBelowRentExempt: true, // Explicitly allow risky withdrawal
+    }
+  );
+  
+  console.log('✅ Risky withdrawal allowed with explicit override');
+  await sendTransaction(connection, largeWithdrawIx, subAccountAuthority);
+} catch (error) {
+  console.log('Large withdrawal failed:', error instanceof Error ? error.message : String(error));
+}
 
 sleepSync(5000);
 
