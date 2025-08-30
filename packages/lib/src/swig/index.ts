@@ -371,15 +371,48 @@ export const getWithdrawFromSubAccountInstructionContext = async <
     (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
   );
 
-  if (!('mint' in args)) {
-    const SUB_ACCOUNT_RENT_EXEMPT = 1224960n;
+  if ('mint' in args) {
+    return role.authority.subAccountWithdrawToken({
+      // token withdrawal
+      swigAddress: role.swigAddress,
+      subAccount,
+      payer,
+      roleId: role.id,
+      options,
+      amount: args.amount,
+      mint: new SolPublicKey(args.mint),
+      tokenProgram: args.tokenProgram ? new SolPublicKey(args.tokenProgram) : undefined,
+    });
+  } else {
+    // SOL withdrawal
+    return role.authority.subAccountWithdrawSol({
+      swigAddress: role.swigAddress,
+      subAccount,
+      payer,
+      roleId: role.id,
+      options,
+      amount: args.amount,
+    });
+  }
+};
 
+export const getWithdrawFromSubAccountInstructionContextChecked = async <
+  T extends SolPublicKeyData = SolPublicKeyData,
+>(
+  swig: Swig,
+  roleId: number,
+  args: WithdrawSubAccountArgsChecked<T>,
+  options?: SwigOptions,
+) => {
+  const SUB_ACCOUNT_RENT_EXEMPT = 1224960n;
+
+  if (!('mint' in args)) {
     if (
-      args.allowBelowRentExempt !== undefined &&
+      args.allowBelowRentExempt === true &&
       args.currentBalance === undefined
     ) {
       throw new Error(
-        `currentBalance is required when allowBelowRentExempt is provided`,
+        `currentBalance is required when allowBelowRentExempt is true`,
       );
     }
 
@@ -395,26 +428,20 @@ export const getWithdrawFromSubAccountInstructionContext = async <
     }
   }
 
-  return 'mint' in args
-    ? role.authority.subAccountWithdrawToken({
-        swigAddress: role.swigAddress,
-        subAccount,
-        payer,
-        roleId: role.id,
-        options,
+  const baseArgs: WithdrawSubAccountArgs<T> = 'mint' in args
+    ? {
         amount: args.amount,
         mint: args.mint,
         tokenProgram: args.tokenProgram,
-      })
-    : role.authority.subAccountWithdrawSol({
-        swigAddress: role.swigAddress,
-        subAccount,
-        payer,
-        roleId: role.id,
-        options,
-        amount: args.amount,
-        allowBelowRentExempt: args.allowBelowRentExempt ?? false,
-      });
+      }
+    : { amount: args.amount };
+
+  return getWithdrawFromSubAccountInstructionContext(
+    swig,
+    roleId,
+    baseArgs as WithdrawSubAccountArgs<T>,
+    options,
+  );
 };
 
 async function assertInstructionOptions(
@@ -463,14 +490,28 @@ export type SwigOptions = {
   payer?: SolPublicKeyData;
 };
 
-export type WithdrawSubAccountArgs<
-  T extends SolPublicKeyData = SolPublicKeyData,
-> =
-  | { amount: bigint; allowBelowRentExempt?: boolean; currentBalance?: bigint }
+export type WithdrawSubAccountArgs<T extends SolPublicKeyData = SolPublicKeyData> =
+  | {
+      amount: bigint;
+    }
   | {
       amount: bigint;
       mint: T;
       tokenProgram?: T;
+    };
+
+export type WithdrawSubAccountArgsChecked<T extends SolPublicKeyData = SolPublicKeyData> =
+  | {
+      amount: bigint;
+      allowBelowRentExempt?: boolean;
+      currentBalance?: bigint;
+    }
+  | {
+      amount: bigint;
+      mint: T;
+      tokenProgram?: T;
+      allowBelowRentExempt?: boolean;
+      currentBalance?: bigint;
     };
 
 export type SwigFetchFn<
