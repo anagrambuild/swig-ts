@@ -235,7 +235,7 @@ export function secp256r1DerToRawSignature(
 ): Uint8Array {
   const signature = p256.Signature.fromDER(derSignature);
   const normalizedSignature = signature.normalizeS();
-  const rawSignature = normalizedSignature.toCompactRawBytes();
+  const rawSignature = normalizedSignature.toBytes('compact');
 
   return rawSignature;
 }
