@@ -108,7 +108,6 @@ export function createSecp256k1SessionAuthorityInfo(
     publicKey: publicKeyBytes,
     sessionKey: _sessionKey,
     maxSessionLength: maxSessionDuration,
-    compressed: format === 'compressed',
   });
 
   const data = Uint8Array.from(sessionData);

@@ -240,14 +240,6 @@ describe('Authority Creation', () => {
       0,
       0,
       0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
     ]);
     expect(sessionAuthorityInfo1.data).toEqual(expectedData);
     // expect(sessionAuthorityInfo2.data).toEqual(expectedData);
