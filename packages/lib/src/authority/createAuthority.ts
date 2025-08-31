@@ -8,11 +8,7 @@ import {
   getSecp256k1SessionEncoder,
 } from '@swig-wallet/coder';
 import { SolPublicKey, type SolPublicKeyData } from '../solana';
-import {
-  decompressPubkey,
-  detectPubkeyFormat,
-  getUnprefixedSecpBytes,
-} from '../utils';
+import { detectPubkeyFormat, getUnprefixedSecpBytes } from '../utils';
 import type { Authority } from './abstract';
 import { Ed25519Authority, Ed25519SessionAuthority } from './ed25519';
 import { Secp256k1Authority, Secp256k1SessionAuthority } from './secp256k1';
@@ -66,10 +62,10 @@ export function createSecp256k1AuthorityInfo(
   }
 
   // Normalize to uncompressed format for internal processing
-  const data =
-    format === 'compressed'
-      ? decompressPubkey(publicKey)
-      : getUnprefixedSecpBytes(publicKey, 64);
+  const data = getUnprefixedSecpBytes(
+    publicKey,
+    format === 'compressed' ? 33 : 64,
+  );
 
   const type = AuthorityType.Secp256k1;
 
@@ -96,11 +92,13 @@ export function createSecp256k1SessionAuthorityInfo(
     );
   }
 
-  // Normalize to uncompressed format for internal processing
-  const publicKeyBytes =
-    format === 'compressed'
-      ? decompressPubkey(publicKey)
-      : getUnprefixedSecpBytes(publicKey, 64);
+  // sanitise the publickey based on the format
+  const sanitisedPublicKey = getUnprefixedSecpBytes(
+    publicKey,
+    format === 'compressed' ? 33 : 64,
+  );
+  const publicKeyBytes = new Uint8Array(64);
+  publicKeyBytes.set(sanitisedPublicKey);
 
   const _sessionKey = sessionKey
     ? new SolPublicKey(sessionKey).toBytes()
@@ -110,6 +108,7 @@ export function createSecp256k1SessionAuthorityInfo(
     publicKey: publicKeyBytes,
     sessionKey: _sessionKey,
     maxSessionLength: maxSessionDuration,
+    compressed: format === 'compressed',
   });
 
   const data = Uint8Array.from(sessionData);
