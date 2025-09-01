@@ -39,15 +39,15 @@ export function getSubAccountWithdrawV1SolAccountMetas(
   return [
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.swig).toAddress(),
-      role: AccountRole.READONLY,
+      role: AccountRole.WRITABLE,
       // isSigner: false,
-      // isWritable: false,
+      // isWritable: true,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.payer).toAddress(),
-      role: AccountRole.WRITABLE_SIGNER,
+      role: AccountRole.READONLY_SIGNER,
       // isSigner: true,
-      // isWritable: true,
+      // isWritable: false,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.subAccount).toAddress(),
@@ -64,15 +64,15 @@ export function getSubAccountWithdrawV1TokenAccountMetas(
   return [
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.swig).toAddress(),
-      role: AccountRole.READONLY,
+      role: AccountRole.WRITABLE,
       // isSigner: false,
-      // isWritable: false,
+      // isWritable: true,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.payer).toAddress(),
-      role: AccountRole.WRITABLE_SIGNER,
+      role: AccountRole.READONLY_SIGNER,
       // isSigner: true,
-      // isWritable: true,
+      // isWritable: false,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.subAccount).toAddress(),

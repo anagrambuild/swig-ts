@@ -7,6 +7,7 @@ import {
   type CreateAuthorityInfo,
   type SigningFn,
 } from '../authority';
+import { SUB_ACCOUNT_RENT_EXEMPT } from '../consts';
 import { createV1SwigInstruction } from '../instructions';
 import { deserializeRoles } from '../role';
 import {
@@ -381,7 +382,9 @@ export const getWithdrawFromSubAccountInstructionContext = async <
       options,
       amount: args.amount,
       mint: new SolPublicKey(args.mint),
-      tokenProgram: args.tokenProgram ? new SolPublicKey(args.tokenProgram) : undefined,
+      tokenProgram: args.tokenProgram
+        ? new SolPublicKey(args.tokenProgram)
+        : undefined,
     });
   } else {
     // SOL withdrawal
@@ -396,50 +399,39 @@ export const getWithdrawFromSubAccountInstructionContext = async <
   }
 };
 
-export const getWithdrawFromSubAccountInstructionContextChecked = async <
+export const getWithdrawFromSubAccountCheckedInstructionContext = async <
   T extends SolPublicKeyData = SolPublicKeyData,
 >(
   swig: Swig,
   roleId: number,
-  args: WithdrawSubAccountArgsChecked<T>,
+  args: WithdrawSubAccountCheckedArgs<T>,
   options?: SwigOptions,
 ) => {
-  const SUB_ACCOUNT_RENT_EXEMPT = 1224960n;
+  let amount = args.amount;
 
-  if (!('mint' in args)) {
-    if (
-      args.allowBelowRentExempt === true &&
-      args.currentBalance === undefined
-    ) {
+  if (!('mint' in args) && !args.allowBelowRentExempt) {
+    if (args.currentBalance === undefined) {
       throw new Error(
-        `currentBalance is required when allowBelowRentExempt is true`,
+        `currentBalance is required when allowBelowRentExempt is false`,
       );
     }
-
-    if (args.currentBalance && !args.allowBelowRentExempt) {
-      const remainingBalance = args.currentBalance - args.amount;
-      if (remainingBalance < SUB_ACCOUNT_RENT_EXEMPT) {
+    const remainingBalance = args.currentBalance - args.amount;
+    if (remainingBalance < SUB_ACCOUNT_RENT_EXEMPT) {
+      if (!args.allowMax) {
         throw new Error(
           `Withdrawing ${args.amount} lamports would drop subaccount below rent-exempt minimum (${SUB_ACCOUNT_RENT_EXEMPT} lamports). ` +
             `Current balance: ${args.currentBalance}, remaining would be: ${remainingBalance}. ` +
-            `Set allowBelowRentExempt: true to proceed with this withdrawal.`,
+            `Set allowBelowRentExempt: true or set allowMax: true to proceed with this withdrawal.`,
         );
       }
+      amount = args.currentBalance - SUB_ACCOUNT_RENT_EXEMPT;
     }
   }
-
-  const baseArgs: WithdrawSubAccountArgs<T> = 'mint' in args
-    ? {
-        amount: args.amount,
-        mint: args.mint,
-        tokenProgram: args.tokenProgram,
-      }
-    : { amount: args.amount };
 
   return getWithdrawFromSubAccountInstructionContext(
     swig,
     roleId,
-    baseArgs as WithdrawSubAccountArgs<T>,
+    { ...args, amount },
     options,
   );
 };
@@ -490,7 +482,9 @@ export type SwigOptions = {
   payer?: SolPublicKeyData;
 };
 
-export type WithdrawSubAccountArgs<T extends SolPublicKeyData = SolPublicKeyData> =
+export type WithdrawSubAccountArgs<
+  T extends SolPublicKeyData = SolPublicKeyData,
+> =
   | {
       amount: bigint;
     }
@@ -500,18 +494,19 @@ export type WithdrawSubAccountArgs<T extends SolPublicKeyData = SolPublicKeyData
       tokenProgram?: T;
     };
 
-export type WithdrawSubAccountArgsChecked<T extends SolPublicKeyData = SolPublicKeyData> =
+export type WithdrawSubAccountCheckedArgs<
+  T extends SolPublicKeyData = SolPublicKeyData,
+> =
   | {
       amount: bigint;
       allowBelowRentExempt?: boolean;
       currentBalance?: bigint;
+      allowMax?: boolean;
     }
   | {
       amount: bigint;
       mint: T;
       tokenProgram?: T;
-      allowBelowRentExempt?: boolean;
-      currentBalance?: bigint;
     };
 
 export type SwigFetchFn<

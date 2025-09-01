@@ -1,6 +1,9 @@
 import { getAddressDecoder } from '@solana/kit';
 import { SwigInstructionContext } from '../src';
-import { getWithdrawFromSubAccountInstructionContextChecked, Swig } from '../src/swig';
+import {
+  getWithdrawFromSubAccountCheckedInstructionContext,
+  Swig,
+} from '../src/swig';
 
 // Dummy data helpers
 const dummyAddress = (label: string) =>
@@ -37,20 +40,19 @@ describe('Withdraw Protection', () => {
   const SUB_ACCOUNT_RENT_EXEMPT = 1224960n;
 
   describe('SOL Withdrawals', () => {
-    it('should reject withdrawal that would drop below rent exempt', async () => {
+    it('should allow max withdrawal excluding rent exempt when remaining lamports drop below rent exempt', async () => {
       const mockSwig = createMockSwig();
       const currentBalance = SUB_ACCOUNT_RENT_EXEMPT + 1000000n;
       const withdrawalAmount = 2000000n;
 
-      await expect(
-        getWithdrawFromSubAccountInstructionContextChecked(mockSwig, 1, {
+      expect(
+        await getWithdrawFromSubAccountCheckedInstructionContext(mockSwig, 1, {
           amount: withdrawalAmount,
           allowBelowRentExempt: false,
           currentBalance,
+          allowMax: true,
         }),
-      ).rejects.toThrow(
-        'Withdrawing 2000000 lamports would drop subaccount below rent-exempt minimum',
-      );
+      ).toBeInstanceOf(SwigInstructionContext);
     });
 
     it('should allow withdrawal when allowBelowRentExempt is true', async () => {
@@ -58,7 +60,7 @@ describe('Withdraw Protection', () => {
       const currentBalance = SUB_ACCOUNT_RENT_EXEMPT + 1000000n;
       const withdrawalAmount = 2000000n;
 
-      const result = await getWithdrawFromSubAccountInstructionContextChecked(
+      const result = await getWithdrawFromSubAccountCheckedInstructionContext(
         mockSwig,
         1,
         {
@@ -76,7 +78,7 @@ describe('Withdraw Protection', () => {
       const currentBalance = SUB_ACCOUNT_RENT_EXEMPT + 2000000n;
       const withdrawalAmount = 1000000n;
 
-      const result = await getWithdrawFromSubAccountInstructionContextChecked(
+      const result = await getWithdrawFromSubAccountCheckedInstructionContext(
         mockSwig,
         1,
         {
@@ -89,17 +91,17 @@ describe('Withdraw Protection', () => {
       expect(result).toBeInstanceOf(SwigInstructionContext);
     });
 
-    it('should reject withdrawal when currentBalance is not provided and allowBelowRentExempt is true', async () => {
+    it('should reject withdrawal when currentBalance is not provided and allowBelowRentExempt is false', async () => {
       const mockSwig = createMockSwig();
       const withdrawalAmount = 2000000n;
 
       await expect(
-        getWithdrawFromSubAccountInstructionContextChecked(mockSwig, 1, {
+        getWithdrawFromSubAccountCheckedInstructionContext(mockSwig, 1, {
           amount: withdrawalAmount,
-          allowBelowRentExempt: true,
+          allowBelowRentExempt: false,
         }),
       ).rejects.toThrow(
-        'currentBalance is required when allowBelowRentExempt is true',
+        'currentBalance is required when allowBelowRentExempt is false',
       );
     });
 
@@ -108,7 +110,7 @@ describe('Withdraw Protection', () => {
       const currentBalance = SUB_ACCOUNT_RENT_EXEMPT + 2000000n;
       const withdrawalAmount = 1000000n;
 
-      const result = await getWithdrawFromSubAccountInstructionContextChecked(
+      const result = await getWithdrawFromSubAccountCheckedInstructionContext(
         mockSwig,
         1,
         {
@@ -127,7 +129,7 @@ describe('Withdraw Protection', () => {
       const withdrawalAmount = 2000000n;
 
       await expect(
-        getWithdrawFromSubAccountInstructionContextChecked(mockSwig, 1, {
+        getWithdrawFromSubAccountCheckedInstructionContext(mockSwig, 1, {
           amount: withdrawalAmount,
           currentBalance,
           // allowBelowRentExempt not specified, should default to false
@@ -144,7 +146,7 @@ describe('Withdraw Protection', () => {
       const tokenMint = dummyAddress('mint');
       const withdrawalAmount = 1000000n;
 
-      const result = await getWithdrawFromSubAccountInstructionContextChecked(
+      const result = await getWithdrawFromSubAccountCheckedInstructionContext(
         mockSwig,
         1,
         {
@@ -162,7 +164,7 @@ describe('Withdraw Protection', () => {
       const tokenMint = dummyAddress('mint');
       const withdrawalAmount = 1000000n;
 
-      const result = await getWithdrawFromSubAccountInstructionContextChecked(
+      const result = await getWithdrawFromSubAccountCheckedInstructionContext(
         mockSwig,
         1,
         {
@@ -176,5 +178,4 @@ describe('Withdraw Protection', () => {
       expect(result).toBeInstanceOf(SwigInstructionContext);
     });
   });
-
 });
