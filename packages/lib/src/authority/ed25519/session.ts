@@ -13,7 +13,6 @@ import { findSwigSubAccountPdaRaw } from '../../utils';
 import { Authority, SessionBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
 import { Ed25519Instruction } from '../instructions';
-import type { InstructionDataOptions } from '../instructions/interface';
 import type { Ed25519BasedAuthority } from './based';
 
 export class Ed25519SessionAuthority
@@ -246,7 +245,6 @@ export class Ed25519SessionAuthority
     subAccount: SolPublicKeyData;
     roleId: number;
     amount: bigint;
-    options?: InstructionDataOptions;
   }) {
     return Ed25519Instruction.subAccountWithdrawV1SolInstruction(
       {

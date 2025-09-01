@@ -12,8 +12,8 @@ import {
   getSignInstructionContext,
   getToggleSubAccountInstructionContext,
   getTransferAssetsInstructionContext,
+  getWithdrawFromSubAccountCheckedInstructionContext,
   getWithdrawFromSubAccountInstructionContext,
-  getWithdrawFromSubAccountInstructionContextChecked,
   SolInstruction,
   Swig,
   SwigInstructionContext,
@@ -22,7 +22,7 @@ import {
   type SigningFn,
   type SwigOptions,
   type WithdrawSubAccountArgs,
-  type WithdrawSubAccountArgsChecked,
+  type WithdrawSubAccountCheckedArgs,
 } from '@swig-wallet/lib';
 
 export async function getCreateSwigInstruction(args: {
@@ -151,14 +151,13 @@ export async function getWithdrawFromSubAccountSubAccountInstructions(
   return getInstructionsFromContext(context);
 }
 
-export async function getWithdrawFromSubAccountSubAccountInstructionsChecked
-(
+export async function getWithdrawFromSubAccountSubAccountInstructionsChecked(
   swig: Swig,
   roleId: number,
-  withdrawArgs: WithdrawSubAccountArgsChecked<Address>,
+  withdrawArgs: WithdrawSubAccountCheckedArgs<Address>,
   options?: SwigOptions,
 ): Promise<KitInstruction[]> {
-  const context = await getWithdrawFromSubAccountInstructionContextChecked(
+  const context = await getWithdrawFromSubAccountCheckedInstructionContext(
     swig,
     roleId,
     withdrawArgs,
