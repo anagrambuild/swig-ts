@@ -146,7 +146,7 @@ export async function getWithdrawFromSubAccountSubAccountInstructions(
   return getInstructionsFromContext(context);
 }
 
-export async function getWithdrawFromSubAccountSubAccountInstructionsChecked(
+export async function getWithdrawFromSubAccountCheckedInstructions(
   swig: Swig,
   roleId: number,
   withdrawArgs: WithdrawSubAccountCheckedArgs<Address>,
