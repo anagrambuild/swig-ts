@@ -372,31 +372,25 @@ export const getWithdrawFromSubAccountInstructionContext = async <
     (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
   );
 
-  if ('mint' in args) {
-    return role.authority.subAccountWithdrawToken({
-      // token withdrawal
-      swigAddress: role.swigAddress,
-      subAccount,
-      payer,
-      roleId: role.id,
-      options,
-      amount: args.amount,
-      mint: new SolPublicKey(args.mint),
-      tokenProgram: args.tokenProgram
-        ? new SolPublicKey(args.tokenProgram)
-        : undefined,
-    });
-  } else {
-    // SOL withdrawal
-    return role.authority.subAccountWithdrawSol({
-      swigAddress: role.swigAddress,
-      subAccount,
-      payer,
-      roleId: role.id,
-      options,
-      amount: args.amount,
-    });
-  }
+  return 'mint' in args
+    ? role.authority.subAccountWithdrawToken({
+        swigAddress: role.swigAddress,
+        subAccount,
+        payer,
+        roleId: role.id,
+        options,
+        amount: args.amount,
+        mint: args.mint,
+        tokenProgram: args.tokenProgram,
+      })
+    : role.authority.subAccountWithdrawSol({
+        swigAddress: role.swigAddress,
+        subAccount,
+        payer,
+        roleId: role.id,
+        options,
+        amount: args.amount,
+      });
 };
 
 export const getWithdrawFromSubAccountCheckedInstructionContext = async <
