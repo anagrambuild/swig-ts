@@ -151,7 +151,7 @@ export async function getWithdrawFromSubAccountInstructions(
   return getInstructionsFromContext(context);
 }
 
-export async function getWithdrawFromSubAccountInstructionsChecked<
+export async function getWithdrawFromSubAccountCheckedInstructions<
   T extends PublicKey = PublicKey,
 >(
   swig: Swig,

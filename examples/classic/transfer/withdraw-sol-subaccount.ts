@@ -14,7 +14,7 @@ import {
   getCreateSubAccountInstructions,
   getCreateSwigInstruction,
   getWithdrawFromSubAccountInstructions,
-  getWithdrawFromSubAccountInstructionsChecked,
+  getWithdrawFromSubAccountCheckedInstructions,
   getSwigCodec,
   Swig,
   SWIG_PROGRAM_ADDRESS,
@@ -165,14 +165,14 @@ const withdrawAmount = BigInt(0.5 * LAMPORTS_PER_SOL);
 try {
   console.log('Using Classic SDK checked withdrawal with validation');
   
-  const safeWithdrawIx = await getWithdrawFromSubAccountInstructionsChecked(
+  const safeWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
     {
       amount: withdrawAmount,
       currentBalance: currentBalance,
       allowBelowRentExempt: false, // Default deny behavior
-    }
+    },
   );
   sendSVMTransaction(svm, safeWithdrawIx, subAccountAuthority);
 } catch (error) {
@@ -188,14 +188,14 @@ const largeWithdrawAmount = balanceAfterSafe - BigInt(0.001 * LAMPORTS_PER_SOL);
 
 try {
   // First trying without override (should fail) using Classic SDK
-  const blockedWithdrawIx = await getWithdrawFromSubAccountInstructionsChecked(
+  const blockedWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
     {
       amount: largeWithdrawAmount,
       currentBalance: balanceAfterSafe,
       allowBelowRentExempt: false, // Should block this
-    }
+    },
   );
   console.log('This should not happen - withdrawal should be blocked');
 } catch (error) {
@@ -206,14 +206,14 @@ try {
   // Trying with explicit override using Classic SDK
   console.log('Trying risky withdrawal with explicit override...');
   
-  const largeWithdrawIx = await getWithdrawFromSubAccountInstructionsChecked(
+  const largeWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
     {
       amount: largeWithdrawAmount,
       currentBalance: balanceAfterSafe,
       allowBelowRentExempt: true, // Explicitly allow risky withdrawal
-    }
+    },
   );
   
   console.log('Risky withdrawal allowed with explicit override');

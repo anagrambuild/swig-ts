@@ -445,7 +445,6 @@ export const getWithdrawFromSubAccountInstructionContext = async <
   const subAccount = new SolPublicKey(
     (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
   );
-
   return 'mint' in args
     ? role.authority.subAccountWithdrawToken({
         swigAddress: role.swigAddress,

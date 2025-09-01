@@ -31,7 +31,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSubAccountInstructions,
   getCreateSwigInstruction,
-  getWithdrawFromSubAccountSubAccountInstructionsChecked,
+  getWithdrawFromSubAccountCheckedInstructions,
 } from '@swig-wallet/kit';
 import { sleepSync } from 'bun';
 
@@ -185,14 +185,14 @@ console.log('initial sub-account balance:', initialBalance);
 try {
   console.log('Using Kit SDK checked withdrawal with validation');
   
-  const safeWithdrawIx = await getWithdrawFromSubAccountSubAccountInstructionsChecked(
+  const safeWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
     {
       amount: BigInt(0.5 * LAMPORTS_PER_SOL),
       currentBalance: initialBalance,
       allowBelowRentExempt: false,
-    }
+    },
   );
   await sendTransaction(connection, safeWithdrawIx, subAccountAuthority);
 } catch (error) {
@@ -212,14 +212,14 @@ const largeWithdrawAmount = balanceAfterSafe - BigInt(0.001 * LAMPORTS_PER_SOL);
 
 try {
   // First trying without override (should fail) using Kit SDK
-  const blockedWithdrawIx = await getWithdrawFromSubAccountSubAccountInstructionsChecked(
+  const blockedWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
     {
       amount: largeWithdrawAmount,
       currentBalance: balanceAfterSafe,
       allowBelowRentExempt: false, // Should block this
-    }
+    },
   );
   console.log('This should not happen - withdrawal should be blocked');
 } catch (error) {
@@ -230,14 +230,14 @@ try {
   // Trying with explicit override using Kit SDK
   console.log('✅ Trying risky withdrawal with explicit override...');
   
-  const largeWithdrawIx = await getWithdrawFromSubAccountSubAccountInstructionsChecked(
+  const largeWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
     {
       amount: largeWithdrawAmount,
       currentBalance: balanceAfterSafe,
       allowBelowRentExempt: true, // Explicitly allow risky withdrawal
-    }
+    },
   );
   
   console.log('✅ Risky withdrawal allowed with explicit override');
