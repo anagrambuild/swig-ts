@@ -324,7 +324,9 @@ class Action {
 
     if (
       isActionPayload(Permission.SolLimit, this.payload) ||
-      isActionPayload(Permission.SolRecurringLimit, this.payload)
+      isActionPayload(Permission.SolRecurringLimit, this.payload) ||
+      isActionPayload(Permission.SolDestinationLimit, this.payload) ||
+      isActionPayload(Permission.SolRecurringDestinationLimit, this.payload)
     ) {
       return SpendController.get(this.payload);
     }
@@ -349,7 +351,9 @@ class Action {
 
     if (
       isActionPayload(Permission.TokenLimit, this.payload) ||
-      isActionPayload(Permission.TokenRecurringLimit, this.payload)
+      isActionPayload(Permission.TokenRecurringLimit, this.payload) ||
+      isActionPayload(Permission.TokenDestinationLimit, this.payload) ||
+      isActionPayload(Permission.TokenRecurringDestinationLimit, this.payload)
     ) {
       if (
         new SolPublicKey(mint).toBase58() ===
