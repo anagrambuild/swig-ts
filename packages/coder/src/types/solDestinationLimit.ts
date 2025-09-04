@@ -15,21 +15,21 @@ import {
 } from '@solana/kit';
 
 export type SolDestinationLimit = {
+  destination: ReadonlyUint8Array; 
   amount: bigint;
-  destination: ReadonlyUint8Array;
 };
 
 export function getSolDestinationLimitEncoder(): Encoder<SolDestinationLimit> {
   return getStructEncoder([
-    ['amount', getU64Encoder()],
     ['destination', fixEncoderSize(getBytesEncoder(), 32)],
+    ['amount', getU64Encoder()]
   ]);
 }
 
 export function getSolDestinationLimitDecoder(): Decoder<SolDestinationLimit> {
   return getStructDecoder([
-    ['amount', getU64Decoder()],
     ['destination', fixDecoderSize(getBytesDecoder(), 32)],
+    ['amount', getU64Decoder()]
   ]);
 }
 

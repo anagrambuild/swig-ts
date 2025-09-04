@@ -16,32 +16,32 @@ import {
 
 export type TokenRecurringDestinationLimit = {
   mint: ReadonlyUint8Array;
+  destination: ReadonlyUint8Array;
   recurringAmount: bigint;
   window: bigint;
   lastReset: bigint;
   currentAmount: bigint;
-  destination: ReadonlyUint8Array;
 };
 
 export function getTokenRecurringDestinationLimitEncoder(): Encoder<TokenRecurringDestinationLimit> {
   return getStructEncoder([
     ['mint', fixEncoderSize(getBytesEncoder(), 32)],
-    ['window', getU64Encoder()],
-    ['recurringAmount', getU64Encoder()],
-    ['currentAmount', getU64Encoder()],
-    ['lastReset', getU64Encoder()],
     ['destination', fixEncoderSize(getBytesEncoder(), 32)],
+    ['recurringAmount', getU64Encoder()],
+    ['window', getU64Encoder()],
+    ['lastReset', getU64Encoder()],
+    ['currentAmount', getU64Encoder()],
   ]);
 }
 
 export function getTokenRecurringDestinationLimitDecoder(): Decoder<TokenRecurringDestinationLimit> {
   return getStructDecoder([
     ['mint', fixDecoderSize(getBytesDecoder(), 32)],
-    ['window', getU64Decoder()],
-    ['recurringAmount', getU64Decoder()],
-    ['currentAmount', getU64Decoder()],
-    ['lastReset', getU64Decoder()],
     ['destination', fixDecoderSize(getBytesDecoder(), 32)],
+    ['recurringAmount', getU64Decoder()],
+    ['window', getU64Decoder()],
+    ['lastReset', getU64Decoder()],
+    ['currentAmount', getU64Decoder()],
   ]);
 }
 
