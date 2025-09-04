@@ -46,8 +46,14 @@ async function sendTransaction(
     const signature = await connection.sendRawTransaction(
       transaction.serialize(),
     );
-    await connection.confirmTransaction(signature, 'confirmed');
+    await connection.confirmTransaction({
+      signature,
+      ...(await connection.getLatestBlockhash()),
+    });
     console.log('✅ Transaction confirmed:', signature);
+    console.log(
+      `🔍 Explorer: https://explorer.solana.com/tx/${signature}?cluster=custom`,
+    );
     return signature;
   } catch (error: any) {
     if (error.logs) {
@@ -114,24 +120,6 @@ async function sendTransaction(
   // refresh swig to get the newly added role
   await swig.refetch();
 
-  // debug role permissions
-  console.log('🔍 Role permissions check:');
-  const role = swig.findRolesByEd25519SignerPk(roleKeypair.publicKey)[0];
-  if (role) {
-    console.log('  Can spend SOL:', role.actions.canSpendSol());
-    console.log(
-      '  Can spend 1 SOL:',
-      role.actions.canSpendSol(BigInt(1 * LAMPORTS_PER_SOL)),
-    );
-    console.log('  Has program action:', role.actions.hasProgramAction());
-    console.log(
-      '  Can use system program:',
-      role.actions.canUseProgram(SystemProgram.programId.toBase58()),
-    );
-    console.log('  Actions count:', role.actions.count);
-    console.log('  Actions buffer:', Array.from(role.actions.bytes()));
-  }
-
   // fund the swig account so it can make transfers
   await connection.requestAirdrop(swigAddress, 2 * LAMPORTS_PER_SOL);
 
@@ -166,18 +154,6 @@ async function sendTransaction(
   const signedInstructions = await getSignInstructions(swig, roleFromSwig.id, [
     transferIx,
   ]);
-
-  console.log('📋 Generated instructions:', signedInstructions.length);
-  signedInstructions.forEach((ix, i) => {
-    console.log(
-      `  ${i}: Program ${ix.programId.toBase58()}, ${ix.keys.length} keys`,
-    );
-    ix.keys.forEach((key, j) => {
-      console.log(
-        `    Key ${j}: ${key.pubkey.toBase58()}, signer: ${key.isSigner}, writable: ${key.isWritable}`,
-      );
-    });
-  });
 
   // send transaction (fee payer is roleKeypair, with rootKeypair as additional signer for fees)
   await sendTransaction(connection, signedInstructions, roleKeypair, []);
