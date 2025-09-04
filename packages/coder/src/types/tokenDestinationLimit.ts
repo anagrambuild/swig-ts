@@ -24,7 +24,7 @@ export function getTokenDestinationLimitEncoder(): Encoder<TokenDestinationLimit
   return getStructEncoder([
     ['mint', fixEncoderSize(getBytesEncoder(), 32)],
     ['destination', fixEncoderSize(getBytesEncoder(), 32)],
-    ['amount', getU64Encoder()]
+    ['amount', getU64Encoder()],
   ]);
 }
 
@@ -32,7 +32,7 @@ export function getTokenDestinationLimitDecoder(): Decoder<TokenDestinationLimit
   return getStructDecoder([
     ['mint', fixDecoderSize(getBytesDecoder(), 32)],
     ['destination', fixDecoderSize(getBytesDecoder(), 32)],
-    ['amount', getU64Decoder()]
+    ['amount', getU64Decoder()],
   ]);
 }
 
