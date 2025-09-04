@@ -188,15 +188,27 @@ console.log('starting...');
 
   console.log('Recipient ATA:', recipientAta.toBase58());
 
-  // Create role that can only send 100 tokens to specific recipient
+  // Create role that can only send up to 200 tokens to specific recipient
   const roleKeypair = Keypair.generate();
+  const tokenLimitAmount = BigInt(200 * 10 ** decimals);
   const tokenTransferAmount = BigInt(100 * 10 ** decimals);
+
+  console.log('Transfer amount (raw):', tokenTransferAmount.toString());
+  console.log(
+    'Transfer amount (tokens):',
+    Number(tokenTransferAmount) / 10 ** decimals,
+  );
+
+  console.log('Setting up tokenDestinationLimit with:');
+  console.log('  mint:', mintKeypair.publicKey.toBase58());
+  console.log('  destination:', recipientAta.toBase58());
+  console.log('  amount:', tokenTransferAmount.toString());
 
   const actions = Actions.set()
     .tokenDestinationLimit({
       mint: mintKeypair.publicKey,
-      amount: tokenTransferAmount,
-      destination: recipient.publicKey
+      amount: tokenLimitAmount,
+      destination: recipientAta,
     })
     .get();
 
@@ -212,6 +224,11 @@ console.log('starting...');
   // Refresh swig to get the newly added role
   swig = fetchSwig(svm, swigAddress);
 
+  // Debug: Check the role configuration
+  const debugRole = swig.findRolesByEd25519SignerPk(roleKeypair.publicKey)[0];
+  console.log('Role found:', !!debugRole);
+  console.log('Role ID:', debugRole?.id.toString());
+
   // Fund the role keypair for transaction fees
   svm.airdrop(roleKeypair.publicKey, BigInt(0.1 * LAMPORTS_PER_SOL));
 
@@ -223,6 +240,12 @@ console.log('starting...');
   );
 
   // Build the token transfer
+  console.log('Creating transfer instruction with:');
+  console.log('  source:', swigAta.toBase58());
+  console.log('  destination:', recipientAta.toBase58());
+  console.log('  owner:', swigAddress.toBase58());
+  console.log('  amount:', tokenTransferAmount.toString());
+
   const transferIx = createTransferInstruction(
     swigAta,
     recipientAta,

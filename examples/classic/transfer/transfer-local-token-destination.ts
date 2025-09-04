@@ -61,7 +61,7 @@ async function sendTransaction(
     });
     console.log('✅ Transaction confirmed:', signature);
     console.log(
-      `🔍 Explorer: http://localhost:3000/tx/${signature}?cluster=custom`,
+      `🔍 Explorer: https://explorer.solana.com/tx/${signature}?cluster=custom`,
     );
     return signature;
   } catch (error: any) {
@@ -186,15 +186,16 @@ async function sendTransaction(
 
   console.log('🏦 Recipient ATA:', recipientAta.toBase58());
 
-  // Create role that can only send 100 tokens to specific recipient
+  // Create role that can only send up to 200 tokens to specific recipient
   const roleKeypair = Keypair.generate();
+  const tokenLimitAmount = BigInt(200 * 10 ** decimals);
   const tokenTransferAmount = BigInt(100 * 10 ** decimals);
 
   const actions = Actions.set()
     .tokenDestinationLimit({
       mint: mintKeypair.publicKey,
-      amount: tokenTransferAmount,
-      destination: recipient.publicKey,
+      amount: tokenLimitAmount,
+      destination: recipientAta,
     })
     .get();
 

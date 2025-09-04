@@ -61,7 +61,7 @@ async function sendTransaction(
     });
     console.log('✅ Transaction confirmed:', signature);
     console.log(
-      `🔍 Explorer: http://localhost:3000/tx/${signature}?cluster=custom`,
+      `🔍 Explorer: https://explorer.solana.com/tx/${signature}?cluster=custom`,
     );
     return signature;
   } catch (error: any) {
@@ -188,7 +188,7 @@ async function sendTransaction(
 
   // Create role with recurring token destination limit: 500 tokens per window to specific recipient
   const roleKeypair = Keypair.generate();
-  const recurringAmount = BigInt(500 * 10 ** decimals);
+  const recurringAmount = BigInt(600 * 10 ** decimals);
   const window = BigInt(100); // 100 slots window for testing
 
   const actions = Actions.set()
@@ -196,7 +196,7 @@ async function sendTransaction(
       mint: mintKeypair.publicKey,
       recurringAmount,
       window,
-      destination: recipient.publicKey,
+      destination: recipientAta,
     })
     .get();
 
