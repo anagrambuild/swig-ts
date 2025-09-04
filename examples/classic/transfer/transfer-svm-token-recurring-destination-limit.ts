@@ -188,9 +188,9 @@ console.log('starting...');
 
   console.log('Recipient ATA:', recipientAta.toBase58());
 
-  // Create role with recurring token destination limit: 500 tokens per window to specific recipient
+  // Create role with recurring token destination limit: 600 tokens per window to specific recipient
   const roleKeypair = Keypair.generate();
-  const recurringAmount = BigInt(500 * 10 ** decimals);
+  const recurringAmount = BigInt(600 * 10 ** decimals);
   const window = BigInt(100); // 100 slots window for testing
 
   const actions = Actions.set()
@@ -198,7 +198,7 @@ console.log('starting...');
       mint: mintKeypair.publicKey,
       recurringAmount,
       window,
-      destination: recipient.publicKey,
+      destination: recipientAta,
     })
     .get();
 
