@@ -150,6 +150,25 @@ export abstract class Authority {
   }): Promise<SwigInstructionContext>;
 
   /**
+   * Creates a `Sign` instruction for signing provided instructions with the Swig
+   * @param args The parameters required to create the Swig instruction.
+   * @param args.swigAddress The public key of the swig
+   * @param args.payer The public key of the swig payer.
+   * @param args.roleId The ID of the role signing the instruction.
+   * @param args.innerInstructions The instructions the Swig is to sign.
+   * @param args.options {@link InstructionDataOptions}
+   * @returns `Sign` Instruction.
+   */
+  abstract signV2(args: {
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    payer: SolPublicKeyData;
+    roleId: number;
+    innerInstructions: SolInstruction[];
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
+  /**
    * Check two {@link Authority} are partially equal
    */
   isEqual(other: Authority): boolean {

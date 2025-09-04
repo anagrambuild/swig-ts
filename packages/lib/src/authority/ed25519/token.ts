@@ -227,6 +227,27 @@ export class Ed25519Authority
       },
     );
   }
+
+  signV2(args: {
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    payer: SolPublicKeyData;
+    roleId: number;
+    innerInstructions: SolInstruction[];
+  }) {
+    return Ed25519Instruction.signV2Instruction(
+      {
+        swig: args.swigAddress,
+        payer: args.payer,
+        swigWalletAddress: args.swigWalletAddress
+      },
+      {
+        authorityData: this.data,
+        innerInstructions: args.innerInstructions,
+        roleId: args.roleId,
+      },
+    );
+  }
 }
 
 export function isEd25519Authority(

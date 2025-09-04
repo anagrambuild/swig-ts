@@ -143,4 +143,23 @@ export const Ed25519Instruction: AuthorityInstruction = {
       compactInstructions: compactIxs,
     });
   },
+
+  async signV2Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [signInstructionsAccount, authorityPayload] =
+      getSignV1BaseAccountMetasWithAuthority(accounts, authority);
+
+    const { accounts: metas, compactIxs } = compactInstructions(
+      accounts.swig,
+      signInstructionsAccount,
+      data.innerInstructions,
+    );
+
+    return SwigInstructionV1.sign(metas, {
+      roleId: data.roleId,
+      authorityPayload: new Uint8Array([authorityPayload]),
+      compactInstructions: compactIxs,
+    });
+  },
 };

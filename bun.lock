@@ -145,7 +145,7 @@
     },
     "packages/classic": {
       "name": "@swig-wallet/classic",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "dependencies": {
         "@noble/curves": "^1.8.2",
         "@solana-program/token": "^0.5.1",
@@ -173,7 +173,7 @@
     },
     "packages/coder": {
       "name": "@swig-wallet/coder",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "dependencies": {
         "@solana/kit": "^2.1.0",
       },
@@ -191,7 +191,7 @@
     },
     "packages/kit": {
       "name": "@swig-wallet/kit",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "dependencies": {
         "@noble/curves": "^1.8.2",
         "@solana-program/token": "^0.5.1",
@@ -217,7 +217,7 @@
     },
     "packages/lib": {
       "name": "@swig-wallet/lib",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "dependencies": {
         "@noble/curves": "^1.8.2",
         "@solana-program/token": "^0.5.1",

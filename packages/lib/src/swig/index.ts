@@ -17,7 +17,11 @@ import {
   SwigInstructionContext,
   type SolPublicKeyData,
 } from '../solana';
-import { findSwigSubAccountPdaRaw, getUnprefixedSecpBytes } from '../utils';
+import {
+  findSwigSubAccountPdaRaw,
+  findSwigWalletAddressPdaRaw,
+  getUnprefixedSecpBytes,
+} from '../utils';
 
 /**
  * Helper function to ensure ProgramAll action is added if no program-related actions exist
@@ -73,6 +77,10 @@ export class Swig {
    */
   get id() {
     return this.account.id;
+  }
+
+  async walletAddress() {
+    return (await findSwigWalletAddressPdaRaw(this.address))[0];
   }
 
   /**
@@ -313,22 +321,33 @@ export const getSignInstructionContext = async (
     options,
   );
 
-  return withSubAccount
-    ? role.authority.subAccountSign({
-        swigAddress: role.swigAddress,
-        subAccount: (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
-        payer,
-        innerInstructions,
-        roleId: role.id,
-        options,
-      })
-    : role.authority.sign({
-        roleId: role.id,
-        innerInstructions,
-        payer,
-        swigAddress: swig.address,
-        options,
-      });
+  if (withSubAccount) {
+    return role.authority.subAccountSign({
+      swigAddress: role.swigAddress,
+      subAccount: (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
+      payer,
+      innerInstructions,
+      roleId: role.id,
+      options,
+    });
+  } else if (options?.version == 'v2') {
+    return role.authority.signV2({
+      roleId: role.id,
+      innerInstructions,
+      payer,
+      swigAddress: swig.address,
+      swigWalletAddress: await swig.walletAddress(),
+      options,
+    });
+  } else {
+    return role.authority.sign({
+      roleId: role.id,
+      innerInstructions,
+      payer,
+      swigAddress: swig.address,
+      options,
+    });
+  }
 };
 
 export const getCreateSessionInstructionContext = async (
@@ -488,6 +507,7 @@ export type SwigOptions = {
   signingFn?: SigningFn;
   currentSlot?: bigint;
   payer?: SolPublicKeyData;
+  version?: 'v1' | 'v2';
 };
 
 export type WithdrawSubAccountArgs<

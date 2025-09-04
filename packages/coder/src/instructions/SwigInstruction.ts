@@ -17,6 +17,7 @@ export enum SwigInstructionDiscriminator {
   SubAccountWithdrawV1,
   SubAccountSignV1 = 9,
   SubAccountToggleV1,
+  SignV2 = 11
 }
 
 export function getSwigInstructionDiscriminatorEncoder(): Encoder<SwigInstructionDiscriminator> {

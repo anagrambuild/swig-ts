@@ -4,6 +4,7 @@ import {
   getCreateV1InstructionDataCodec,
   getRemoveAuthorityV1InstructionCodec,
   getSignV1InstructionCodec,
+  getSignV2InstructionCodec,
   getSubAccountCreateV1InstructionDataCodec,
   getSubAccountSignV1InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
@@ -13,6 +14,7 @@ import {
   type CreateV1InstructionDataArgs,
   type RemoveAuthorityV1InstructionDataArgs,
   type SignV1InstructionDataArgs,
+  type SignV2InstructionDataArgs,
   type SubAccountCreateV1InstructionDataArgs,
   type SubAccountSignV1InstructionDataArgs,
   type SubAccountToggleV1InstructionDataArgs,
@@ -34,6 +36,7 @@ import {
 } from './createV1';
 import { type RemoveAuthorityV1BaseAccountMetas } from './removeAuthorityV1';
 import { type SignV1BaseAccountMetas } from './signV1';
+import type { SignV2BaseAccountMetas } from './signV2';
 import type { SubAccountCreateV1BaseAccountMetas } from './subAccountCreateV1';
 import type { SubAccountSignV1BaseAccountMetas } from './subAccountSignV1';
 import type { SubAccountToggleV1BaseAccountMetas } from './subAccountToggleV1';
@@ -231,6 +234,24 @@ export class SwigInstructionV1 {
     options?: SwigInstructionContextOptions,
   ): SwigInstructionContext {
     const encoder = getSubAccountToggleV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
+}
+
+export class SwigInstructionV2 {
+  static sign<T extends [...SignV2BaseAccountMetas, ...SolAccountMeta[]]>(
+    accounts: T,
+    data: SignV2InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getSignV2InstructionCodec(
+      data.authorityPayload.length,
+    ).encoder;
 
     const instructionData = encoder.encode(data);
 

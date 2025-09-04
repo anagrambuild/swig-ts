@@ -278,4 +278,27 @@ export class Secp256k1Authority
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
+
+  signV2(args: {
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    payer: SolPublicKeyData;
+    roleId: number;
+    innerInstructions: SolInstruction[];
+    options: InstructionDataOptions;
+  }) {
+    return Secp256k1Instruction.signV2Instruction(
+      {
+        swig: args.swigAddress,
+        payer: args.payer,
+        swigWalletAddress: args.swigWalletAddress
+      },
+      {
+        authorityData: this.publicKeyBytes,
+        innerInstructions: args.innerInstructions,
+        roleId: args.roleId,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
 }

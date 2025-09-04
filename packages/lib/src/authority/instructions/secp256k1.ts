@@ -309,6 +309,44 @@ export const Secp256k1Instruction: AuthorityInstruction = {
       authorityPayload,
     });
   },
+
+  async signV2Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const signInstructionsAccount = getSignV1BaseAccountMetas(accounts);
+
+    const { accounts: metas, compactIxs } = compactInstructions(
+      accounts.swig,
+      signInstructionsAccount,
+      data.innerInstructions,
+    );
+
+    const encodedCompactInstructions = getArrayEncoder(
+      getCompactInstructionEncoder(),
+      {
+        size: getU8Encoder(),
+      },
+    ).encode(compactIxs);
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(encodedCompactInstructions),
+      metas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.sign(metas, {
+      roleId: data.roleId,
+      authorityPayload,
+      compactInstructions: compactIxs,
+    });
+  },
 };
 
 /**

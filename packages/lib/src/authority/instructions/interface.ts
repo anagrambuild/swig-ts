@@ -11,6 +11,7 @@ import {
   type AddAuthorityV1InstructionAccounts,
   type RemoveAuthorityV1InstructionAccounts,
   type SignV1InstructionAccounts,
+  type SignV2InstructionAccounts,
   type SubAccountCreateV1InstructionAccounts,
   type SubAccountSignV1InstructionAccounts,
   type SubAccountToggleV1InstructionAccounts,
@@ -91,6 +92,16 @@ export interface AuthorityInstruction {
 
   subAccountSignV1Instruction(
     accounts: SubAccountSignV1InstructionAccounts,
+    data: {
+      authorityData: ReadonlyUint8Array;
+      roleId: number;
+      innerInstructions: SolInstruction[];
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
+  signV2Instruction(
+    accounts: SignV2InstructionAccounts,
     data: {
       authorityData: ReadonlyUint8Array;
       roleId: number;

@@ -26,7 +26,7 @@ export type SwigAccount = {
   id: ReadonlyUint8Array;
   roles: number;
   role_counter: number;
-  reserved_lamports: bigint;
+  reserved_lamports_or_bump: bigint;
   roles_buffer: ReadonlyUint8Array;
 };
 
@@ -37,7 +37,7 @@ function getSwigEncoder(): Encoder<SwigAccount> {
     ['id', fixEncoderSize(getBytesEncoder(), 32)],
     ['roles', getU16Encoder()],
     ['role_counter', getU32Encoder()],
-    ['reserved_lamports', getU64Encoder()],
+    ['reserved_lamports_or_bump', getU64Encoder()],
     ['roles_buffer', getBytesEncoder()],
   ]);
 }
@@ -49,7 +49,7 @@ function getSwigDecoder(): Decoder<SwigAccount> {
     ['id', fixDecoderSize(getBytesDecoder(), 32)],
     ['roles', getU16Decoder()],
     ['role_counter', getU32Decoder()],
-    ['reserved_lamports', getU64Decoder()],
+    ['reserved_lamports_or_bump', getU64Decoder()],
     ['roles_buffer', getBytesDecoder()],
   ]);
 }
