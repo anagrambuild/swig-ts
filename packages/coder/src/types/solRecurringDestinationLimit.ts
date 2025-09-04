@@ -28,7 +28,7 @@ export function getSolRecurringDestinationLimitEncoder(): Encoder<SolRecurringDe
     ['recurringAmount', getU64Encoder()],
     ['window', getU64Encoder()],
     ['lastReset', getU64Encoder()],
-    ['currentAmount', getU64Encoder()]
+    ['currentAmount', getU64Encoder()],
   ]);
 }
 
@@ -38,7 +38,7 @@ export function getSolRecurringDestinationLimitDecoder(): Decoder<SolRecurringDe
     ['recurringAmount', getU64Decoder()],
     ['window', getU64Decoder()],
     ['lastReset', getU64Decoder()],
-    ['currentAmount', getU64Decoder()]
+    ['currentAmount', getU64Decoder()],
   ]);
 }
 
