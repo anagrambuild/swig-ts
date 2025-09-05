@@ -13,10 +13,12 @@ import {
 } from '@swig-wallet/coder';
 import {
   SwigInstructionV1,
+  SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetasWithSystemProgram,
   getRemoveAuthorityV1BaseAccountMetas,
   getSignV1BaseAccountMetasWithSystemProgram,
+  getSignV2BaseAccountMetasWithSystemProgram,
   getSubAccountCreateV1BaseAccountMetas,
   getSubAccountSignV1BaseAccountMetas,
   getSubAccountToggleV1BaseAccountMetas,
@@ -386,7 +388,7 @@ export const Secp256r1Instruction: AuthorityInstruction = {
       isWritable: false,
     });
 
-    const signInstructionsAccount = getSignV1BaseAccountMetasWithSystemProgram(
+    const signInstructionsAccount = getSignV2BaseAccountMetasWithSystemProgram(
       accounts,
       [instructionsSysvar],
     );
@@ -395,6 +397,7 @@ export const Secp256r1Instruction: AuthorityInstruction = {
       accounts.swig,
       signInstructionsAccount,
       data.innerInstructions,
+      accounts.swigWalletAddress,
     );
 
     const encodedCompactInstructions = getArrayEncoder(
@@ -415,7 +418,7 @@ export const Secp256r1Instruction: AuthorityInstruction = {
       },
     );
 
-    return SwigInstructionV1.sign(
+    return SwigInstructionV2.sign(
       metas,
       {
         roleId: data.roleId,

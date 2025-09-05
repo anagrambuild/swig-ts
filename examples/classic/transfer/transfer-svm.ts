@@ -119,6 +119,9 @@ sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
 let swig = fetchSwig(svm, swigAddress);
 // swig.refetch(connection)
 
+const swigWalletAddress = new PublicKey((await swig.walletAddress()).toBytes());
+console.log('swig wallet address:', swigWalletAddress.toBase58());
+
 //
 // * find role by ed25519 signer
 //
@@ -193,7 +196,7 @@ sendSVMTransaction(
   userAuthorityManagerKeypair,
 );
 
-svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
+svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
 
 swig = fetchSwig(svm, swigAddress);
 
@@ -237,13 +240,16 @@ if (
 )
   throw new Error('Role authority is not the authority');
 
-console.log('balance before first transfer:', svm.getBalance(swigAddress));
+console.log(
+  'balance before first transfer:',
+  svm.getBalance(swigWalletAddress),
+);
 
 //
 // * spend max sol permitted
 //
 let transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
+  fromPubkey: swigWalletAddress,
   toPubkey: dappTreasury,
   lamports: 0.1 * LAMPORTS_PER_SOL,
 });
@@ -256,13 +262,17 @@ if (!dappAuthorityRoles.length) throw new Error('Role not found for authority');
 
 const dappAuthorityRole = dappAuthorityRoles[0];
 
-let signTransfer = await getSignInstructions(swig, dappAuthorityRole.id, [
-  transfer,
-]);
+let signTransfer = await getSignInstructions(
+  swig,
+  dappAuthorityRole.id,
+  [transfer],
+  false,
+  { version: 'v2' },
+);
 
 sendSVMTransaction(svm, signTransfer, dappAuthorityKeypair);
 
-console.log('balance after first transfer:', svm.getBalance(swigAddress));
+console.log('balance after first transfer:', svm.getBalance(swigWalletAddress));
 
 swig = fetchSwig(svm, swigAddress);
 
@@ -270,19 +280,19 @@ swig = fetchSwig(svm, swigAddress);
 // * try spend sol
 //
 transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
+  fromPubkey: swigWalletAddress,
   toPubkey: dappTreasury,
   lamports: 0.05 * LAMPORTS_PER_SOL,
 });
 
-// dappAuthorityRole = swig.findRoleByAuthority(dappAuthority);
-
-// if (!dappAutorityRole) throw new Error('Role not found for authority');
-
-signTransfer = await getSignInstructions(swig, dappAuthorityRole.id, [
-  transfer,
-]);
+signTransfer = await getSignInstructions(
+  swig,
+  dappAuthorityRole.id,
+  [transfer],
+  false,
+  { version: 'v2' },
+);
 
 sendSVMTransaction(svm, signTransfer, dappAuthorityKeypair);
 
-console.log('balance after try second transfer:', svm.getBalance(swigAddress));
+console.log('balance after try second transfer:', svm.getBalance(swigWalletAddress));

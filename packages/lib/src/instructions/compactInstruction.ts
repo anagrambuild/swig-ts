@@ -20,7 +20,7 @@ export function compactInstructions<
   swigAccount: SolPublicKeyData,
   accounts: T,
   innerInstructions: SolInstruction[],
-  subAccount?: SolPublicKeyData,
+  otherSwigPda?: SolPublicKeyData,
 ): { accounts: T; compactIxs: CompactInstruction[] } {
   const compactIxs: CompactInstruction[] = [];
 
@@ -35,11 +35,13 @@ export function compactInstructions<
 
     const accts: number[] = [];
     for (const ixAccount of ix.accounts) {
-      const subAcct = subAccount ? new SolPublicKey(subAccount) : undefined;
+      const otherPda = otherSwigPda
+        ? new SolPublicKey(otherSwigPda)
+        : undefined;
       if (
         ixAccount.publicKey.toBase58() ===
           new SolPublicKey(swigAccount).toBase58() ||
-        ixAccount.publicKey.toBase58() === subAcct?.toBase58()
+        ixAccount.publicKey.toBase58() === otherPda?.toBase58()
       ) {
         ixAccount.setSigner(false);
       }
@@ -55,8 +57,8 @@ export function compactInstructions<
       }
     }
     if (handleUnbalanced) {
-      const accountIndex = subAccount
-        ? hashmap.get(subAccount.toString())
+      const accountIndex = otherSwigPda
+        ? hashmap.get(otherSwigPda.toString())
         : hashmap.get(swigAccount.toString());
       if (accountIndex !== undefined) {
         accts.push(accountIndex);

@@ -14,6 +14,42 @@ import {
 } from './payload';
 
 /**
+ * Helper function to ensure ProgramAll action is added if no program-related actions exist
+ * This is only used when adding new authorities, not when creating the initial swig.
+ * Root authorities should only have All or ManageAuthority permissions.
+ * @param actions - The actions to check and potentially modify
+ * @returns Actions with ProgramAll added if no program actions were present
+ */
+export function ensureProgramAction(actions: Actions): Actions {
+  // Check if actions already have root permission (All) - if so, no need to add program actions
+  if (actions.isRoot()) {
+    return actions;
+  }
+
+  // Check if actions already have any program-related permissions
+  const hasExistingProgramAction = actions.hasProgramAction();
+
+  if (!hasExistingProgramAction) {
+    // No program permissions exist, so we need to add ProgramAll
+    // Create a new Actions object by combining the existing actions buffer with ProgramAll
+    const programAllAction = Actions.set().programAll().get();
+
+    // Combine the existing actions buffer with the ProgramAll action buffer
+    const combinedBuffer = new Uint8Array(
+      actions.bytes().length + programAllAction.bytes().length,
+    );
+    combinedBuffer.set(actions.bytes(), 0);
+    combinedBuffer.set(programAllAction.bytes(), actions.bytes().length);
+
+    // Create new Actions object with combined buffer and updated count
+    return Actions.from(combinedBuffer, actions.count + programAllAction.count);
+  }
+
+  // Actions already have program permissions, return as-is
+  return actions;
+}
+
+/**
  * Utility class from managing actions grouped together.
  */
 export class Actions {

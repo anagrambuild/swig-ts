@@ -53,10 +53,12 @@ export async function createV1SwigInstruction(
   data: Omit<CreateV1InstructionDataArgs, 'bump' | 'walletBump'>,
 ): Promise<SwigInstructionContext> {
   const [swigAddress, bump] = await findSwigPdaRaw(Uint8Array.from(data.id));
-  const [, walletBump] = await findSwigWalletAddressPdaRaw(swigAddress);
+  const [swigWalletAddress, walletBump] =
+    await findSwigWalletAddressPdaRaw(swigAddress);
   const createIxAccountMetas = getCreateV1BaseAccountMetas({
     ...accounts,
     swig: swigAddress,
+    swigWalletAddress,
   });
   return SwigInstructionV1.create(createIxAccountMetas, {
     ...data,

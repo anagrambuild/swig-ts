@@ -13,10 +13,12 @@ import {
 } from '@swig-wallet/coder';
 import {
   SwigInstructionV1,
+  SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetas,
   getRemoveAuthorityV1BaseAccountMetas,
   getSignV1BaseAccountMetas,
+  getSignV2BaseAccountMetas,
   getSubAccountCreateV1BaseAccountMetas,
   getSubAccountSignV1BaseAccountMetas,
   getSubAccountToggleV1BaseAccountMetas,
@@ -316,12 +318,13 @@ export const Secp256k1Instruction: AuthorityInstruction = {
         'Current slot or Signing function not provided for Secp256k1 based authority',
       );
 
-    const signInstructionsAccount = getSignV1BaseAccountMetas(accounts);
+    const signInstructionsAccount = getSignV2BaseAccountMetas(accounts);
 
     const { accounts: metas, compactIxs } = compactInstructions(
       accounts.swig,
       signInstructionsAccount,
       data.innerInstructions,
+      accounts.swigWalletAddress,
     );
 
     const encodedCompactInstructions = getArrayEncoder(
@@ -341,7 +344,7 @@ export const Secp256k1Instruction: AuthorityInstruction = {
       },
     );
 
-    return SwigInstructionV1.sign(metas, {
+    return SwigInstructionV2.sign(metas, {
       roleId: data.roleId,
       authorityPayload,
       compactInstructions: compactIxs,

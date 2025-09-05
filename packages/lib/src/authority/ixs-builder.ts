@@ -1,4 +1,4 @@
-import type { Actions } from '../actions';
+import { ensureProgramAction, type Actions } from '../actions';
 import { type SolPublicKeyData, type SwigInstructionContext } from '../solana';
 import type { Authority } from './abstract';
 import { type CreateAuthorityInfo } from './createAuthority';
@@ -56,7 +56,7 @@ export class AddMultipleAuthoritiesInstructionContextBuilder {
   addAuthority = (newAuthorityInfo: CreateAuthorityInfo, actions: Actions) => {
     const instructionContextPromise = this.authority.addAuthority({
       actingRoleId: this.roleId,
-      actions,
+      actions: ensureProgramAction(actions),
       newAuthorityInfo,
       payer: this.getPayer(),
       swigAddress: this.swigAddress,

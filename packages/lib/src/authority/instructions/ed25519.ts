@@ -1,9 +1,11 @@
 import {
   SwigInstructionV1,
+  SwigInstructionV2,
   compactInstructions,
   getAddV1BaseAccountMetasWithAuthority,
   getRemoveV1BaseAccountMetasWithAuthority,
   getSignV1BaseAccountMetasWithAuthority,
+  getSignV2BaseAccountMetasWithAuthority,
   getSubAccountCreateV1BaseAccountMetasWithAuthority,
   getSubAccountSignV1BaseAccountMetasWithAuthority,
   getSubAccountToggleV1BaseAccountMetasWithAuthority,
@@ -148,15 +150,16 @@ export const Ed25519Instruction: AuthorityInstruction = {
     const authority = new SolPublicKey(new Uint8Array(data.authorityData));
 
     const [signInstructionsAccount, authorityPayload] =
-      getSignV1BaseAccountMetasWithAuthority(accounts, authority);
+      getSignV2BaseAccountMetasWithAuthority(accounts, authority);
 
     const { accounts: metas, compactIxs } = compactInstructions(
       accounts.swig,
       signInstructionsAccount,
       data.innerInstructions,
+      accounts.swigWalletAddress,
     );
 
-    return SwigInstructionV1.sign(metas, {
+    return SwigInstructionV2.sign(metas, {
       roleId: data.roleId,
       authorityPayload: new Uint8Array([authorityPayload]),
       compactInstructions: compactIxs,

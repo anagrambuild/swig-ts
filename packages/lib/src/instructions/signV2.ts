@@ -25,7 +25,7 @@ export function getSignV2BaseAccountMetas(
       // isWritable: true,
     }),
     SolAccountMeta.fromKitAccountMeta({
-      address: new SolPublicKey(accounts.swig).toAddress(),
+      address: new SolPublicKey(accounts.swigWalletAddress).toAddress(),
       role: AccountRole.WRITABLE,
       // isSigner: false,
       // isWritable: true,
