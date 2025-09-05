@@ -311,7 +311,7 @@ export class Secp256r1SessionAuthority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress
+        swigWalletAddress: args.swigWalletAddress,
       },
       {
         authorityData: this.sessionKey.toBytes(),

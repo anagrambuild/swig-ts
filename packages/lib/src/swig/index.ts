@@ -204,7 +204,6 @@ export const getCreateSwigInstructionContext = (args: {
       actions: args.actions.bytes(),
       authorityData: args.authorityInfo.data,
       authorityType: args.authorityInfo.type,
-      noOfActions: args.actions.count,
     },
   );
 };
@@ -225,7 +224,6 @@ export const getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder =
         actions: args.actions.bytes(),
         authorityData: args.authorityInfo.data,
         authorityType: args.authorityInfo.type,
-        noOfActions: args.actions.count,
       },
     );
     return new AddMultipleAuthoritiesInstructionContextBuilder(

@@ -8,7 +8,11 @@ export type SignV2InstructionAccounts = {
   payer: SolPublicKeyData;
 };
 
-export type SignV2BaseAccountMetas = [SolAccountMeta, SolAccountMeta, SolAccountMeta];
+export type SignV2BaseAccountMetas = [
+  SolAccountMeta,
+  SolAccountMeta,
+  SolAccountMeta,
+];
 
 export function getSignV2BaseAccountMetas(
   accounts: SignV2InstructionAccounts,

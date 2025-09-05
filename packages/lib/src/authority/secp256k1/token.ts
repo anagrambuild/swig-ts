@@ -291,7 +291,7 @@ export class Secp256k1Authority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress
+        swigWalletAddress: args.swigWalletAddress,
       },
       {
         authorityData: this.publicKeyBytes,

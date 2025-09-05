@@ -239,7 +239,7 @@ export class Ed25519Authority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress
+        swigWalletAddress: args.swigWalletAddress,
       },
       {
         authorityData: this.data,
