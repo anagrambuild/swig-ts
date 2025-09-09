@@ -24,6 +24,10 @@ import {
 } from '../utils';
 
 export class Swig {
+  /**
+   * Swig Account Address.
+   * @deprecated use `Swig.accountAddress()` instead
+   */
   readonly address: SolPublicKey;
   #fetchFn: SwigFetchFn;
 
@@ -43,7 +47,37 @@ export class Swig {
     return this.account.id;
   }
 
+  accountVersion(): AccountVersion {
+    // when a v1 account is created, the rent exempt lamport is stored
+    // which is quaranteed to be greater than max bump value of 255.
+    // hence we are able to use this condition to deduce the version of
+    // the swig account.
+    if (this.account.reserved_lamports_or_bump > 255n) {
+      return 'v1';
+    }
+    return 'v2';
+  }
+
   async walletAddress() {
+    if (this.accountVersion() === 'v1') return this.accountAddress();
+    return this.systemAddress();
+  }
+
+  /**
+   * The Address of the Swig PDA Account that holds all details of the Swig.
+   * The address is the wallet address of the swig for legacy account
+   * @returns the swig account address
+   */
+  accountAddress() {
+    return this.address;
+  }
+
+  /**
+   * The Address of the System account associated with the new Swig account.
+   * The Address is the wallet address of the swig for Swig Account v2
+   * @returns the swig wallet address
+   */
+  async systemAddress() {
     return (await findSwigWalletAddressPdaRaw(this.address))[0];
   }
 
@@ -294,13 +328,13 @@ export const getSignInstructionContext = async (
     });
   }
 
-  if (options?.version === 'v2') {
+  if (swig.accountVersion() === 'v2') {
     return role.authority.signV2({
       roleId: role.id,
       innerInstructions,
       payer,
       swigAddress: swig.address,
-      swigWalletAddress: await swig.walletAddress(),
+      swigWalletAddress: await swig.systemAddress(),
       options,
     });
   }
@@ -471,7 +505,6 @@ export type SwigOptions = {
   signingFn?: SigningFn;
   currentSlot?: bigint;
   payer?: SolPublicKeyData;
-  version?: 'v1' | 'v2';
 };
 
 export type WithdrawSubAccountArgs<
@@ -495,3 +528,5 @@ export type SwigFetchFn<
 const defaultSwigFetchFn: SwigFetchFn = (_) => {
   throw new Error('Swig fetch fn not set!');
 };
+
+export type AccountVersion = 'v1' | 'v2';

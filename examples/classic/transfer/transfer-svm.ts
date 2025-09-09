@@ -262,13 +262,9 @@ if (!dappAuthorityRoles.length) throw new Error('Role not found for authority');
 
 const dappAuthorityRole = dappAuthorityRoles[0];
 
-let signTransfer = await getSignInstructions(
-  swig,
-  dappAuthorityRole.id,
-  [transfer],
-  false,
-  { version: 'v2' },
-);
+let signTransfer = await getSignInstructions(swig, dappAuthorityRole.id, [
+  transfer,
+]);
 
 sendSVMTransaction(svm, signTransfer, dappAuthorityKeypair);
 
@@ -285,14 +281,13 @@ transfer = SystemProgram.transfer({
   lamports: 0.05 * LAMPORTS_PER_SOL,
 });
 
-signTransfer = await getSignInstructions(
-  swig,
-  dappAuthorityRole.id,
-  [transfer],
-  false,
-  { version: 'v2' },
-);
+signTransfer = await getSignInstructions(swig, dappAuthorityRole.id, [
+  transfer,
+]);
 
 sendSVMTransaction(svm, signTransfer, dappAuthorityKeypair);
 
-console.log('balance after try second transfer:', svm.getBalance(swigWalletAddress));
+console.log(
+  'balance after try second transfer:',
+  svm.getBalance(swigWalletAddress),
+);
