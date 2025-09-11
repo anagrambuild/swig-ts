@@ -24,7 +24,7 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
     crypto.getRandomValues(id);
     const swigAddress = findSwigPda(id);
     const rootAuthorityInfo = createEd25519AuthorityInfo(user.publicKey);
-    const rootActions = Actions.set().manageAuthority().get();
+    const rootActions = Actions.set().all().get();
 
     const createSwigIx = await getCreateSwigInstruction({
       payer: user.publicKey,
@@ -139,6 +139,18 @@ async function addNewAuthority(
 
   // Add some delay to ensure the Swig account is created
   await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  // Check account version
+  try {
+    const swig = await fetchSwig(connection, swigAddress);
+    const version = swig.accountVersion();
+    console.log(
+      chalk.blue('\n📋 Account Version:'),
+      chalk.yellow(`Swig ${version.toUpperCase()}`),
+    );
+  } catch (error) {
+    console.error(chalk.red('⚠️ Could not determine account version:'), error);
+  }
 
   // Add spending authority with SOL limit
   console.log(chalk.yellow('\n🔑 Adding spending authority...'));

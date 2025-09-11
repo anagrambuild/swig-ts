@@ -129,7 +129,7 @@ sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
 //
 // * swig.refetch(connection, ...args) method available
 //
-let swig = fetchSwig(svm, swigAccountAddress);
+const swig = fetchSwig(svm, swigAccountAddress);
 
 const swigWalletAddress = await getSwigWalletAddress(swig);
 console.log('swig wallet address:', swigWalletAddress.toBase58());

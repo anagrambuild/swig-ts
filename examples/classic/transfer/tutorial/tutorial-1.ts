@@ -9,6 +9,7 @@ import {
 import {
   Actions,
   createEd25519AuthorityInfo,
+  fetchSwig,
   findSwigPda,
   getCreateSwigInstruction,
 } from '@swig-wallet/classic';
@@ -21,7 +22,7 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
     crypto.getRandomValues(id);
     const swigAddress = findSwigPda(id);
     const rootAuthorityInfo = createEd25519AuthorityInfo(user.publicKey);
-    const rootActions = Actions.set().manageAuthority().get();
+    const rootActions = Actions.set().all().get();
 
     const createSwigIx = await getCreateSwigInstruction({
       payer: user.publicKey,
@@ -69,6 +70,22 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
     chalk.cyan(userKeypair.publicKey.toBase58()),
   );
   const swigAddress = await createSwigAccount(connection, userKeypair);
+
+  // Add delay to ensure the account is created before fetching
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  // Fetch the Swig account to check its version
+  try {
+    const swig = await fetchSwig(connection, swigAddress);
+    const version = swig.accountVersion();
+    console.log(
+      chalk.blue('📋 Account Version:'),
+      chalk.yellow(`Swig ${version.toUpperCase()}`),
+    );
+  } catch (error) {
+    console.error(chalk.red('⚠️ Could not determine account version:'), error);
+  }
+
   setTimeout(() => {
     console.log(chalk.green('\n✨ Everything looks good!'));
     console.log(
@@ -79,5 +96,5 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
         `https://explorer.solana.com/address/${swigAddress.toBase58()}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       ),
     );
-  }, 2000);
+  }, 1000);
 })();

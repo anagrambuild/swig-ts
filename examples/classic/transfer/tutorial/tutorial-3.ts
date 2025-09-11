@@ -15,6 +15,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
 import {
@@ -35,7 +36,7 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
     crypto.getRandomValues(id);
     const swigAddress = findSwigPda(id);
     const rootAuthorityInfo = createEd25519AuthorityInfo(user.publicKey);
-    const rootActions = Actions.set().manageAuthority().get();
+    const rootActions = Actions.set().all().get();
 
     const createSwigIx = await getCreateSwigInstruction({
       payer: user.publicKey,
@@ -143,6 +144,21 @@ async function displayTokenBalance(
   console.log(chalk.yellow('\n📝 Creating Swig account...'));
   const swigAddress = await createSwigAccount(connection, rootUser);
 
+  // Get the swig wallet address
+  const swig = await fetchSwig(connection, swigAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log(
+    chalk.green('✓ Swig wallet address:'),
+    chalk.cyan(swigWalletAddress.toBase58()),
+  );
+
+  // Log account version
+  const version = swig.accountVersion();
+  console.log(
+    chalk.blue('📋 Account Version:'),
+    chalk.yellow(`Swig ${version.toUpperCase()}`),
+  );
+
   // Create token mint
   console.log(chalk.yellow('\n💎 Creating token mint...'));
   const mintAuthority = Keypair.generate();
@@ -164,7 +180,7 @@ async function displayTokenBalance(
     connection,
     rootUser,
     tokenMint,
-    swigAddress,
+    swigWalletAddress,
     {},
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -229,15 +245,25 @@ async function displayTokenBalance(
   // First transfer - should succeed
   console.log(chalk.yellow('\n💸 Attempting first transfer of 10 tokens...'));
   try {
-    const swig = await fetchSwig(connection, swigAddress);
-    const tokenRole = swig.findRolesByEd25519SignerPk(
+    // Refetch the swig account to get the latest state
+    await swig.refetch();
+
+    const tokenRoles = swig.findRolesByEd25519SignerPk(
       tokenAuthority.publicKey,
-    )[0];
+    );
+
+    if (!tokenRoles.length) {
+      throw new Error(
+        `No roles found for token authority ${tokenAuthority.publicKey.toBase58()}`,
+      );
+    }
+
+    const tokenRole = tokenRoles[0];
 
     const transferIx = createTransferInstruction(
       swigTokenAccount,
       recipientTokenAccount,
-      swigAddress,
+      swigWalletAddress,
       BigInt(10),
     );
 
@@ -259,28 +285,45 @@ async function displayTokenBalance(
   // Second transfer - should fail
   console.log(chalk.yellow('\n💸 Attempting second transfer (should fail)...'));
   try {
-    const swig = await fetchSwig(connection, swigAddress);
-    const tokenRole = swig.findRolesByEd25519SignerPk(
-      tokenAuthority.publicKey,
-    )[0];
+    // Refetch to get updated state
+    await swig.refetch();
 
-    const transferIx = createTransferInstruction(
+    const secondTokenRoles = swig.findRolesByEd25519SignerPk(
+      tokenAuthority.publicKey,
+    );
+
+    if (!secondTokenRoles.length) {
+      throw new Error(
+        `No roles found for token authority ${tokenAuthority.publicKey.toBase58()}`,
+      );
+    }
+
+    const secondTokenRole = secondTokenRoles[0];
+
+    const secondTransferIx = createTransferInstruction(
       swigTokenAccount,
       recipientTokenAccount,
-      swigAddress,
+      swigWalletAddress,
       BigInt(10),
     );
 
-    const signedTransferInstructions = await getSignInstructions(
+    const secondSignedTransferInstructions = await getSignInstructions(
       swig,
-      tokenRole.id,
-      [transferIx],
+      secondTokenRole.id,
+      [secondTransferIx],
     );
 
-    const transaction = new Transaction().add(...signedTransferInstructions);
-    await sendAndConfirmTransaction(connection, transaction, [tokenAuthority], {
-      skipPreflight: true,
-    });
+    const secondTransaction = new Transaction().add(
+      ...secondSignedTransferInstructions,
+    );
+    await sendAndConfirmTransaction(
+      connection,
+      secondTransaction,
+      [tokenAuthority],
+      {
+        skipPreflight: true,
+      },
+    );
     console.error(chalk.red('✗ Second transfer unexpectedly succeeded!'));
   } catch {
     console.log(
