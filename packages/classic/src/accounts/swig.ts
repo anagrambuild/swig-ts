@@ -129,3 +129,18 @@ export function findSwigSubAccountPda(
     SWIG_PROGRAM_ADDRESS,
   )[0];
 }
+
+export function getSwigAccountAddress(swig: Swig): PublicKey {
+  const publicKeyBytes = swig.accountAddress().toBytes();
+  return new PublicKey(publicKeyBytes);
+}
+
+export async function getSwigSystemAddress(swig: Swig): Promise<PublicKey> {
+  const publicKeyBytes = (await swig.systemAddress()).toBytes();
+  return new PublicKey(publicKeyBytes);
+}
+
+export async function getSwigWalletAddress(swig: Swig): Promise<PublicKey> {
+  const publicKeyBytes = (await swig.walletAddress()).toBytes();
+  return new PublicKey(publicKeyBytes);
+}

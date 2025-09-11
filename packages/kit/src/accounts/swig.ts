@@ -165,3 +165,15 @@ export async function findSwigSubAccountPda(
     })
   )[0];
 }
+
+export function getSwigAccountAddress(swig: Swig): Address {
+  return swig.accountAddress().toAddress();
+}
+
+export async function getSwigSystemAddress(swig: Swig): Promise<Address> {
+  return (await swig.systemAddress()).toAddress();
+}
+
+export async function getSwigWalletAddress(swig: Swig): Promise<Address> {
+  return (await swig.walletAddress()).toAddress();
+}

@@ -109,7 +109,7 @@ export interface Web3PublicKey {
   toBytes(): Uint8Array;
 }
 
-function isWeb3PublicKey(obj: any): obj is Web3PublicKey {
+export function isWeb3PublicKey(obj: any): obj is Web3PublicKey {
   return typeof obj === 'object' && 'toBase58' in obj && 'toBytes' in obj;
 }
 
