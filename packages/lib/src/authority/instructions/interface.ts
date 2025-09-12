@@ -18,6 +18,7 @@ import {
   type SubAccountWithdrawV1SolInstructionAccounts,
   type SubAccountWithdrawV1TokenInstructionAccounts,
 } from '../../instructions';
+import type { SubAccountSignV2InstructionAccounts } from '../../instructions/subAccountSignV2';
 import type { SolInstruction, SwigInstructionContext } from '../../solana';
 
 /**
@@ -42,6 +43,16 @@ export interface AuthorityInstruction {
 
   signV1Instruction(
     accounts: SignV1InstructionAccounts,
+    data: {
+      authorityData: ReadonlyUint8Array;
+      roleId: number;
+      innerInstructions: SolInstruction[];
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
+  signV2Instruction(
+    accounts: SignV2InstructionAccounts,
     data: {
       authorityData: ReadonlyUint8Array;
       roleId: number;
@@ -100,8 +111,8 @@ export interface AuthorityInstruction {
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;
 
-  signV2Instruction(
-    accounts: SignV2InstructionAccounts,
+  subAccountSignV2Instruction(
+    accounts: SubAccountSignV2InstructionAccounts,
     data: {
       authorityData: ReadonlyUint8Array;
       roleId: number;

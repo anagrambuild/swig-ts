@@ -7,6 +7,7 @@ export * from './signV1';
 export * from './signV2';
 export * from './subAccountCreateV1';
 export * from './subAccountSignV1';
+export * from './subAccountSignV2';
 export * from './subAccountToggleV1';
 export * from './subAccountWithdrawV1';
 export * from './SwigInstruction';

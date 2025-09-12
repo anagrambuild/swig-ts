@@ -63,6 +63,25 @@ export abstract class Authority {
   }): Promise<SwigInstructionContext>;
 
   /**
+   * Creates a `Sign` instruction for signing provided instructions with the Swig
+   * @param args The parameters required to create the Swig instruction.
+   * @param args.swigAddress The public key of the swig
+   * @param args.payer The public key of the swig payer.
+   * @param args.roleId The ID of the role signing the instruction.
+   * @param args.innerInstructions The instructions the Swig is to sign.
+   * @param args.options {@link InstructionDataOptions}
+   * @returns `Sign` Instruction.
+   */
+  abstract signV2(args: {
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    payer: SolPublicKeyData;
+    roleId: number;
+    innerInstructions: SolInstruction[];
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
+  /**
    * Creates an `AddAuthority` Instructon
    *
    * @param args The parameters required to create the Swig instruction.
@@ -120,6 +139,16 @@ export abstract class Authority {
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;
 
+  abstract subAccountSignV2(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    subAccount: SolPublicKeyData;
+    roleId: number;
+    innerInstructions: SolInstruction[];
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
   abstract subAccountToggle(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
@@ -146,25 +175,6 @@ export abstract class Authority {
     mint: SolPublicKeyData;
     amount: bigint;
     tokenProgram?: SolPublicKeyData;
-    options?: InstructionDataOptions;
-  }): Promise<SwigInstructionContext>;
-
-  /**
-   * Creates a `Sign` instruction for signing provided instructions with the Swig
-   * @param args The parameters required to create the Swig instruction.
-   * @param args.swigAddress The public key of the swig
-   * @param args.payer The public key of the swig payer.
-   * @param args.roleId The ID of the role signing the instruction.
-   * @param args.innerInstructions The instructions the Swig is to sign.
-   * @param args.options {@link InstructionDataOptions}
-   * @returns `Sign` Instruction.
-   */
-  abstract signV2(args: {
-    swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
-    payer: SolPublicKeyData;
-    roleId: number;
-    innerInstructions: SolInstruction[];
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;
 

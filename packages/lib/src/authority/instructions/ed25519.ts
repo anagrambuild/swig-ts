@@ -13,6 +13,7 @@ import {
   getSubAccountWithdrawV1TokenAccountMetasWithAuthority,
 } from '../../instructions';
 import { getCreateSessionV1BaseAccountMetasWithAuthority } from '../../instructions/createSessionV1';
+import { getSubAccountSignV2BaseAccountMetasWithAuthority } from '../../instructions/subAccountSignV2';
 import { SolPublicKey } from '../../solana';
 import type { AuthorityInstruction } from './interface';
 
@@ -57,6 +58,26 @@ export const Ed25519Instruction: AuthorityInstruction = {
     );
 
     return SwigInstructionV1.sign(metas, {
+      roleId: data.roleId,
+      authorityPayload: new Uint8Array([authorityPayload]),
+      compactInstructions: compactIxs,
+    });
+  },
+
+  async signV2Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [signInstructionsAccount, authorityPayload] =
+      getSignV2BaseAccountMetasWithAuthority(accounts, authority);
+
+    const { accounts: metas, compactIxs } = compactInstructions(
+      accounts.swig,
+      signInstructionsAccount,
+      data.innerInstructions,
+      [accounts.swigWalletAddress],
+    );
+
+    return SwigInstructionV2.sign(metas, {
       roleId: data.roleId,
       authorityPayload: new Uint8Array([authorityPayload]),
       compactInstructions: compactIxs,
@@ -136,7 +157,7 @@ export const Ed25519Instruction: AuthorityInstruction = {
       accounts.swig,
       signAccounts,
       data.innerInstructions,
-      accounts.subAccount,
+      [accounts.subAccount],
     );
 
     return SwigInstructionV1.subAccountSign(metas, {
@@ -146,20 +167,20 @@ export const Ed25519Instruction: AuthorityInstruction = {
     });
   },
 
-  async signV2Instruction(accounts, data) {
+  async subAccountSignV2Instruction(accounts, data) {
     const authority = new SolPublicKey(new Uint8Array(data.authorityData));
 
-    const [signInstructionsAccount, authorityPayload] =
-      getSignV2BaseAccountMetasWithAuthority(accounts, authority);
+    const [signAccounts, authorityPayload] =
+      getSubAccountSignV2BaseAccountMetasWithAuthority(accounts, authority);
 
     const { accounts: metas, compactIxs } = compactInstructions(
       accounts.swig,
-      signInstructionsAccount,
+      signAccounts,
       data.innerInstructions,
-      accounts.swigWalletAddress,
+      [accounts.subAccount, accounts.swigWalletAddress],
     );
 
-    return SwigInstructionV2.sign(metas, {
+    return SwigInstructionV2.subAccountSign(metas, {
       roleId: data.roleId,
       authorityPayload: new Uint8Array([authorityPayload]),
       compactInstructions: compactIxs,

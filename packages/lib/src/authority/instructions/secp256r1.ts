@@ -26,6 +26,7 @@ import {
   getSubAccountWithdrawV1TokenAccountMetas,
 } from '../../instructions';
 import { getCreateSessionV1BaseAccountMetasWithSystemProgram } from '../../instructions/createSessionV1';
+import { getSubAccountSignV2BaseAccountMetas } from '../../instructions/subAccountSignV2';
 import { SolAccountMeta, SolInstruction, SolPublicKey } from '../../solana';
 import type { AuthorityInstruction, SigningFn } from './interface';
 
@@ -166,6 +167,60 @@ export const Secp256r1Instruction: AuthorityInstruction = {
     );
   },
 
+  async signV2Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'instruction data options not provided for Secp256r1 based authority',
+      );
+
+    // Add instructions sysvar account for secp256r1
+    const instructionsSysvar = SolAccountMeta.from({
+      pubkey: new SolPublicKey('Sysvar1nstructions1111111111111111111111111'),
+      isSigner: false,
+      isWritable: false,
+    });
+
+    const signInstructionsAccount = getSignV2BaseAccountMetasWithSystemProgram(
+      accounts,
+      [instructionsSysvar],
+    );
+
+    const { accounts: metas, compactIxs } = compactInstructions(
+      accounts.swig,
+      signInstructionsAccount,
+      data.innerInstructions,
+      [accounts.swigWalletAddress],
+    );
+
+    const encodedCompactInstructions = getArrayEncoder(
+      getCompactInstructionEncoder(),
+      {
+        size: getU8Encoder(),
+      },
+    ).encode(compactIxs);
+
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
+      Uint8Array.from(encodedCompactInstructions),
+      metas,
+      new Uint8Array(data.authorityData),
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV2.sign(
+      metas,
+      {
+        roleId: data.roleId,
+        authorityPayload,
+        compactInstructions: compactIxs,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
+  },
+
   async createSessionV1Instruction(accounts, data, options) {
     if (!options?.signingFn || options?.currentSlot === undefined)
       throw new Error(
@@ -244,7 +299,7 @@ export const Secp256r1Instruction: AuthorityInstruction = {
       accounts.swig,
       signInstructionsAccount,
       data.innerInstructions,
-      accounts.subAccount,
+      [accounts.subAccount],
     );
 
     const encodedCompactInstructions = getArrayEncoder(
@@ -266,6 +321,51 @@ export const Secp256r1Instruction: AuthorityInstruction = {
     );
 
     return SwigInstructionV1.subAccountSign(
+      metas,
+      {
+        roleId: data.roleId,
+        compactInstructions: compactIxs,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
+  },
+
+  async subAccountSignV2Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'instruction data options not provided for Secp256r1 based authority',
+      );
+
+    const signInstructionsAccount =
+      getSubAccountSignV2BaseAccountMetas(accounts);
+
+    const { accounts: metas, compactIxs } = compactInstructions(
+      accounts.swig,
+      signInstructionsAccount,
+      data.innerInstructions,
+      [accounts.subAccount, accounts.swigWalletAddress],
+    );
+
+    const encodedCompactInstructions = getArrayEncoder(
+      getCompactInstructionEncoder(),
+      {
+        size: getU8Encoder(),
+      },
+    ).encode(compactIxs);
+
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
+      Uint8Array.from(encodedCompactInstructions),
+      metas,
+      new Uint8Array(data.authorityData),
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV2.subAccountSign(
       metas,
       {
         roleId: data.roleId,
@@ -372,60 +472,6 @@ export const Secp256r1Instruction: AuthorityInstruction = {
         authorityPayload,
       },
       { preInstructions: [sigVerifyIx] },
-    );
-  },
-
-  async signV2Instruction(accounts, data, options) {
-    if (!options?.signingFn || options?.currentSlot === undefined)
-      throw new Error(
-        'instruction data options not provided for Secp256r1 based authority',
-      );
-
-    // Add instructions sysvar account for secp256r1
-    const instructionsSysvar = SolAccountMeta.from({
-      pubkey: new SolPublicKey('Sysvar1nstructions1111111111111111111111111'),
-      isSigner: false,
-      isWritable: false,
-    });
-
-    const signInstructionsAccount = getSignV2BaseAccountMetasWithSystemProgram(
-      accounts,
-      [instructionsSysvar],
-    );
-
-    const { accounts: metas, compactIxs } = compactInstructions(
-      accounts.swig,
-      signInstructionsAccount,
-      data.innerInstructions,
-      accounts.swigWalletAddress,
-    );
-
-    const encodedCompactInstructions = getArrayEncoder(
-      getCompactInstructionEncoder(),
-      {
-        size: getU8Encoder(),
-      },
-    ).encode(compactIxs);
-
-    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
-      Uint8Array.from(encodedCompactInstructions),
-      metas,
-      new Uint8Array(data.authorityData),
-      {
-        signingFn: options.signingFn,
-        odometer: options.odometer,
-        currentSlot: options.currentSlot,
-      },
-    );
-
-    return SwigInstructionV2.sign(
-      metas,
-      {
-        roleId: data.roleId,
-        authorityPayload,
-        compactInstructions: compactIxs,
-      },
-      { preInstructions: [sigVerifyIx], postInstructions: [] },
     );
   },
 };

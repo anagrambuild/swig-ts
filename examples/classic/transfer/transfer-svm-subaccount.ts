@@ -18,6 +18,7 @@ import {
   getSwigCodec,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
   type SwigAccount,
   type SwigFetchFn,
 } from '@swig-wallet/classic';
@@ -67,9 +68,9 @@ function fetchSwig(
 ): ReturnType<typeof Swig.fromRawAccountData> {
   const swigAccount = fetchSwigAccount(svm, swigAddress);
 
-  // swigAddress: SolPublicKey
+  // swigAddress: SolPublicKeyData
   const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, new PublicKey((swigAddress as any).toBase58()));
+    fetchSwigAccount(svm, toPublicKey(swigAddress));
 
   return new Swig(swigAddress, swigAccount, swigFetchFn);
 }
@@ -108,6 +109,8 @@ const createSwigIx = await getCreateSwigInstruction({
 sendSVMTransaction(svm, [createSwigIx], rootAuthority);
 
 const swig = fetchSwig(svm, swigAddress);
+
+console.log("swig account version:", swig.accountVersion())
 
 let rootRole = swig.roles[0];
 
