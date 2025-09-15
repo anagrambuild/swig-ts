@@ -2,24 +2,32 @@ import type {
   ProgramCurated,
   ProgramLimit,
   ProgramScope,
+  SolDestinationLimit,
   SolLimit,
+  SolRecurringDestinationLimit,
   SolRecurringLimit,
   StakeLimit,
   StakeRecurringLimit,
   SubAccount,
+  TokenDestinationLimit,
   TokenLimit,
+  TokenRecurringDestinationLimit,
   TokenRecurringLimit,
 } from '@swig-wallet/coder';
 import {
   getProgramCuratedDecoder,
   getProgramLimitDecoder,
   getProgramScopeDecoder,
+  getSolDestinationLimitDecoder,
   getSolLimitDecoder,
+  getSolRecurringDestinationLimitDecoder,
   getSolRecurringLimitDecoder,
   getStakeLimitDecoder,
   getStakeRecurringLimitDecoder,
   getSubAccountDecoder,
+  getTokenDestinationLimitDecoder,
   getTokenLimitDecoder,
+  getTokenRecurringDestinationLimitDecoder,
   getTokenRecurringLimitDecoder,
   Permission,
 } from '@swig-wallet/coder';
@@ -56,6 +64,14 @@ export type ActionPayload =
       data: SolRecurringLimit;
     }
   | {
+      permission: Permission.SolDestinationLimit;
+      data: SolDestinationLimit;
+    }
+  | {
+      permission: Permission.SolRecurringDestinationLimit;
+      data: SolRecurringDestinationLimit;
+    }
+  | {
       permission: Permission.StakeAll;
     }
   | {
@@ -77,6 +93,14 @@ export type ActionPayload =
   | {
       permission: Permission.TokenRecurringLimit;
       data: TokenRecurringLimit;
+    }
+  | {
+      permission: Permission.TokenDestinationLimit;
+      data: TokenDestinationLimit;
+    }
+  | {
+      permission: Permission.TokenRecurringDestinationLimit;
+      data: TokenRecurringDestinationLimit;
     };
 
 export function isActionPayload<P extends ActionPayload['permission']>(
@@ -144,6 +168,28 @@ export function decodeActionPayload(
 
   if (permission === Permission.TokenRecurringLimit) {
     return { permission, data: getTokenRecurringLimitDecoder().decode(data) };
+  }
+
+  if (permission === Permission.SolDestinationLimit) {
+    return { permission, data: getSolDestinationLimitDecoder().decode(data) };
+  }
+
+  if (permission === Permission.SolRecurringDestinationLimit) {
+    return {
+      permission,
+      data: getSolRecurringDestinationLimitDecoder().decode(data),
+    };
+  }
+
+  if (permission === Permission.TokenDestinationLimit) {
+    return { permission, data: getTokenDestinationLimitDecoder().decode(data) };
+  }
+
+  if (permission === Permission.TokenRecurringDestinationLimit) {
+    return {
+      permission,
+      data: getTokenRecurringDestinationLimitDecoder().decode(data),
+    };
   }
 
   if (permission === Permission.AllButManageAuthority) {

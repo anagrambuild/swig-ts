@@ -93,4 +93,106 @@ describe('Actions', () => {
 
     expect(actions.tokenSpendLimit(mint)).toBe(700n);
   });
+
+  it('should create a role with solDestinationLimit and programAll permissions', () => {
+    const destination = dummyAddress();
+    const amount = 500_000_000n; // 0.5 SOL in lamports
+
+    // Test the exact pattern from successful Rust tests: programAll + solDestinationLimit
+    const actions = Actions.set()
+      .programAll()
+      .solDestinationLimit({
+        destination,
+        amount,
+      })
+      .get();
+
+    // Verify the actions builder works (no errors thrown)
+    expect(actions.count).toBe(2);
+
+    // Verify programAll permission allows program usage
+    expect(actions.hasProgramAction()).toBe(true);
+    expect(actions.canUseProgram('11111111111111111111111111111111')).toBe(
+      true,
+    );
+
+    // Verify SOL spend capabilities (destination limits should provide spend capability)
+    expect(actions.canSpendSol()).toBe(true);
+  });
+
+  it('should create a role with solDestinationLimit and specific program permissions', () => {
+    const destination = dummyAddress();
+    const amount = 1_000_000_000n; // 1 SOL in lamports
+    const systemProgramId = '11111111111111111111111111111111' as Address;
+
+    // Test the pattern from CPI enforcement Rust test: solDestinationLimit + program
+    const actions = Actions.set()
+      .solDestinationLimit({
+        destination,
+        amount,
+      })
+      .programLimit({
+        programId: systemProgramId,
+      })
+      .get();
+
+    // Verify the actions were created
+    expect(actions.count).toBe(2);
+
+    // Verify program permission allows specific program usage
+    expect(actions.hasProgramAction()).toBe(true);
+    expect(actions.canUseProgram(systemProgramId)).toBe(true);
+
+    // Verify SOL spend capabilities
+    expect(actions.canSpendSol()).toBe(true);
+  });
+
+  it('should create a role with mixed SOL limits (general + destination)', () => {
+    const destination = dummyAddress();
+    const generalLimit = 800_000_000n; // 0.8 SOL
+    const destinationLimit = 500_000_000n; // 0.5 SOL
+
+    // Test the mixed limits pattern from Rust tests: solLimit + solDestinationLimit
+    const actions = Actions.set()
+      .solLimit({ amount: generalLimit })
+      .solDestinationLimit({
+        destination,
+        amount: destinationLimit,
+      })
+      .get();
+
+    // Verify the actions were created
+    expect(actions.count).toBe(2);
+
+    // Verify SOL spend capabilities with mixed limits
+    expect(actions.canSpendSol()).toBe(true);
+
+    // The general limit should be the controlling limit since both are present
+    // The implementation should return the maximum limit when multiple limits exist
+    expect(actions.solSpendLimit()).toBe(generalLimit);
+  });
+
+  it('should handle ordering independence of permissions', () => {
+    const destination = dummyAddress();
+    const amount = 500_000_000n;
+
+    // Test different orderings work (based on Rust test findings)
+    const actions1 = Actions.set()
+      .programAll()
+      .solDestinationLimit({ destination, amount })
+      .get();
+
+    const actions2 = Actions.set()
+      .solDestinationLimit({ destination, amount })
+      .programAll()
+      .get();
+
+    // Both should have same capabilities regardless of order
+    expect(actions1.count).toBe(2);
+    expect(actions2.count).toBe(2);
+    expect(actions1.hasProgramAction()).toBe(true);
+    expect(actions2.hasProgramAction()).toBe(true);
+    expect(actions1.canSpendSol()).toBe(true);
+    expect(actions2.canSpendSol()).toBe(true);
+  });
 });

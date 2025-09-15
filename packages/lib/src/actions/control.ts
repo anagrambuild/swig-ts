@@ -55,7 +55,9 @@ export class SpendController {
   static get(action: ActionPayload): SpendController {
     if (
       isActionPayload(Permission.SolRecurringLimit, action) ||
-      isActionPayload(Permission.TokenRecurringLimit, action)
+      isActionPayload(Permission.TokenRecurringLimit, action) ||
+      isActionPayload(Permission.SolRecurringDestinationLimit, action) ||
+      isActionPayload(Permission.TokenRecurringDestinationLimit, action)
     ) {
       return SpendController.recurring({
         amount: action.data.currentAmount,
@@ -65,7 +67,9 @@ export class SpendController {
 
     if (
       isActionPayload(Permission.SolLimit, action) ||
-      isActionPayload(Permission.TokenLimit, action)
+      isActionPayload(Permission.TokenLimit, action) ||
+      isActionPayload(Permission.SolDestinationLimit, action) ||
+      isActionPayload(Permission.TokenDestinationLimit, action)
     ) {
       return SpendController.once(action.data.amount);
     }

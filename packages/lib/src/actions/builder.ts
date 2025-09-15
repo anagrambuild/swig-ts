@@ -4,12 +4,16 @@ import {
   getProgramCuratedEncoder,
   getProgramLimitEncoder,
   getProgramScopeEncoder,
+  getSolDestinationLimitEncoder,
   getSolLimitEncoder,
+  getSolRecurringDestinationLimitEncoder,
   getSolRecurringLimitEncoder,
   getStakeLimitEncoder,
   getStakeRecurringLimitEncoder,
   getSubAccountEncoder,
+  getTokenDestinationLimitEncoder,
   getTokenLimitEncoder,
+  getTokenRecurringDestinationLimitEncoder,
   getTokenRecurringLimitEncoder,
   NumericType,
   Permission,
@@ -17,12 +21,16 @@ import {
   type ActionHeader,
   type ProgramLimit,
   type ProgramScope,
+  type SolDestinationLimit,
   type SolLimit,
+  type SolRecurringDestinationLimit,
   type SolRecurringLimit,
   type StakeLimit,
   type StakeRecurringLimit,
   type SubAccount,
+  type TokenDestinationLimit,
   type TokenLimit,
+  type TokenRecurringDestinationLimit,
   type TokenRecurringLimit,
 } from '@swig-wallet/coder';
 import { SolPublicKey, type SolPublicKeyData } from '../solana';
@@ -323,6 +331,92 @@ export class ActionsBuilder {
       new TokenRecurringLimitConfig({
         ...payload,
         mint: new SolPublicKey(payload.mint).toBytes(),
+        currentAmount: payload.recurringAmount,
+        lastReset: 0n,
+      }),
+    );
+    return this;
+  }
+
+  /**
+   * Enables a Spend-once SOL Spend to a specific destination
+   * @param payload.amount amount allowed to spend
+   * @param payload.destination destination public key
+   */
+  solDestinationLimit(payload: {
+    amount: bigint;
+    destination: SolPublicKeyData;
+  }): this {
+    this._actionConfigs.push(
+      new SolDestinationLimitConfig({
+        ...payload,
+        destination: new SolPublicKey(payload.destination).toBytes(),
+      }),
+    );
+    return this;
+  }
+
+  /**
+   * Enables a Spend-recurring SOL Spend to a specific destination
+   * @param payload.recurringAmount recurring amount per window
+   * @param payload.window period in slots until amount reset
+   * @param payload.destination destination public key
+   */
+  solRecurringDestinationLimit(payload: {
+    recurringAmount: bigint;
+    window: bigint;
+    destination: SolPublicKeyData;
+  }): this {
+    this._actionConfigs.push(
+      new SolRecurringDestinationLimitConfig({
+        ...payload,
+        destination: new SolPublicKey(payload.destination).toBytes(),
+        currentAmount: payload.recurringAmount,
+        lastReset: 0n,
+      }),
+    );
+    return this;
+  }
+
+  /**
+   * Enables a Spend-once Token Spend to a specific destination
+   * @param payload.mint token mint public key
+   * @param payload.amount amount allowed to spend
+   * @param payload.destination destination public key
+   */
+  tokenDestinationLimit(payload: {
+    mint: SolPublicKeyData;
+    amount: bigint;
+    destination: SolPublicKeyData;
+  }): this {
+    this._actionConfigs.push(
+      new TokenDestinationLimitConfig({
+        ...payload,
+        mint: new SolPublicKey(payload.mint).toBytes(),
+        destination: new SolPublicKey(payload.destination).toBytes(),
+      }),
+    );
+    return this;
+  }
+
+  /**
+   * Enables a Spend-recurring Token Spend to a specific destination
+   * @param payload.mint token mint public key
+   * @param payload.recurringAmount recurring amount per window
+   * @param payload.window period in slots until amount reset
+   * @param payload.destination destination public key
+   */
+  tokenRecurringDestinationLimit(payload: {
+    mint: SolPublicKeyData;
+    recurringAmount: bigint;
+    window: bigint;
+    destination: SolPublicKeyData;
+  }): this {
+    this._actionConfigs.push(
+      new TokenRecurringDestinationLimitConfig({
+        ...payload,
+        mint: new SolPublicKey(payload.mint).toBytes(),
+        destination: new SolPublicKey(payload.destination).toBytes(),
         currentAmount: payload.recurringAmount,
         lastReset: 0n,
       }),
@@ -635,5 +729,85 @@ class ProgramCuratedConfig extends ActionConfig {
 
   encode(): Uint8Array {
     return Uint8Array.from(getProgramCuratedEncoder().encode({}));
+  }
+}
+
+class SolDestinationLimitConfig extends ActionConfig {
+  constructor(private payload: SolDestinationLimit) {
+    super();
+  }
+
+  get length() {
+    return 40;
+  }
+
+  get permission() {
+    return Permission.SolDestinationLimit;
+  }
+
+  encode(): Uint8Array {
+    return Uint8Array.from(
+      getSolDestinationLimitEncoder().encode(this.payload),
+    );
+  }
+}
+
+class SolRecurringDestinationLimitConfig extends ActionConfig {
+  constructor(private payload: SolRecurringDestinationLimit) {
+    super();
+  }
+
+  get length() {
+    return 64;
+  }
+
+  get permission() {
+    return Permission.SolRecurringDestinationLimit;
+  }
+
+  encode(): Uint8Array {
+    return Uint8Array.from(
+      getSolRecurringDestinationLimitEncoder().encode(this.payload),
+    );
+  }
+}
+
+class TokenDestinationLimitConfig extends ActionConfig {
+  constructor(private payload: TokenDestinationLimit) {
+    super();
+  }
+
+  get length() {
+    return 72;
+  }
+
+  get permission() {
+    return Permission.TokenDestinationLimit;
+  }
+
+  encode(): Uint8Array {
+    return Uint8Array.from(
+      getTokenDestinationLimitEncoder().encode(this.payload),
+    );
+  }
+}
+
+class TokenRecurringDestinationLimitConfig extends ActionConfig {
+  constructor(private payload: TokenRecurringDestinationLimit) {
+    super();
+  }
+
+  get length() {
+    return 96;
+  }
+
+  get permission() {
+    return Permission.TokenRecurringDestinationLimit;
+  }
+
+  encode(): Uint8Array {
+    return Uint8Array.from(
+      getTokenRecurringDestinationLimitEncoder().encode(this.payload),
+    );
   }
 }
