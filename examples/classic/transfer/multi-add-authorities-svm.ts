@@ -39,110 +39,96 @@ function sendSVMTransaction(
   payer: Keypair,
   signers: Keypair[] = [],
 ) {
-  const transaction = new Transaction();
-  transaction.instructions = instructions;
-  transaction.feePayer = payer.publicKey;
-  transaction.recentBlockhash = svm.latestBlockhash();
+  const tx = new Transaction();
+  tx.instructions = instructions;
+  tx.feePayer = payer.publicKey;
+  tx.recentBlockhash = svm.latestBlockhash();
 
-  transaction.sign(payer, ...signers);
+  tx.sign(payer, ...signers);
 
-  const tx = svm.sendTransaction(transaction);
+  const result = svm.sendTransaction(tx);
 
-  if (tx instanceof FailedTransactionMetadata) {
-    console.log('tx:', tx.meta().logs());
-  }
-
-  if (tx instanceof TransactionMetadata) {
-    // console.log("tx:", tx.logs())
+  if (result instanceof FailedTransactionMetadata) {
+    console.error('❌ Transaction failed:\n', result.meta().logs());
+  } else if (result instanceof TransactionMetadata) {
+    console.log('✅ Transaction succeeded');
   }
 }
 
 function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('swig account not created');
-  // Ensure we have a proper Uint8Array for the account data
-  return getSwigCodec().decode(swigAccount.data);
+  const account = svm.getAccount(swigAddress);
+  if (!account) throw new Error('Swig account not created');
+  return getSwigCodec().decode(account.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
   swigAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
-
-  // swigAddress: SolPublicKey
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, new PublicKey((swigAddress as any).toBase58()));
-
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+  const account = fetchSwigAccount(svm, swigAddress);
+  const swigFetchFn: SwigFetchFn = async (addr) =>
+    fetchSwigAccount(svm, new PublicKey((addr as any).toBase58()));
+  return new Swig(swigAddress, account, swigFetchFn);
 }
 
-console.log('starting...');
 //
-// Start program
+// Main
 //
+console.log('🚀 Starting multi-curve Swig demo...');
+
+// Load program into LiteSVM
 const swigProgram = Uint8Array.from(readFileSync('../../../swig.so'));
 const svm = new LiteSVM();
-
 svm.addProgram(SWIG_PROGRAM_ADDRESS, swigProgram);
 
-// ed25519 authority root
-//
-const ed25519Keypair = Keypair.generate();
-svm.airdrop(ed25519Keypair.publicKey, BigInt(LAMPORTS_PER_SOL));
+// Generate authorities
+const rootEd25519 = Keypair.generate();
+svm.airdrop(rootEd25519.publicKey, BigInt(LAMPORTS_PER_SOL));
 
-// secp256r1 authority
-//
-const r1Keypair = p256.keygen();
+const secp256r1 = p256.keygen();
+const secp256k1 = Wallet.generate();
 
-// secp256k1 authority
-//
-const k1Keypair = Wallet.generate();
-
-const id = Uint8Array.from(Array(32).fill(2));
-
+// Find Swig PDA
+const id = Uint8Array.from(Array(32).fill(7)); // random but fixed id
 const swigAddress = findSwigPda(id);
+console.log('📦 Swig account PDA:', swigAddress.toBase58());
 
-console.log('swig address:', swigAddress.toBase58());
-
+// Create Swig with secp256r1 root, add ed25519 + secp256k1 as additional
 let ixs = await getCreateSwigInstructionBuilder({
   options: {
-    signingFn: getSigningFnForSecp256r1PrivateKey(r1Keypair.secretKey),
+    signingFn: getSigningFnForSecp256r1PrivateKey(secp256r1.secretKey),
     currentSlot: svm.getClock().slot,
   },
   swigAddress,
-  authorityInfo: createSecp256r1AuthorityInfo(r1Keypair.publicKey),
+  authorityInfo: createSecp256r1AuthorityInfo(secp256r1.publicKey),
   id,
-  payer: ed25519Keypair.publicKey,
+  payer: rootEd25519.publicKey,
   actions: Actions.set().all().get(),
 })
   .addAuthority(
-    createEd25519AuthorityInfo(ed25519Keypair.publicKey),
+    createEd25519AuthorityInfo(rootEd25519.publicKey),
     Actions.set().manageAuthority().get(),
   )
   .addAuthority(
-    createSecp256k1AuthorityInfo(k1Keypair.getPublicKey()),
+    createSecp256k1AuthorityInfo(secp256k1.getPublicKey()),
     Actions.set().all().get(),
   )
   .getInstructions();
 
-sendSVMTransaction(svm, ixs, ed25519Keypair);
+sendSVMTransaction(svm, ixs, rootEd25519);
 
+// Fetch swig
 const swig = fetchSwig(svm, swigAddress);
+console.log('✅ Swig created with roles:', swig.roles.length);
 
-console.log('swig roles count:', swig.roles.length);
+// Add multiple authorities using secp256k1 signer
+const addBuilder = await getAddMultipleAuthoritiesInstructionBuilder(swig, 2, {
+  currentSlot: svm.getClock().slot,
+  payer: rootEd25519.publicKey,
+  signingFn: getSigningFnForSecp256k1PrivateKey(secp256k1.getPrivateKey()),
+});
 
-const instructionBuilder = await getAddMultipleAuthoritiesInstructionBuilder(
-  swig,
-  2,
-  {
-    currentSlot: svm.getClock().slot,
-    payer: ed25519Keypair.publicKey,
-    signingFn: getSigningFnForSecp256k1PrivateKey(k1Keypair.getPrivateKey()),
-  },
-);
-
-ixs = await instructionBuilder
+ixs = await addBuilder
   .addAuthority(
     createEd25519AuthorityInfo(Keypair.generate().publicKey),
     Actions.set().all().get(),
@@ -153,8 +139,8 @@ ixs = await instructionBuilder
   )
   .getInstructions();
 
-sendSVMTransaction(svm, ixs, ed25519Keypair);
+sendSVMTransaction(svm, ixs, rootEd25519);
 
+// Refresh and log
 await swig.refetch();
-
-console.log('swig roles count:', swig.roles.length);
+console.log('📊 Updated swig roles count:', swig.roles.length);

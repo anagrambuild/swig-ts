@@ -5,170 +5,168 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
+
 import {
   Actions,
-  getAddAuthorityInstructions,
   createEd25519AuthorityInfo,
-  getCreateSwigInstruction,
   fetchSwig,
   findSwigPda,
+  getAddAuthorityInstructions,
+  getCreateSwigInstruction,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
+
 import {
+  createAssociatedTokenAccountInstruction,
   createMint,
   getAssociatedTokenAddressSync,
-  createAssociatedTokenAccountInstruction,
   mintTo,
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 
-const ONE_DAY_SECS = 86400;
+const ONE_DAY_SECS = 86_400;
 
 function sleep(s: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, s * 1000));
 }
 
 function randomBytes(length: number): Uint8Array {
-  const randomArray = new Uint8Array(length);
-  crypto.getRandomValues(randomArray);
-  return randomArray;
+  const buf = new Uint8Array(length);
+  crypto.getRandomValues(buf);
+  return buf;
 }
 
 async function sendTransaction(
   connection: Connection,
-  instruction: TransactionInstruction[],
+  instructions: TransactionInstruction[],
   payer: Keypair,
-  signers: Keypair[] = []
+  signers: Keypair[] = [],
 ) {
-  const transaction = new Transaction().add(...instruction);
-  const signature = await connection.sendTransaction(transaction, [payer, ...signers]);
+  const tx = new Transaction().add(...instructions);
+  const sig = await connection.sendTransaction(tx, [payer, ...signers]);
 
-  // Wait for confirmation
-  const confirmation = await connection.confirmTransaction(
-    signature,
-    'confirmed',
-  );
-
+  const confirmation = await connection.confirmTransaction(sig, 'confirmed');
   if (confirmation.value.err) {
-    console.error('Transaction failed:', confirmation.value.err);
+    console.error('❌ Transaction failed:', confirmation.value.err);
     throw new Error(
       `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
     );
-  } else {
-    console.log('Transaction confirmed:', signature);
-    return signature;
   }
+
+  console.log('✅ Transaction confirmed:', sig);
+  return sig;
 }
 
 (async () => {
   const connection = new Connection('http://localhost:8899', 'confirmed');
 
-  const rootKeypair = Keypair.generate();
-  await connection.requestAirdrop(rootKeypair.publicKey, LAMPORTS_PER_SOL);
+  // Root setup
+  const root = Keypair.generate();
+  console.log('👤 Root authority:', root.publicKey.toBase58());
 
+  await connection.requestAirdrop(root.publicKey, 2 * LAMPORTS_PER_SOL);
   await sleep(2);
 
+  // Swig creation
   const swigId = randomBytes(32);
   const swigAddress = findSwigPda(swigId);
 
   const rootActions = Actions.set().all().get();
-  const ix = await getCreateSwigInstruction({
+  const createIx = await getCreateSwigInstruction({
     actions: rootActions,
     id: swigId,
-    authorityInfo: createEd25519AuthorityInfo(rootKeypair.publicKey),
-    payer: rootKeypair.publicKey
+    authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+    payer: root.publicKey,
   });
 
-  await sendTransaction(connection, [ix], rootKeypair)
-
+  await sendTransaction(connection, [createIx], root);
   await sleep(2);
 
   const swig = await fetchSwig(connection, swigAddress);
-  const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
-  if (!rootRoles.length) throw new Error('Root role not found');
-  const rootRole = rootRoles[0];
+  const swigWallet = await getSwigWalletAddress(swig);
 
-  // === Create SPL token mint & SWIG ATA ===
+  console.log('📦 Swig PDA:', swigAddress.toBase58());
+  console.log('🏦 Swig wallet address:', swigWallet.toBase58());
+
+  const rootRole = swig.findRolesByEd25519SignerPk(root.publicKey)[0];
+  if (!rootRole) throw new Error('Root role not found');
+
+  // === Create SPL mint & SWIG ATA ===
   const decimals = 6;
   const tokenMint = await createMint(
     connection,
-    rootKeypair,
-    rootKeypair.publicKey,
-    rootKeypair.publicKey,
+    root,
+    root.publicKey,
+    root.publicKey,
     decimals,
     undefined,
     { commitment: 'confirmed' },
     TOKEN_PROGRAM_ID,
   );
-  console.log('🪙 Created test SPL mint:', tokenMint.toBase58());
+  console.log('🪙 Mint created:', tokenMint.toBase58());
 
-  const swigAta = getAssociatedTokenAddressSync(
-    tokenMint,
-    swigAddress,
-    true,
-  );
+  const swigAta = getAssociatedTokenAddressSync(tokenMint, swigAddress, true);
   const createAtaIx = createAssociatedTokenAccountInstruction(
-    rootKeypair.publicKey,
+    root.publicKey,
     swigAta,
     swigAddress,
     tokenMint,
   );
-  await sendTransaction(connection, [createAtaIx], rootKeypair);
-  console.log('🏦 Created SWIG ATA:', swigAta.toBase58());
+  await sendTransaction(connection, [createAtaIx], root);
+  console.log('🏦 Swig ATA created:', swigAta.toBase58());
 
-  const amountForAta = 10n * BigInt(10 ** decimals);
+  const initialAmount = 10n * BigInt(10 ** decimals);
   await mintTo(
     connection,
-    rootKeypair,
+    root,
     tokenMint,
     swigAta,
-    rootKeypair,
-    Number(amountForAta),
+    root,
+    Number(initialAmount),
   );
-  console.log('💧 Minted to SWIG ATA:', amountForAta.toString());
+  console.log('💧 Minted tokens to Swig ATA:', initialAmount.toString());
 
+  // === Provision roles ===
   const rolesToCreate = [
-    { name: 'data-entry', amount: 0.05, tokenLimit: 100 },
-    { name: 'finance', amount: 0.1, tokenLimit: 200 },
-    { name: 'developer', amount: 0.2, tokenLimit: 500 },
-    { name: 'moderator', amount: 0.05, tokenLimit: 50 },
+    { name: 'data-entry', sol: 0.05, token: 100 },
+    { name: 'finance', sol: 0.1, token: 200 },
+    { name: 'developer', sol: 0.2, token: 500 },
+    { name: 'moderator', sol: 0.05, token: 50 },
   ];
 
-  for (const { name, amount, tokenLimit } of rolesToCreate) {
-    const roleKeypair = Keypair.generate();
+  for (const { name, sol, token } of rolesToCreate) {
+    const role = Keypair.generate();
 
     const builder = Actions.set()
-      .solLimit({ amount: BigInt(amount * LAMPORTS_PER_SOL) })
-      .tokenLimit({ mint: tokenMint, amount: BigInt(tokenLimit) })
+      .solLimit({ amount: BigInt(sol * LAMPORTS_PER_SOL) })
+      .tokenLimit({ mint: tokenMint, amount: BigInt(token) })
       .solRecurringLimit({
-        recurringAmount: BigInt(amount * LAMPORTS_PER_SOL),
+        recurringAmount: BigInt(sol * LAMPORTS_PER_SOL),
         window: BigInt(ONE_DAY_SECS),
       });
 
-    // if token recurring is enabled
+    // Example: enable token recurring if needed
     const enableTokenRecurring = false;
     if (enableTokenRecurring) {
       builder.tokenRecurringLimit({
         mint: tokenMint,
-        recurringAmount: BigInt(tokenLimit),
+        recurringAmount: BigInt(token),
         window: BigInt(ONE_DAY_SECS),
       });
     }
 
-    const actions = builder.get();
-
-    const ix = await getAddAuthorityInstructions(
+    const roleActions = builder.get();
+    const addIx = await getAddAuthorityInstructions(
       swig,
       rootRole.id,
-      createEd25519AuthorityInfo(roleKeypair.publicKey),
-      actions,
+      createEd25519AuthorityInfo(role.publicKey),
+      roleActions,
     );
 
-    const tx = await sendTransaction(connection, ix, rootKeypair);
-    console.log(
-      `[${name}] Added role with tx: https://explorer.solana.com/tx/${tx}?cluster=custom`,
-    );
-    console.log(`[${name}] Public Key: ${roleKeypair.publicKey.toBase58()}`);
+    const sig = await sendTransaction(connection, addIx, root);
+    console.log(`[${name}] role added with tx: ${sig}`);
+    console.log(`[${name}] pubkey: ${role.publicKey.toBase58()}`);
   }
 
-  console.log('All roles created successfully.');
+  console.log('🎉 All roles created successfully');
 })();

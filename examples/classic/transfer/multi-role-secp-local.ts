@@ -14,6 +14,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSigningFnForSecp256k1PrivateKey,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
 function sleep(s: number) {
@@ -21,49 +22,65 @@ function sleep(s: number) {
 }
 
 function randomBytes(length: number): Uint8Array {
-  const randomArray = new Uint8Array(length);
-  crypto.getRandomValues(randomArray);
-  return randomArray;
+  const buf = new Uint8Array(length);
+  crypto.getRandomValues(buf);
+  return buf;
 }
 
 (async () => {
   const connection = new Connection('http://localhost:8899', 'confirmed');
 
-  // Root payer for fees
+  // Root payer (funds tx fees)
   const payer = Keypair.generate();
   await connection.requestAirdrop(payer.publicKey, LAMPORTS_PER_SOL);
   await sleep(2);
 
+  // Secp256k1 wallet root authority
   const evmWallet = Wallet.generate();
   const authorityInfo = createSecp256k1AuthorityInfo(evmWallet.getPublicKey());
   const signingFn = getSigningFnForSecp256k1PrivateKey(
     evmWallet.getPrivateKey(),
   );
 
+  // Create Swig PDA
   const swigId = randomBytes(32);
   const swigAddress = findSwigPda(swigId);
 
-  // Create Swig
-  const ix = await getCreateSwigInstruction({
+  // Create Swig account
+  const createIx = await getCreateSwigInstruction({
     id: swigId,
     payer: payer.publicKey,
     authorityInfo,
     actions: Actions.set().all().get(),
   });
 
-  const createTx = new Transaction().add(ix);
-  await sendAndConfirmTransaction(connection, createTx, [payer]);
-  console.log('Swig created at:', swigAddress.toBase58());
+  const createTx = new Transaction().add(createIx);
+  const createSig = await sendAndConfirmTransaction(connection, createTx, [
+    payer,
+  ]);
+  console.log('✅ Swig created');
+  console.log('   PDA:', swigAddress.toBase58());
+  console.log(
+    '   Explorer:',
+    `https://explorer.solana.com/address/${swigAddress.toBase58()}?cluster=custom`,
+  );
+  console.log('   Tx:', createSig);
 
-  // Fetch Swig and get root role
+  // Fetch Swig
   await sleep(2);
   const swig = await fetchSwig(connection, swigAddress);
+  const swigWallet = await getSwigWalletAddress(swig);
+  console.log('🏦 Swig wallet:', swigWallet.toBase58());
+
+  // Root role lookup
   const rootRoles = swig.findRolesBySecp256k1SignerAddress(
     evmWallet.getAddress(),
   );
-  if (!rootRoles) throw new Error('Root role not found');
+  if (!rootRoles.length) throw new Error('❌ Root role not found');
   const rootRole = rootRoles[0];
+  console.log('🔑 Root role found with id:', rootRole.id.toString());
 
+  // Roles to create
   const rolesToCreate = [
     { name: 'data-entry', amount: 0.05 },
     { name: 'finance', amount: 0.1 },
@@ -72,17 +89,18 @@ function randomBytes(length: number): Uint8Array {
   ];
 
   for (const { name, amount } of rolesToCreate) {
-    await sleep(2);
+    await sleep(1);
 
+    const newWallet = Wallet.generate();
     const roleAuthorityInfo = createSecp256k1AuthorityInfo(
-      Wallet.generate().getPublicKey(),
+      newWallet.getPublicKey(),
     );
 
     const actions = Actions.set()
       .solLimit({ amount: BigInt(amount * LAMPORTS_PER_SOL) })
       .get();
 
-    const ix = await getAddAuthorityInstructions(
+    const addIxs = await getAddAuthorityInstructions(
       swig,
       rootRole.id,
       roleAuthorityInfo,
@@ -95,12 +113,19 @@ function randomBytes(length: number): Uint8Array {
       },
     );
 
-    const tx = new Transaction().add(...ix);
+    const tx = new Transaction().add(...addIxs);
     const sig = await sendAndConfirmTransaction(connection, tx, [payer]);
 
-    console.log(`Role '${name}' added`);
-    console.log(` Tx: https://explorer.solana.com/tx/${sig}?cluster=custom`);
+    console.log(`✅ Role '${name}' added`);
+    console.log(
+      '   Pubkey:',
+      Buffer.from(newWallet.getPublicKey()).toString('hex'),
+    );
+    console.log(
+      '   Tx:',
+      `https://explorer.solana.com/tx/${sig}?cluster=custom`,
+    );
   }
 
-  console.log('All roles created using the same EVM wallet.');
+  console.log('🎉 All roles created using the same EVM wallet root authority.');
 })();
