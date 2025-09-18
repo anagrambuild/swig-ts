@@ -31,23 +31,24 @@ function sendSVMTransaction(
   svm: LiteSVM,
   instructions: TransactionInstruction[],
   payer: Keypair,
-) {
-  const transaction = new Transaction();
-  transaction.instructions = instructions;
-  transaction.feePayer = payer.publicKey;
-  transaction.recentBlockhash = svm.latestBlockhash();
+): TransactionMetadata | FailedTransactionMetadata {
+  // ensure fresh blockhash each send
+  svm.expireBlockhash();
 
-  transaction.sign(payer);
+  const tx = new Transaction();
+  tx.instructions = instructions;
+  tx.feePayer = payer.publicKey;
+  tx.recentBlockhash = svm.latestBlockhash();
+  tx.sign(payer);
 
-  const tx = svm.sendTransaction(transaction);
+  const result = svm.sendTransaction(tx);
 
-  if (tx instanceof FailedTransactionMetadata) {
-    console.log('tx:', tx.meta().logs());
+  if (result instanceof FailedTransactionMetadata) {
+    console.error('❌ Transaction failed. Logs:\n', result.meta().logs().join('\n'));
+  } else {
+    console.log('✅ Transaction succeeded');
   }
-
-  if (tx instanceof TransactionMetadata) {
-    // console.log("tx:", tx.logs())
-  }
+  return result;
 }
 
 function fetchSwig(
@@ -55,100 +56,108 @@ function fetchSwig(
   swigAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
   const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('swig account not created');
-  // Ensure we have a proper Uint8Array for the account data
+  if (!swigAccount) throw new Error('Swig account not created');
   const accountData = Uint8Array.from(swigAccount.data);
   return Swig.fromRawAccountData(swigAddress, accountData);
 }
-console.log('starting...');
+
+console.log('🚀 starting…');
+
 //
-// Start program
+// Boot LiteSVM with Swig program
 //
 const swigProgram = Uint8Array.from(readFileSync('../../../swig.so'));
 const svm = new LiteSVM();
-
 svm.addProgram(SWIG_PROGRAM_ADDRESS, swigProgram);
+console.log('📦 Swig program loaded into LiteSVM');
 
-const userWallet = p256.keygen();
-
-// user root
 //
-const userRootKeypair = Keypair.generate();
-svm.airdrop(userRootKeypair.publicKey, BigInt(LAMPORTS_PER_SOL));
-
-// user authority manager
+// Authorities
 //
-const userAuthorityManagerKeypair = Keypair.generate();
-svm.airdrop(userAuthorityManagerKeypair.publicKey, BigInt(LAMPORTS_PER_SOL));
-
-// dapp authority
-//
-const dappAuthorityKeypair = Keypair.generate();
-svm.airdrop(dappAuthorityKeypair.publicKey, BigInt(LAMPORTS_PER_SOL));
-
+const r1 = p256.keygen(); // { secretKey, publicKey }
+const rootPayer = Keypair.generate();
+const feePayer = Keypair.generate(); // will pay for signed tx
 const dappTreasury = Keypair.generate().publicKey;
 
+svm.airdrop(rootPayer.publicKey, BigInt(LAMPORTS_PER_SOL));
+svm.airdrop(feePayer.publicKey, BigInt(LAMPORTS_PER_SOL));
+
+//
+// Derive Swig PDA and create Swig with secp256r1 root
+//
 const id = Uint8Array.from(Array(32).fill(0));
-
-//
-// * Find a swig pda by id
-//
 const swigAddress = findSwigPda(id);
+console.log('📌 Swig PDA:', swigAddress.toBase58());
 
-//
-// * create swig instruction
-//
 const rootActions = Actions.set().all().get();
-
-const createSwigInstruction = await getCreateSwigInstruction({
-  authorityInfo: createSecp256r1AuthorityInfo(userWallet.publicKey),
+const createIx = await getCreateSwigInstruction({
+  authorityInfo: createSecp256r1AuthorityInfo(r1.publicKey),
   id,
-  payer: userRootKeypair.publicKey,
+  payer: rootPayer.publicKey,
   actions: rootActions,
 });
 
-sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
+let res = sendSVMTransaction(svm, [createIx], rootPayer);
+if (res instanceof FailedTransactionMetadata) {
+  throw new Error('Failed to create Swig');
+}
 
 //
-// * fetch swig
-// 
+// Fetch Swig and locate the root role (secp256r1)
+//
 let swig = fetchSwig(svm, swigAddress);
 
-let rootRole = swig.findRolesByAuthoritySigner(
-  p256.getPublicKey(userWallet.secretKey, true),
-)[0];
+// If your SDK exposes a dedicated finder like
+// swig.findRolesBySecp256r1SignerPk(r1.publicKey), prefer that.
+// Otherwise, use the generic authority-signer finder with the compressed pubkey:
+const r1CompressedPub = p256.getPublicKey(r1.secretKey, true);
+const r1Roles = swig.findRolesByAuthoritySigner(r1CompressedPub);
+if (!r1Roles.length) throw new Error('Root role not found for secp256r1 authority');
+const rootRole = r1Roles[0];
+console.log('🔑 Root role id:', rootRole.id.toString());
 
-if (!rootRole) throw new Error('Role not found for authority');
+//
+// Prepare signingFn for secp256r1
+//
+const signingFn = getSigningFnForSecp256r1PrivateKey(r1.secretKey);
 
-const signingFn = getSigningFnForSecp256r1PrivateKey(userWallet.secretKey);
-
+//
+// Fund the Swig PDA and refetch
+//
 svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
-
 swig = fetchSwig(svm, swigAddress);
+await swig.refetch();
 
-console.log('balance before first transfer:', svm.getBalance(swigAddress));
+const balanceBefore = svm.getBalance(swigAddress);
+console.log('💰 Balance before transfer:', balanceBefore !== null ? balanceBefore.toString() : 'Account not found');
 
 //
-// * spend max sol permitted
+// Transfer 0.1 SOL from Swig to dappTreasury using the r1 root role
 //
-let transfer = SystemProgram.transfer({
+const lamports = BigInt(0.1 * LAMPORTS_PER_SOL);
+
+const transferIx = SystemProgram.transfer({
   fromPubkey: swigAddress,
   toPubkey: dappTreasury,
-  lamports: 0.1 * LAMPORTS_PER_SOL,
+  lamports, // BigInt acceptable in LiteSVM path
 });
 
-let signTransfer = await getSignInstructions(
+const signIxs = await getSignInstructions(
   swig,
   rootRole.id,
-  [transfer],
-  undefined,
+  [transferIx],
+  false, // do not merge with previous
   {
-    payer: userAuthorityManagerKeypair.publicKey,
+    payer: feePayer.publicKey,
     signingFn,
     currentSlot: svm.getClock().slot,
   },
 );
 
-sendSVMTransaction(svm, signTransfer, userAuthorityManagerKeypair);
+res = sendSVMTransaction(svm, signIxs, feePayer);
+if (res instanceof FailedTransactionMetadata) {
+  throw new Error('Signed transfer failed');
+}
 
-console.log('balance after first transfer:', svm.getBalance(swigAddress));
+const balanceAfter = svm.getBalance(swigAddress);
+console.log('💰 Balance after transfer:', balanceAfter !== null ? balanceAfter.toString() : 'Account not found');

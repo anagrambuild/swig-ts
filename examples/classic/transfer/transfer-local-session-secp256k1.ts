@@ -12,15 +12,19 @@ import {
 import {
   Actions,
   createSecp256k1SessionAuthorityInfo,
+  fetchSwig,
   findSwigPda,
   getCreateSessionInstructions,
   getCreateSwigInstruction,
   getSigningFnForSecp256k1PrivateKey,
   getSignInstructions,
-  Swig,
+  getSwigWalletAddress,
   type InstructionDataOptions,
 } from '@swig-wallet/classic';
 
+//
+// Helpers
+//
 async function sendAndConfirmTransactionWithLogs(
   connection: Connection,
   instructions: TransactionInstruction[],
@@ -51,6 +55,7 @@ async function sendAndConfirmTransactionWithLogs(
 
   const id = Uint8Array.from(Array(32).fill(0));
   const swigAddress = findSwigPda(id);
+  console.log('📌 Swig PDA:', swigAddress.toBase58());
 
   // Airdrop SOL
   for (const keypair of [userRootKeypair, dappSessionKeypair]) {
@@ -61,12 +66,12 @@ async function sendAndConfirmTransactionWithLogs(
     await connection.confirmTransaction(sig, 'confirmed');
   }
 
-  // Create Swig
+  // Create Swig with session-capable Secp256k1 root
   const rootActions = Actions.set().all().get();
   const createSwigInstruction = await getCreateSwigInstruction({
     authorityInfo: createSecp256k1SessionAuthorityInfo(
       userWallet.getPublicKey(),
-      100n,
+      100n, // root session limit
     ),
     id,
     payer: userRootKeypair.publicKey,
@@ -80,17 +85,18 @@ async function sendAndConfirmTransactionWithLogs(
     'CreateSwig',
   );
 
-  // Fetch swig
-  const swigAccount = await connection.getAccountInfo(swigAddress);
-  if (!swigAccount) throw new Error('Swig not created');
-  let swig = Swig.fromRawAccountData(swigAddress, swigAccount.data);
+  // Fetch Swig
+  const swig = await fetchSwig(connection, swigAddress);
+  const swigWallet = await getSwigWalletAddress(swig);
+  console.log('🏦 Swig Wallet:', swigWallet.toBase58());
 
   const rootRole = swig.findRoleById(0);
   if (!rootRole) throw new Error('Root role not found');
+  console.log('🔑 Root role id:', rootRole.id.toString());
 
   const currentSlot = await connection.getSlot('confirmed');
   const signingFn = getSigningFnForSecp256k1PrivateKey(
-    userWallet.getPrivateKeyString(),
+    userWallet.getPrivateKey(),
   );
 
   const instOptions: InstructionDataOptions = {
@@ -98,16 +104,14 @@ async function sendAndConfirmTransactionWithLogs(
     signingFn,
   };
 
-  // Create session
+  // Create a session role for the dapp
   const sessionInstructions = await getCreateSessionInstructions(
     swig,
     rootRole.id,
     dappSessionKeypair.publicKey,
-    50n,
+    50n, // session spend limit
     { ...instOptions, payer: userRootKeypair.publicKey },
   );
-
-  if (!sessionInstructions) throw new Error('Missing session instructions');
 
   await sendAndConfirmTransactionWithLogs(
     connection,
@@ -116,30 +120,26 @@ async function sendAndConfirmTransactionWithLogs(
     'CreateSession',
   );
 
-  // Refetch swig and get role
-  const updatedSwigAccount = await connection.getAccountInfo(swigAddress);
-  swig = Swig.fromRawAccountData(swigAddress, updatedSwigAccount!.data);
-
+  // Refetch Swig and locate session role
+  await swig.refetch();
   const sessionRole = swig.findRoleBySessionKey(dappSessionKeypair.publicKey);
   if (!sessionRole) throw new Error('Session role not found');
+  console.log('🪪 Session role id:', sessionRole.id.toString());
 
-  // Airdrop to swig
-  const sig = await connection.requestAirdrop(
-    swigAddress,
-    LAMPORTS_PER_SOL,
-  );
+  // Fund the Swig PDA
+  const sig = await connection.requestAirdrop(swigAddress, LAMPORTS_PER_SOL);
   await connection.confirmTransaction(sig, 'confirmed');
-
   console.log(
     '📦 Swig balance before transfer:',
     await connection.getBalance(swigAddress),
   );
 
-  // Create transfer instruction
+  // Prepare SOL transfer
+  const lamports = BigInt(0.1 * LAMPORTS_PER_SOL);
   const transferIx = SystemProgram.transfer({
     fromPubkey: swigAddress,
     toPubkey: dappTreasury,
-    lamports: 0.1 * LAMPORTS_PER_SOL,
+    lamports,
   });
 
   const signTransfer = await getSignInstructions(

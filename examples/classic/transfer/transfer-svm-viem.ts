@@ -34,182 +34,144 @@ function sendSVMTransaction(
   svm: LiteSVM,
   instructions: TransactionInstruction[],
   payer: Keypair,
-) {
-  const transaction = new Transaction();
-  transaction.instructions = instructions;
-  transaction.feePayer = payer.publicKey;
-  transaction.recentBlockhash = svm.latestBlockhash();
+): TransactionMetadata | FailedTransactionMetadata {
+  svm.expireBlockhash();
 
-  transaction.sign(payer);
+  const tx = new Transaction();
+  tx.instructions = instructions;
+  tx.feePayer = payer.publicKey;
+  tx.recentBlockhash = svm.latestBlockhash();
+  tx.sign(payer);
 
-  const tx = svm.sendTransaction(transaction);
-
-  if (tx instanceof FailedTransactionMetadata) {
-    console.log('tx:', tx.meta().logs());
+  const res = svm.sendTransaction(tx);
+  if (res instanceof FailedTransactionMetadata) {
+    console.error('❌ tx failed:', res.meta().logs()?.join('\n'));
+  } else {
+    console.log('✅ tx success');
   }
-
-  if (tx instanceof TransactionMetadata) {
-    // console.log("tx:", tx.logs())
-  }
+  return res;
 }
 
-function fetchSwig(
-  svm: LiteSVM,
-  swigAddress: PublicKey,
-): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('swig account not created');
-  // Ensure we have a proper Uint8Array for the account data
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+function fetchSwig(svm: LiteSVM, swigAddress: PublicKey): Swig {
+  const acc = svm.getAccount(swigAddress);
+  if (!acc) throw new Error('Swig not created');
+  return Swig.fromRawAccountData(swigAddress, Uint8Array.from(acc.data));
 }
 
+//
+// Main
+//
 console.log('starting...');
-//
-// Start program
-//
+
 const swigProgram = Uint8Array.from(readFileSync('../../../swig.so'));
 const svm = new LiteSVM();
-
 svm.addProgram(SWIG_PROGRAM_ADDRESS, swigProgram);
 
 const userWallet = Wallet.generate();
+const privateKeyAccount = privateKeyToAccount(userWallet.getPrivateKeyString());
 
-const transactionPayer = Keypair.generate();
-svm.airdrop(transactionPayer.publicKey, BigInt(LAMPORTS_PER_SOL));
+const payer = Keypair.generate();
+svm.airdrop(payer.publicKey, BigInt(LAMPORTS_PER_SOL));
 
 const dappTreasury = Keypair.generate().publicKey;
 
 const id = Uint8Array.from(Array(32).fill(0));
-
-const privateKeyAccount = privateKeyToAccount(userWallet.getPrivateKeyString());
-
 const swigAddress = findSwigPda(id);
 
-const rootActions = Actions.set().all().get();
-
-const createSwigInstruction = await getCreateSwigInstruction({
-  authorityInfo: createSecp256k1AuthorityInfo(privateKeyAccount.publicKey),
+//
+// Create Swig
+//
+const createSwigIx = await getCreateSwigInstruction({
+  authorityInfo: createSecp256k1AuthorityInfo(userWallet.getPublicKey()),
   id,
-  payer: transactionPayer.publicKey,
-  actions: rootActions,
+  payer: payer.publicKey,
+  actions: Actions.set().all().get(),
 });
+sendSVMTransaction(svm, [createSwigIx], payer);
 
-sendSVMTransaction(svm, [createSwigInstruction], transactionPayer);
-
-//
-// * fetch swig
-//
-// * swig.refetch(connection, ...args) method available
-//
 let swig = fetchSwig(svm, swigAddress);
-
 svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
-// * find role by authority
-//
+
 let rootRole = swig.findRolesBySecp256k1SignerAddress(
   privateKeyAccount.address,
 )[0];
+if (!rootRole) throw new Error('Root role not found');
 
-if (!rootRole) throw new Error('Role not found for authority');
+console.log('💰 balance before transfers:', svm.getBalance(swigAddress));
 
-swig = fetchSwig(svm, swigAddress);
-
-console.log('balance before transfers:', svm.getBalance(swigAddress));
-
-const viemSign: SigningFn = async (message: Uint8Array) => {
-  const sig = await privateKeyAccount.sign({ hash: keccak256(message) }); // eth_sign
-
+//
+// Signing functions
+//
+const viemSign: SigningFn = async (msg: Uint8Array) => {
+  const sig = await privateKeyAccount.sign({ hash: keccak256(msg) }); // eth_sign
   return { signature: hexToBytes(sig) };
 };
 
-//
-// * transfer with viem sign
-//
-const transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
-  toPubkey: dappTreasury,
-  lamports: 0.1 * LAMPORTS_PER_SOL,
-});
+const viemSignWithPrefix: SigningFn = async (msg: Uint8Array) => {
+  const prefix = getEvmPersonalSignPrefix(msg.length);
+  const prefixed = new Uint8Array(prefix.length + msg.length);
+  prefixed.set(prefix);
+  prefixed.set(msg, prefix.length);
 
-let signTransfer = await getSignInstructions(
-  swig,
-  rootRole.id,
-  [transfer],
-  false,
-  {
-    currentSlot: svm.getClock().slot,
-    signingFn: viemSign,
-    payer: transactionPayer.publicKey,
-  },
-);
-
-sendSVMTransaction(svm, signTransfer, transactionPayer);
-
-console.log(
-  'balance after transfer with viem Sign, no prefix:',
-  svm.getBalance(swigAddress),
-);
-
-svm.warpToSlot(100n);
-
-swig = fetchSwig(svm, swigAddress);
-
-rootRole = swig.findRolesBySecp256k1SignerAddress(privateKeyAccount.address)[0];
-
-if (!rootRole) throw new Error('Role not found for authority');
-
-const viemSignWithPrefix: SigningFn = async (message: Uint8Array) => {
-  const prefix = getEvmPersonalSignPrefix(message.length);
-  const prefixedMessage = new Uint8Array(prefix.length + message.length);
-
-  prefixedMessage.set(prefix);
-  prefixedMessage.set(message, prefix.length);
-
-  const sig = await privateKeyAccount.sign({ hash: keccak256(prefixedMessage) }); // eth_sign with personal_sign prefix
-
+  const sig = await privateKeyAccount.sign({ hash: keccak256(prefixed) });
   return { signature: hexToBytes(sig), prefix };
 };
 
-signTransfer = await getSignInstructions(swig, rootRole.id, [transfer], false, {
-  currentSlot: svm.getClock().slot,
-  signingFn: viemSignWithPrefix,
-  payer: transactionPayer.publicKey,
-});
-
-sendSVMTransaction(svm, signTransfer, transactionPayer);
-
-svm.warpToSlot(200n);
-
-swig = fetchSwig(svm, swigAddress);
-
-rootRole = swig.findRolesBySecp256k1SignerAddress(privateKeyAccount.address)[0];
-
-if (!rootRole) throw new Error('Role not found for authority');
-
-const viemSignMessage: SigningFn = async (message: Uint8Array) => {
-  const sig = await privateKeyAccount.signMessage({ message: { raw: message } }); // personal_sign
-
+const viemSignMessage: SigningFn = async (msg: Uint8Array) => {
+  const sig = await privateKeyAccount.signMessage({ message: { raw: msg } }); // personal_sign
   return {
     signature: hexToBytes(sig),
-    prefix: getEvmPersonalSignPrefix(message.length),
+    prefix: getEvmPersonalSignPrefix(msg.length),
   };
 };
 
-console.log(
-  'balance after transfer with viem Sign with personal-sign prefix:',
-  svm.getBalance(swigAddress),
-);
-
-signTransfer = await getSignInstructions(swig, rootRole.id, [transfer], false, {
-  currentSlot: svm.getClock().slot,
-  signingFn: viemSignMessage,
-  payer: transactionPayer.publicKey,
+//
+// Shared transfer
+//
+const lamports = Math.floor(0.1 * LAMPORTS_PER_SOL);
+const transferIx = SystemProgram.transfer({
+  fromPubkey: swigAddress,
+  toPubkey: dappTreasury,
+  lamports,
 });
 
-sendSVMTransaction(svm, signTransfer, transactionPayer);
+//
+// Case 1: viemSign
+//
+let signed = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
+  currentSlot: svm.getClock().slot,
+  signingFn: viemSign,
+  payer: payer.publicKey,
+});
+sendSVMTransaction(svm, signed, payer);
+console.log('balance after viemSign:', svm.getBalance(swigAddress));
 
-console.log(
-  'balance after transfer with viem SignMessage:',
-  svm.getBalance(swigAddress),
-);
+//
+// Case 2: viemSignWithPrefix
+//
+svm.warpToSlot(100n);
+swig = fetchSwig(svm, swigAddress);
+rootRole = swig.findRolesBySecp256k1SignerAddress(privateKeyAccount.address)[0]!;
+
+signed = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
+  currentSlot: svm.getClock().slot,
+  signingFn: viemSignWithPrefix,
+  payer: payer.publicKey,
+});
+sendSVMTransaction(svm, signed, payer);
+console.log('balance after viemSignWithPrefix:', svm.getBalance(swigAddress));
+
+//
+// Case 3: viemSignMessage
+//
+svm.warpToSlot(200n);
+swig = fetchSwig(svm, swigAddress);
+rootRole = swig.findRolesBySecp256k1SignerAddress(privateKeyAccount.address)[0]!;
+
+signed = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
+  currentSlot: svm.getClock().slot,
+  signingFn: viemSignMessage,
+  payer: payer.publicKey,
+});
+sendSVMTransaction(svm, signed, payer);
+console.log('balance after viemSignMessage:', svm.getBalance(swigAddress));

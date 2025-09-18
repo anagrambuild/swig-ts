@@ -25,7 +25,6 @@ import {
 import {
   FailedTransactionMetadata,
   LiteSVM,
-  TransactionMetadata,
 } from 'litesvm';
 import { readFileSync } from 'node:fs';
 
@@ -37,68 +36,51 @@ function sendSVMTransaction(
   instructions: TransactionInstruction[],
   payer: Keypair,
 ) {
-  const transaction = new Transaction();
-  transaction.instructions = instructions;
-  transaction.feePayer = payer.publicKey;
-  transaction.recentBlockhash = svm.latestBlockhash();
+  svm.expireBlockhash();
 
-  transaction.sign(payer);
+  const tx = new Transaction();
+  tx.instructions = instructions;
+  tx.feePayer = payer.publicKey;
+  tx.recentBlockhash = svm.latestBlockhash();
+  tx.sign(payer);
 
-  const tx = svm.sendTransaction(transaction);
+  const res = svm.sendTransaction(tx);
 
-  if (tx instanceof FailedTransactionMetadata) {
-    console.log('tx:', tx.meta().logs());
+  if (res instanceof FailedTransactionMetadata) {
+    console.log('❌ tx logs:', res.meta().logs());
   }
-
-  if (tx instanceof TransactionMetadata) {
-    // console.log("tx:", tx.logs())
-  }
+  return res;
 }
 
 function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
   const swigAccount = svm.getAccount(swigAddress);
   if (!swigAccount) throw new Error('swig account not created');
-  // Ensure we have a proper Uint8Array for the account data
-  return getSwigCodec().decode(swigAccount.data);
+  return getSwigCodec().decode(Uint8Array.from(swigAccount.data));
 }
 
-function fetchSwig(
-  svm: LiteSVM,
-  swigAddress: PublicKey,
-): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
-
-  // swigAddress: SolPublicKeyData
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, toPublicKey(swigAddress));
-
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+function fetchSwig(svm: LiteSVM, swigAddress: PublicKey): Swig {
+  const account = fetchSwigAccount(svm, swigAddress);
+  const swigFetchFn: SwigFetchFn = async (addr) =>
+    fetchSwigAccount(svm, toPublicKey(addr));
+  return new Swig(swigAddress, account, swigFetchFn);
 }
 
-console.log('starting...');
 //
-// Start program
+// Main
 //
+console.log('starting subaccount example...');
 const swigProgram = Uint8Array.from(readFileSync('../../../swig.so'));
 const svm = new LiteSVM();
-
 svm.addProgram(SWIG_PROGRAM_ADDRESS, swigProgram);
 
-// root authority
-//
 const rootAuthority = Keypair.generate();
 svm.airdrop(rootAuthority.publicKey, BigInt(LAMPORTS_PER_SOL));
 
-// sub account authority
-//
 const subAccountAuthority = Keypair.generate();
 svm.airdrop(subAccountAuthority.publicKey, BigInt(LAMPORTS_PER_SOL));
 
 const id = Uint8Array.from(Array(32).fill(2));
-
 const swigAddress = findSwigPda(id);
-
-console.log('swig address:', swigAddress.toBase58());
 
 const createSwigIx = await getCreateSwigInstruction({
   payer: rootAuthority.publicKey,
@@ -109,12 +91,11 @@ const createSwigIx = await getCreateSwigInstruction({
 sendSVMTransaction(svm, [createSwigIx], rootAuthority);
 
 const swig = fetchSwig(svm, swigAddress);
+console.log('swig account version:', swig.accountVersion());
 
-console.log("swig account version:", swig.accountVersion())
+const rootRole = swig.roles[0];
 
-let rootRole = swig.roles[0];
-
-// add a sub account authority
+// add subaccount authority
 const addAuthorityIx = await getAddAuthorityInstructions(
   swig,
   rootRole.id,
@@ -124,10 +105,9 @@ const addAuthorityIx = await getAddAuthorityInstructions(
 sendSVMTransaction(svm, addAuthorityIx, rootAuthority);
 
 await swig.refetch();
+const subAccountAuthRole = swig.roles[1];
 
-let subAccountAuthRole = swig.roles[1];
-
-// create sub account
+// create subaccount
 const createSubAccountIx = await getCreateSubAccountInstructions(
   swig,
   subAccountAuthRole.id,
@@ -136,26 +116,19 @@ sendSVMTransaction(svm, createSubAccountIx, subAccountAuthority);
 
 await swig.refetch();
 
-rootRole = swig.roles[0];
-subAccountAuthRole = swig.roles[1];
-
 const subAccountAddress = findSwigSubAccountPda(
   subAccountAuthRole.swigId,
   subAccountAuthRole.id,
 );
-
 svm.airdrop(subAccountAddress, BigInt(LAMPORTS_PER_SOL));
 
-const subBalance = svm.getBalance(subAccountAddress)!;
-
-console.log('sub account balance:', subBalance);
+console.log('sub account balance:', svm.getBalance(subAccountAddress));
 
 const recipient = Keypair.generate().publicKey;
-
 const transfer = SystemProgram.transfer({
   fromPubkey: subAccountAddress,
   toPubkey: recipient,
-  lamports: 0.1 * LAMPORTS_PER_SOL,
+  lamports: Math.floor(0.1 * LAMPORTS_PER_SOL),
 });
 
 const signIx = await getSignInstructions(
@@ -166,10 +139,5 @@ const signIx = await getSignInstructions(
 );
 sendSVMTransaction(svm, signIx, subAccountAuthority);
 
-const newSubBalance = svm.getBalance(subAccountAddress)!;
-
-console.log('new subaccount balance:', newSubBalance);
-
-const recipientBalance = svm.getBalance(recipient)!;
-
-console.log('recipient balance:', recipientBalance);
+console.log('new subaccount balance:', svm.getBalance(subAccountAddress));
+console.log('recipient balance:', svm.getBalance(recipient));
