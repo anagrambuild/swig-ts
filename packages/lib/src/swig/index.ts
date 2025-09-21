@@ -322,18 +322,6 @@ export const getSignInstructionContext = async (
       await findSwigSubAccountPdaRaw(role.swigId, role.id)
     )[0];
 
-    if (swig.accountVersion() === 'v2') {
-      return role.authority.subAccountSignV2({
-        swigAddress: role.swigAddress,
-        swigWalletAddress: await swig.systemAddress(),
-        subAccount,
-        payer,
-        innerInstructions,
-        roleId: role.id,
-        options,
-      });
-    }
-
     return role.authority.subAccountSign({
       swigAddress: role.swigAddress,
       subAccount,

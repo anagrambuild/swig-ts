@@ -210,31 +210,6 @@ export class Secp256k1Authority
     );
   }
 
-  subAccountSignV2(args: {
-    payer: SolPublicKeyData;
-    swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
-    subAccount: SolPublicKeyData;
-    roleId: number;
-    innerInstructions: SolInstruction[];
-    options: InstructionDataOptions;
-  }) {
-    return Secp256k1Instruction.subAccountSignV2Instruction(
-      {
-        payer: args.payer,
-        swig: args.swigAddress,
-        swigWalletAddress: args.swigWalletAddress,
-        subAccount: args.subAccount,
-      },
-      {
-        roleId: args.roleId,
-        authorityData: this.publicKeyBytes,
-        innerInstructions: args.innerInstructions,
-      },
-      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
-    );
-  }
-
   subAccountToggle(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;

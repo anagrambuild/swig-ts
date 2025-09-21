@@ -224,7 +224,14 @@ export class ActionsBuilder {
    */
   subAccount(): this {
     this._actionConfigs.push(
-      new SubAccountConfig({ subAccount: new Uint8Array(32) }),
+      new SubAccountConfig({
+        subAccount: new Uint8Array(32),
+        _padding: new Uint8Array(2),
+        bump: 0,
+        enabled: false,
+        roleId: 0,
+        swigId: new Uint8Array(32),
+      }),
     );
     return this;
   }
@@ -442,7 +449,7 @@ class SubAccountConfig extends ActionConfig {
   }
 
   get length() {
-    return 32;
+    return 72;
   }
 
   get permission() {

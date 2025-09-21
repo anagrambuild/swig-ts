@@ -139,16 +139,6 @@ export abstract class Authority {
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;
 
-  abstract subAccountSignV2(args: {
-    payer: SolPublicKeyData;
-    swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
-    subAccount: SolPublicKeyData;
-    roleId: number;
-    innerInstructions: SolInstruction[];
-    options?: InstructionDataOptions;
-  }): Promise<SwigInstructionContext>;
-
   abstract subAccountToggle(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
