@@ -248,6 +248,25 @@ export class Ed25519Authority
       },
     );
   }
+
+  transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    roleId: number;
+  }) {
+    return Ed25519Instruction.transferAssetsV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+        swigWalletAddress: args.swigWalletAddress,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
+      },
+    );
+  }
 }
 
 export function isEd25519Authority(

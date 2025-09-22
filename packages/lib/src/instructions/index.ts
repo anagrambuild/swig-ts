@@ -11,3 +11,4 @@ export * from './subAccountSignV1';
 export * from './subAccountToggleV1';
 export * from './subAccountWithdrawV1';
 export * from './SwigInstruction';
+export * from './transferAssetsV1';

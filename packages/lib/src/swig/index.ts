@@ -465,6 +465,27 @@ export const getWithdrawFromSubAccountInstructionContext = async <
       });
 };
 
+export const getTransferAssetsInstructionContext = async (
+  swig: Swig,
+  roleId: number,
+  options?: SwigOptions,
+) => {
+  const { payer, role } = await assertInstructionOptions(
+    swig,
+    roleId,
+    false,
+    options,
+  );
+
+  return role.authority.transferAssets({
+    roleId: role.id,
+    payer,
+    swigAddress: swig.address,
+    swigWalletAddress: await swig.systemAddress(),
+    options,
+  });
+};
+
 async function assertInstructionOptions(
   swig: Swig,
   roleId: number,

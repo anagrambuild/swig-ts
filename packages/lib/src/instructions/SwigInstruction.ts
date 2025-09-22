@@ -9,6 +9,7 @@ import {
   getSubAccountSignV1InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
+  getTransferAssetsV1InstructionDataCodec,
   type AddAuthorityV1InstructionDataArgs,
   type CreateSessionV1InstructionDataArgs,
   type CreateV1InstructionDataArgs,
@@ -19,6 +20,7 @@ import {
   type SubAccountSignV1InstructionDataArgs,
   type SubAccountToggleV1InstructionDataArgs,
   type SubAccountWithdrawV1InstructionDataArgs,
+  type TransferAssetsV1InstructionDataArgs,
 } from '@swig-wallet/coder';
 import {
   SolAccountMeta,
@@ -41,6 +43,7 @@ import type { SubAccountCreateV1BaseAccountMetas } from './subAccountCreateV1';
 import type { SubAccountSignV1BaseAccountMetas } from './subAccountSignV1';
 import type { SubAccountToggleV1BaseAccountMetas } from './subAccountToggleV1';
 import type { SubAccountWithdrawV1BaseAccountMetas } from './subAccountWithdrawV1';
+import type { TransferAssetsV1BaseAccountMetas } from './transferAssetsV1';
 
 /**
  *
@@ -241,6 +244,22 @@ export class SwigInstructionV1 {
     options?: SwigInstructionContextOptions,
   ): SwigInstructionContext {
     const encoder = getSubAccountToggleV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
+
+  static transferAssets<
+    T extends [...TransferAssetsV1BaseAccountMetas, ...SolAccountMeta[]],
+  >(
+    accounts: T,
+    data: TransferAssetsV1InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getTransferAssetsV1InstructionDataCodec().encoder;
 
     const instructionData = encoder.encode(data);
 

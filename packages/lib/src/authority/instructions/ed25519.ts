@@ -12,6 +12,7 @@ import {
   getSubAccountToggleV1BaseAccountMetasWithAuthority,
   getSubAccountWithdrawV1SolAccountMetasWithAuthority,
   getSubAccountWithdrawV1TokenAccountMetasWithAuthority,
+  getTransferAssetsV1BaseAccountMetasWithAuthority,
 } from '../../instructions';
 import { SolPublicKey } from '../../solana';
 import type { AuthorityInstruction } from './interface';
@@ -163,6 +164,18 @@ export const Ed25519Instruction: AuthorityInstruction = {
       roleId: data.roleId,
       authorityPayload: new Uint8Array([authorityPayload]),
       compactInstructions: compactIxs,
+    });
+  },
+
+  async transferAssetsV1Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [metas, authorityPayload] =
+      getTransferAssetsV1BaseAccountMetasWithAuthority(accounts, authority);
+
+    return SwigInstructionV1.transferAssets(metas, {
+      ...data,
+      authorityPayload: Uint8Array.from([authorityPayload]),
     });
   },
 };

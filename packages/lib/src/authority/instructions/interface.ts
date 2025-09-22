@@ -6,6 +6,7 @@ import type {
   SubAccountCreateV1InstructionDataArgs,
   SubAccountToggleV1InstructionDataArgs,
   SubAccountWithdrawV1InstructionDataArgs,
+  TransferAssetsV1InstructionDataArgs,
 } from '@swig-wallet/coder';
 import {
   type AddAuthorityV1InstructionAccounts,
@@ -17,6 +18,7 @@ import {
   type SubAccountToggleV1InstructionAccounts,
   type SubAccountWithdrawV1SolInstructionAccounts,
   type SubAccountWithdrawV1TokenInstructionAccounts,
+  type TransferAssetsV1InstructionAccounts,
 } from '../../instructions';
 import type { SolInstruction, SwigInstructionContext } from '../../solana';
 
@@ -76,6 +78,16 @@ export interface AuthorityInstruction {
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;
 
+  subAccountSignV1Instruction(
+    accounts: SubAccountSignV1InstructionAccounts,
+    data: {
+      authorityData: ReadonlyUint8Array;
+      roleId: number;
+      innerInstructions: SolInstruction[];
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
   subAccountWithdrawV1SolInstruction(
     accounts: SubAccountWithdrawV1SolInstructionAccounts,
     data: Omit<SubAccountWithdrawV1InstructionDataArgs, 'authorityPayload'> & {
@@ -100,12 +112,10 @@ export interface AuthorityInstruction {
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;
 
-  subAccountSignV1Instruction(
-    accounts: SubAccountSignV1InstructionAccounts,
-    data: {
+  transferAssetsV1Instruction(
+    accounts: TransferAssetsV1InstructionAccounts,
+    data: Omit<TransferAssetsV1InstructionDataArgs, 'authorityPayload'> & {
       authorityData: ReadonlyUint8Array;
-      roleId: number;
-      innerInstructions: SolInstruction[];
     },
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;

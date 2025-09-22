@@ -168,6 +168,14 @@ export abstract class Authority {
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;
 
+  abstract transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    roleId: number;
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
   /**
    * Check two {@link Authority} are partially equal
    */

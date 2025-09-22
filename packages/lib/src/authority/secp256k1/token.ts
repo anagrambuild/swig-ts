@@ -301,4 +301,25 @@ export class Secp256k1Authority
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
+
+  transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256k1Instruction.transferAssetsV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+        swigWalletAddress: args.swigAddress,
+      },
+      {
+        roleId: args.roleId,
+        authorityData: this.publicKeyBytes,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
 }

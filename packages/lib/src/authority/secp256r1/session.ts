@@ -320,6 +320,28 @@ export class Secp256r1SessionAuthority
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
+
+  transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    roleId: number;
+    roleIdToRemove: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256r1Instruction.transferAssetsV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+        swigWalletAddress: args.swigWalletAddress,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
 }
 
 type SessionData = {

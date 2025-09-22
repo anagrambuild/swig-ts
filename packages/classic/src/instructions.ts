@@ -11,6 +11,7 @@ import {
   getRemoveAuthorityInstructionContext,
   getSignInstructionContext,
   getToggleSubAccountInstructionContext,
+  getTransferAssetsInstructionContext,
   getWithdrawFromSubAccountInstructionContext,
   SolInstruction,
   Swig,
@@ -142,6 +143,20 @@ export async function getWithdrawFromSubAccountSubAccountInstructions(
     swig,
     roleId,
     withdrawArgs,
+    options,
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getTransferAssetsInstructions(
+  swig: Swig,
+  roleId: number,
+  options?: SwigOptions,
+): Promise<TransactionInstruction[]> {
+  const context = await getTransferAssetsInstructionContext(
+    swig,
+    roleId,
     options,
   );
 
