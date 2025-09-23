@@ -164,29 +164,6 @@ export class Ed25519Authority
     );
   }
 
-  subAccountSignV2(args: {
-    payer: SolPublicKeyData;
-    swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
-    subAccount: SolPublicKeyData;
-    roleId: number;
-    innerInstructions: SolInstruction[];
-  }) {
-    return Ed25519Instruction.subAccountSignV2Instruction(
-      {
-        payer: args.payer,
-        swig: args.swigAddress,
-        swigWalletAddress: args.swigWalletAddress,
-        subAccount: args.subAccount,
-      },
-      {
-        roleId: args.roleId,
-        authorityData: this.data,
-        innerInstructions: args.innerInstructions,
-      },
-    );
-  }
-
   subAccountToggle(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
@@ -268,6 +245,25 @@ export class Ed25519Authority
         roleId: args.roleId,
         authorityData: this.data,
         amount: args.amount,
+      },
+    );
+  }
+
+  transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    roleId: number;
+  }) {
+    return Ed25519Instruction.transferAssetsV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+        swigWalletAddress: args.swigWalletAddress,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
       },
     );
   }

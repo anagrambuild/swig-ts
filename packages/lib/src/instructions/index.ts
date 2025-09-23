@@ -1,5 +1,6 @@
 export * from './addAuthorityV1';
 export * from './compactInstruction';
+export * from './createSessionV1';
 export * from './createV1';
 export * from './removeAuthorityV1';
 export * from './replaceAuthorityV1';
@@ -10,3 +11,4 @@ export * from './subAccountSignV1';
 export * from './subAccountToggleV1';
 export * from './subAccountWithdrawV1';
 export * from './SwigInstruction';
+export * from './transferAssetsV1';

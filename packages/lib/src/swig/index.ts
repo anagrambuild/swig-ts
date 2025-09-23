@@ -322,18 +322,6 @@ export const getSignInstructionContext = async (
       await findSwigSubAccountPdaRaw(role.swigId, role.id)
     )[0];
 
-    if (swig.accountVersion() === 'v2') {
-      return role.authority.subAccountSignV2({
-        swigAddress: role.swigAddress,
-        swigWalletAddress: await swig.systemAddress(),
-        subAccount,
-        payer,
-        innerInstructions,
-        roleId: role.id,
-        options,
-      });
-    }
-
     return role.authority.subAccountSign({
       swigAddress: role.swigAddress,
       subAccount,
@@ -475,6 +463,27 @@ export const getWithdrawFromSubAccountInstructionContext = async <
         options,
         amount: args.amount,
       });
+};
+
+export const getTransferAssetsInstructionContext = async (
+  swig: Swig,
+  roleId: number,
+  options?: SwigOptions,
+) => {
+  const { payer, role } = await assertInstructionOptions(
+    swig,
+    roleId,
+    false,
+    options,
+  );
+
+  return role.authority.transferAssets({
+    roleId: role.id,
+    payer,
+    swigAddress: swig.address,
+    swigWalletAddress: await swig.systemAddress(),
+    options,
+  });
 };
 
 async function assertInstructionOptions(

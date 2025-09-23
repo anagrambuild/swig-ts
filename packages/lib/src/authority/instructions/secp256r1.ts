@@ -10,12 +10,14 @@ import {
   getSubAccountCreateV1InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
+  getTransferAssetsV1InstructionDataCodec,
 } from '@swig-wallet/coder';
 import {
   SwigInstructionV1,
   SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetasWithSystemProgram,
+  getCreateSessionV1BaseAccountMetasWithSystemProgram,
   getRemoveAuthorityV1BaseAccountMetas,
   getSignV1BaseAccountMetasWithSystemProgram,
   getSignV2BaseAccountMetasWithSystemProgram,
@@ -24,9 +26,8 @@ import {
   getSubAccountToggleV1BaseAccountMetas,
   getSubAccountWithdrawV1SolAccountMetas,
   getSubAccountWithdrawV1TokenAccountMetas,
+  getTransferAssetsV1BaseAccountMetas,
 } from '../../instructions';
-import { getCreateSessionV1BaseAccountMetasWithSystemProgram } from '../../instructions/createSessionV1';
-import { getSubAccountSignV2BaseAccountMetas } from '../../instructions/subAccountSignV2';
 import { SolAccountMeta, SolInstruction, SolPublicKey } from '../../solana';
 import type { AuthorityInstruction, SigningFn } from './interface';
 
@@ -331,51 +332,6 @@ export const Secp256r1Instruction: AuthorityInstruction = {
     );
   },
 
-  async subAccountSignV2Instruction(accounts, data, options) {
-    if (!options?.signingFn || options?.currentSlot === undefined)
-      throw new Error(
-        'instruction data options not provided for Secp256r1 based authority',
-      );
-
-    const signInstructionsAccount =
-      getSubAccountSignV2BaseAccountMetas(accounts);
-
-    const { accounts: metas, compactIxs } = compactInstructions(
-      accounts.swig,
-      signInstructionsAccount,
-      data.innerInstructions,
-      [accounts.subAccount, accounts.swigWalletAddress],
-    );
-
-    const encodedCompactInstructions = getArrayEncoder(
-      getCompactInstructionEncoder(),
-      {
-        size: getU8Encoder(),
-      },
-    ).encode(compactIxs);
-
-    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
-      Uint8Array.from(encodedCompactInstructions),
-      metas,
-      new Uint8Array(data.authorityData),
-      {
-        signingFn: options.signingFn,
-        odometer: options.odometer,
-        currentSlot: options.currentSlot,
-      },
-    );
-
-    return SwigInstructionV2.subAccountSign(
-      metas,
-      {
-        roleId: data.roleId,
-        compactInstructions: compactIxs,
-        authorityPayload,
-      },
-      { preInstructions: [sigVerifyIx], postInstructions: [] },
-    );
-  },
-
   async subAccountToggleV1Instruction(accounts, data, options) {
     if (!options?.signingFn || options?.currentSlot === undefined)
       throw new Error(
@@ -472,6 +428,39 @@ export const Secp256r1Instruction: AuthorityInstruction = {
         authorityPayload,
       },
       { preInstructions: [sigVerifyIx] },
+    );
+  },
+
+  async transferAssetsV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'instruction data options not provided for Secp256r1 based authority',
+      );
+
+    const accountMetas = getTransferAssetsV1BaseAccountMetas(accounts);
+
+    const { payloadEncoder } = getTransferAssetsV1InstructionDataCodec();
+
+    const message = payloadEncoder.encode(data);
+
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
+      Uint8Array.from(message),
+      accountMetas,
+      new Uint8Array(data.authorityData),
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.transferAssets(
+      accountMetas,
+      {
+        ...data,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
     );
   },
 };

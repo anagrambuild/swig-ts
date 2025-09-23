@@ -3,6 +3,7 @@ import {
   SwigInstructionV2,
   compactInstructions,
   getAddV1BaseAccountMetasWithAuthority,
+  getCreateSessionV1BaseAccountMetasWithAuthority,
   getRemoveV1BaseAccountMetasWithAuthority,
   getSignV1BaseAccountMetasWithAuthority,
   getSignV2BaseAccountMetasWithAuthority,
@@ -11,9 +12,8 @@ import {
   getSubAccountToggleV1BaseAccountMetasWithAuthority,
   getSubAccountWithdrawV1SolAccountMetasWithAuthority,
   getSubAccountWithdrawV1TokenAccountMetasWithAuthority,
+  getTransferAssetsV1BaseAccountMetasWithAuthority,
 } from '../../instructions';
-import { getCreateSessionV1BaseAccountMetasWithAuthority } from '../../instructions/createSessionV1';
-import { getSubAccountSignV2BaseAccountMetasWithAuthority } from '../../instructions/subAccountSignV2';
 import { SolPublicKey } from '../../solana';
 import type { AuthorityInstruction } from './interface';
 
@@ -167,23 +167,15 @@ export const Ed25519Instruction: AuthorityInstruction = {
     });
   },
 
-  async subAccountSignV2Instruction(accounts, data) {
+  async transferAssetsV1Instruction(accounts, data) {
     const authority = new SolPublicKey(new Uint8Array(data.authorityData));
 
-    const [signAccounts, authorityPayload] =
-      getSubAccountSignV2BaseAccountMetasWithAuthority(accounts, authority);
+    const [metas, authorityPayload] =
+      getTransferAssetsV1BaseAccountMetasWithAuthority(accounts, authority);
 
-    const { accounts: metas, compactIxs } = compactInstructions(
-      accounts.swig,
-      signAccounts,
-      data.innerInstructions,
-      [accounts.subAccount, accounts.swigWalletAddress],
-    );
-
-    return SwigInstructionV2.subAccountSign(metas, {
-      roleId: data.roleId,
-      authorityPayload: new Uint8Array([authorityPayload]),
-      compactInstructions: compactIxs,
+    return SwigInstructionV1.transferAssets(metas, {
+      ...data,
+      authorityPayload: Uint8Array.from([authorityPayload]),
     });
   },
 };

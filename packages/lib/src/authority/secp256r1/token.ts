@@ -179,6 +179,7 @@ export class Secp256r1Authority
   subAccountSign(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
@@ -188,31 +189,6 @@ export class Secp256r1Authority
       {
         payer: args.payer,
         swig: args.swigAddress,
-        subAccount: args.subAccount,
-      },
-      {
-        roleId: args.roleId,
-        authorityData: this.publicKeyBytes,
-        innerInstructions: args.innerInstructions,
-      },
-      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
-    );
-  }
-
-  subAccountSignV2(args: {
-    payer: SolPublicKeyData;
-    swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
-    subAccount: SolPublicKeyData;
-    roleId: number;
-    innerInstructions: SolInstruction[];
-    options: InstructionDataOptions;
-  }) {
-    return Secp256r1Instruction.subAccountSignV2Instruction(
-      {
-        payer: args.payer,
-        swig: args.swigAddress,
-        swigWalletAddress: args.swigWalletAddress,
         subAccount: args.subAccount,
       },
       {
@@ -311,6 +287,28 @@ export class Secp256r1Authority
         roleId: args.roleId,
         authorityData: this.publicKeyBytes,
         amount: args.amount,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
+  transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    roleId: number;
+    roleIdToRemove: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256r1Instruction.transferAssetsV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+        swigWalletAddress: args.swigWalletAddress,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
       },
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );

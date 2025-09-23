@@ -249,29 +249,6 @@ export class Secp256k1SessionAuthority
     );
   }
 
-  subAccountSignV2(args: {
-    payer: SolPublicKeyData;
-    swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
-    subAccount: SolPublicKeyData;
-    roleId: number;
-    innerInstructions: SolInstruction[];
-  }) {
-    return Ed25519Instruction.subAccountSignV2Instruction(
-      {
-        payer: args.payer,
-        swig: args.swigAddress,
-        swigWalletAddress: args.swigWalletAddress,
-        subAccount: args.subAccount,
-      },
-      {
-        roleId: args.roleId,
-        authorityData: this.sessionKey.toBytes(),
-        innerInstructions: args.innerInstructions,
-      },
-    );
-  }
-
   subAccountToggle(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
@@ -359,6 +336,27 @@ export class Secp256k1SessionAuthority
         roleId: args.roleId,
         authorityData: this.publicKeyBytes,
         amount: args.amount,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
+  transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigWalletAddress: SolPublicKeyData;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256k1Instruction.transferAssetsV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+        swigWalletAddress: args.swigAddress,
+      },
+      {
+        roleId: args.roleId,
+        authorityData: this.publicKeyBytes,
       },
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );

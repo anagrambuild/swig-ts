@@ -7,9 +7,9 @@ import {
   getSignV2InstructionCodec,
   getSubAccountCreateV1InstructionDataCodec,
   getSubAccountSignV1InstructionDataCodec,
-  getSubAccountSignV2InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
+  getTransferAssetsV1InstructionDataCodec,
   type AddAuthorityV1InstructionDataArgs,
   type CreateSessionV1InstructionDataArgs,
   type CreateV1InstructionDataArgs,
@@ -18,9 +18,9 @@ import {
   type SignV2InstructionDataArgs,
   type SubAccountCreateV1InstructionDataArgs,
   type SubAccountSignV1InstructionDataArgs,
-  type SubAccountSignV2InstructionDataArgs,
   type SubAccountToggleV1InstructionDataArgs,
   type SubAccountWithdrawV1InstructionDataArgs,
+  type TransferAssetsV1InstructionDataArgs,
 } from '@swig-wallet/coder';
 import {
   SolAccountMeta,
@@ -41,9 +41,9 @@ import { type SignV1BaseAccountMetas } from './signV1';
 import type { SignV2BaseAccountMetas } from './signV2';
 import type { SubAccountCreateV1BaseAccountMetas } from './subAccountCreateV1';
 import type { SubAccountSignV1BaseAccountMetas } from './subAccountSignV1';
-import type { SubAccountSignV2BaseAccountMetas } from './subAccountSignV2';
 import type { SubAccountToggleV1BaseAccountMetas } from './subAccountToggleV1';
 import type { SubAccountWithdrawV1BaseAccountMetas } from './subAccountWithdrawV1';
+import type { TransferAssetsV1BaseAccountMetas } from './transferAssetsV1';
 
 /**
  *
@@ -251,6 +251,22 @@ export class SwigInstructionV1 {
 
     return new SwigInstructionContext({ swigInstruction, ...options });
   }
+
+  static transferAssets<
+    T extends [...TransferAssetsV1BaseAccountMetas, ...SolAccountMeta[]],
+  >(
+    accounts: T,
+    data: TransferAssetsV1InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getTransferAssetsV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
 }
 
 export class SwigInstructionV2 {
@@ -262,22 +278,6 @@ export class SwigInstructionV2 {
     const encoder = getSignV2InstructionCodec(
       data.authorityPayload.length,
     ).encoder;
-
-    const instructionData = encoder.encode(data);
-
-    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
-
-    return new SwigInstructionContext({ swigInstruction, ...options });
-  }
-
-  static subAccountSign<
-    T extends [...SubAccountSignV2BaseAccountMetas, ...SolAccountMeta[]],
-  >(
-    accounts: T,
-    data: SubAccountSignV2InstructionDataArgs,
-    options?: SwigInstructionContextOptions,
-  ): SwigInstructionContext {
-    const encoder = getSubAccountSignV2InstructionDataCodec().encoder;
 
     const instructionData = encoder.encode(data);
 
