@@ -33,7 +33,6 @@ import {
   getCreateSwigInstruction,
   getSignInstructions,
 } from '@swig-wallet/kit';
-import { sleepSync } from 'bun';
 
 function randomBytes(length: number): Uint8Array {
   const randomArray = new Uint8Array(length);
@@ -41,7 +40,20 @@ function randomBytes(length: number): Uint8Array {
   return randomArray;
 }
 
-const LAMPORTS_PER_SOL = 1_000_000_000;
+const LAMPORTS_PER_SOL = 1_000_000_000n; // bigint
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function confirmAirdrop(
+  rpc: Rpc<SolanaRpcApi>,
+  to: string,
+  amount: bigint
+) {
+  const sig = await rpc.requestAirdrop(to as unknown as any, lamports(amount)).send();
+  // Nudge localnet to settle
+  await rpc.getSignatureStatuses([sig]).send();
+  await delay(1200);
+}
 
 console.log('starting...');
 
@@ -53,22 +65,16 @@ const connection = {
 // User keypair (root authority)
 const userRootKeypair = await generateKeyPairSigner();
 console.log('Generated root signer:', userRootKeypair.address.toString());
-await connection.rpc
-  .requestAirdrop(userRootKeypair.address, lamports(BigInt(LAMPORTS_PER_SOL)))
-  .send();
+await confirmAirdrop(connection.rpc, userRootKeypair.address, 1n * LAMPORTS_PER_SOL);
 
 // Session authority
 const dappSessionKeypair = await generateKeyPairSigner();
 console.log('Generated session signer:', dappSessionKeypair.address.toString());
-await connection.rpc
-  .requestAirdrop(dappSessionKeypair.address, lamports(BigInt(LAMPORTS_PER_SOL)))
-  .send();
+await confirmAirdrop(connection.rpc, dappSessionKeypair.address, 1n * LAMPORTS_PER_SOL);
 
 // Treasury destination
 const dappTreasury = await generateKeyPairSigner();
 console.log('Generated treasury address:', dappTreasury.address.toString());
-
-sleepSync(3000);
 
 const id = randomBytes(32);
 console.log('Generated Swig ID:', Buffer.from(id).toString('hex'));
@@ -80,7 +86,7 @@ const rootActions = Actions.set().all().get();
 
 const createSwigIx = await getCreateSwigInstruction({
   id,
-  authorityInfo: createEd25519SessionAuthorityInfo(userRootKeypair.address, 100n),
+  authorityInfo: createEd25519SessionAuthorityInfo(userRootKeypair.address, 100n), // max session duration (slots) this root can create
   actions: rootActions,
   payer: userRootKeypair.address,
 });
@@ -89,48 +95,60 @@ console.log('Creating Swig...');
 await sendTransaction(connection, [createSwigIx], userRootKeypair);
 console.log('Swig created.');
 
-sleepSync(3000);
-
-const swig = await fetchSwig(connection.rpc, swigAddress);
+let swig = await fetchSwig(connection.rpc, swigAddress);
 console.log('Fetched Swig:', swig.address.toString());
 
 const rootRole = swig.findRoleById(0);
 if (!rootRole) throw new Error('Role not found for authority');
 console.log('Using root role ID:', rootRole.id);
 
+// Use a finalized slot for session ops
+const currentSlot = BigInt(
+  await connection.rpc.getSlot({ commitment: 'finalized' }).send()
+);
+
 const createSessionIx = await getCreateSessionInstructions(
   swig,
   rootRole.id,
   dappSessionKeypair.address,
-  50n,
+  50n, // session duration (slots)
+  {
+    payer: userRootKeypair.address,
+    currentSlot, // good hygiene even for Ed25519-root flows
+  },
 );
 console.log('Creating session...');
 await sendTransaction(connection, createSessionIx, userRootKeypair);
 console.log('Session created for:', dappSessionKeypair.address.toString());
 
-await connection.rpc
-  .requestAirdrop(swigAddress, lamports(BigInt(LAMPORTS_PER_SOL)))
-  .send();
-sleepSync(3000);
+// Fund SWIG PDA
+await confirmAirdrop(connection.rpc, swigAddress, 1n * LAMPORTS_PER_SOL);
 await swig.refetch();
-console.log('Swig balance after airdrop:', await connection.rpc.getBalance(swigAddress).send().then(res => res.value));
 
 console.log(
-  'Roles can spend sol:',
-  swig.roles.map((r) => r.actions.canSpendSol()),
-);
-console.log(
-  'Roles can spend 0.1 SOL:',
-  swig.roles.map((r) => r.actions.canSpendSol(BigInt(0.1 * LAMPORTS_PER_SOL))),
-);
-console.log(
-  'Roles can spend 0.11 SOL:',
-  swig.roles.map((r) => r.actions.canSpendSol(BigInt(0.11 * LAMPORTS_PER_SOL))),
+  'Swig balance after airdrop:',
+  (await connection.rpc.getBalance(swigAddress).send()).value,
 );
 
-console.log('Swig balance before transfer:', await connection.rpc.getBalance(swigAddress).send().then(res => res.value));
-console.log('Treasury balance before transfer:', await connection.rpc.getBalance(dappTreasury.address).send().then(res => res.value));
+// Capability checks (bigint-safe)
+const canSpendAny = swig.roles.map((r) => r.actions.canSpendSol());
+const canSpendPoint1 = swig.roles.map((r) => r.actions.canSpendSol(LAMPORTS_PER_SOL / 10n));
+const canSpendPoint11 = swig.roles.map((r) => r.actions.canSpendSol((LAMPORTS_PER_SOL * 11n) / 100n));
 
+console.log('Roles can spend sol:', canSpendAny);
+console.log('Roles can spend 0.1 SOL:', canSpendPoint1);
+console.log('Roles can spend 0.11 SOL:', canSpendPoint11);
+
+console.log(
+  'Swig balance before transfer:',
+  (await connection.rpc.getBalance(swigAddress).send()).value,
+);
+console.log(
+  'Treasury balance before transfer:',
+  (await connection.rpc.getBalance(dappTreasury.address).send()).value,
+);
+
+// Build transfer ix (u64 as bigint)
 const transferIx = {
   programAddress: SYSTEM_PROGRAM_ADDRESS,
   accounts: [
@@ -139,31 +157,43 @@ const transferIx = {
   ],
   data: new Uint8Array(
     getTransferSolInstructionDataEncoder().encode({
-      amount: BigInt(0.1 * LAMPORTS_PER_SOL),
-    })
+      amount: LAMPORTS_PER_SOL / 10n, // 0.1 SOL
+    }),
   ),
-};
+} satisfies IInstruction;
 
+// Find session role
+swig = await fetchSwig(connection.rpc, swigAddress);
 const sessionRole = swig.findRolesByEd25519SignerPk(dappSessionKeypair.address)[0];
 if (!sessionRole || !sessionRole.isSessionBased()) throw new Error('Invalid session role');
 console.log('Using session role ID:', sessionRole.id);
 
+// Fresh finalized slot before signing
+const signSlot = BigInt(
+  await connection.rpc.getSlot({ commitment: 'finalized' }).send()
+);
+
+// Sign as the session keypair (no signingFn needed for Ed25519 sessions)
 const signedTransferIx = await getSignInstructions(
   swig,
   sessionRole.id,
   [transferIx],
   false,
-  { payer: dappSessionKeypair.address },
+  { payer: dappSessionKeypair.address, currentSlot: signSlot },
 );
 
 console.log('Signing transfer...');
 const tx = await sendTransaction(connection, signedTransferIx, dappSessionKeypair);
 console.log(`Transaction submitted: https://explorer.solana.com/tx/${tx}?cluster=custom`);
 
-sleepSync(3000);
-
-console.log('Swig balance after transfer:', await connection.rpc.getBalance(swigAddress).send().then(res => res.value));
-console.log('Treasury balance after transfer:', await connection.rpc.getBalance(dappTreasury.address).send().then(res => res.value));
+console.log(
+  'Swig balance after transfer:',
+  (await connection.rpc.getBalance(swigAddress).send()).value,
+);
+console.log(
+  'Treasury balance after transfer:',
+  (await connection.rpc.getBalance(dappTreasury.address).send()).value,
+);
 
 //
 // Transaction helper
@@ -178,6 +208,7 @@ async function sendTransaction<T extends IInstruction[]>(
   signers: KeyPairSigner[] = [],
 ) {
   const { value: latestBlockhash } = await connection.rpc.getLatestBlockhash().send();
+
   const transactionMessage = pipe(
     createTransactionMessage({ version: 0 }),
     (tx) => setTransactionMessageFeePayerSigner(payer, tx),

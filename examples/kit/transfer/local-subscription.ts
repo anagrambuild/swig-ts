@@ -33,12 +33,15 @@ import {
 } from '@swig-wallet/kit';
 import chalk from 'chalk';
 
-const LAMPORTS_PER_SOL = 1_000_000_000;
+const LAMPORTS_PER_SOL = 1_000_000_000n; // bigint
 
+// -----------------------------
+// Helpers
+// -----------------------------
 function getSolTransferInstruction(args: {
   fromAddress: Address;
   toAddress: Address;
-  lamports: number;
+  lamports: bigint; // bigint (u64)
 }) {
   return {
     programAddress: SYSTEM_PROGRAM_ADDRESS,
@@ -80,22 +83,19 @@ async function sendTransaction<T extends IInstruction[]>(
     .getLatestBlockhash()
     .send();
 
-  const transactionMessage = getTransactionMessage(
+  const msg = getTransactionMessage(
     instructions,
     latestBlockhash,
     payer,
     signers,
   );
+  const signed = await signTransactionMessageWithSigners(msg);
 
-  const signedTransaction = await signTransactionMessageWithSigners(
-    transactionMessage,
-  );
-
-  await sendAndConfirmTransactionFactory(connection)(signedTransaction, {
+  await sendAndConfirmTransactionFactory(connection)(signed, {
     commitment: 'confirmed',
   });
 
-  return getSignatureFromTransaction(signedTransaction).toString();
+  return getSignatureFromTransaction(signed).toString();
 }
 
 function createConnection() {
@@ -111,6 +111,19 @@ function randomBytes(length: number): Uint8Array {
   return arr;
 }
 
+async function confirmAirdrop(
+  connection: ReturnType<typeof createConnection>,
+  to: Address,
+  amountLamports: bigint,
+) {
+  const sig = await connection.rpc
+    .requestAirdrop(to, lamports(amountLamports))
+    .send();
+  // Quick settle; validator speeds vary locally
+  await connection.rpc.getSignatureStatuses([sig]).send();
+  await new Promise((r) => setTimeout(r, 1200));
+}
+
 function section(title: string) {
   console.log('\n' + chalk.blue.bold('🔹 ' + title));
 }
@@ -124,33 +137,29 @@ function fail(msg: string) {
   console.log(chalk.red('✗ ' + msg));
 }
 
-console.log(chalk.bold.blue('\n🎯 SWIG Subscription Example'));
+// -----------------------------
+// Main
+// -----------------------------
+console.log(chalk.bold.blue('\n🎯 SWIG Subscription Example (kit)'));
 console.log(
   chalk.gray(
-    'This example demonstrates how to implement a subscription service using SWIG\n',
+    'This example demonstrates a subscription (recurring limit) with SWIG.\n',
   ),
 );
 
 const connection = createConnection();
 
 section('Setting up the environment');
-
 const root = await generateKeyPairSigner();
 const subscription = await generateKeyPairSigner();
-success('Generated keypairs for swig root and subscription service');
+success('Generated keypairs for SWIG root and subscription service');
 
 section('Funding accounts');
 await Promise.all([
-  connection.rpc
-    .requestAirdrop(root.address, lamports(10n * BigInt(LAMPORTS_PER_SOL)))
-    .send(),
-  connection.rpc
-    .requestAirdrop(subscription.address, lamports(10n * BigInt(LAMPORTS_PER_SOL)))
-    .send(),
+  confirmAirdrop(connection, root.address, 10n * LAMPORTS_PER_SOL),
+  confirmAirdrop(connection, subscription.address, 10n * LAMPORTS_PER_SOL),
 ]);
-success('Airdropped 10 SOL to all participants');
-
-await new Promise((r) => setTimeout(r, 3000)); // Wait for airdrop
+success('Airdropped 10 SOL to root & subscription');
 
 section('Creating SWIG wallet');
 const swigId = randomBytes(32);
@@ -167,88 +176,92 @@ const createSwigIx = await getCreateSwigInstruction({
 await sendTransaction(connection, [createSwigIx], root);
 success('Created SWIG wallet with root authority');
 
-await connection.rpc
-  .requestAirdrop(swigAddress, lamports(BigInt(10 * LAMPORTS_PER_SOL)))
-  .send();
+await confirmAirdrop(connection, swigAddress, 10n * LAMPORTS_PER_SOL);
+success('Funded SWIG wallet with 10 SOL');
 
 const swig = await fetchSwig(connection.rpc, swigAddress);
 const rootRole = swig.findRolesByEd25519SignerPk(root.address)[0];
 
 section('Setting up subscription limits');
+// Keep the window small so we can wait it out locally.
+const WINDOW_SLOTS = 20n;
+const RECURRING_AMOUNT = LAMPORTS_PER_SOL / 10n; // 0.1 SOL as bigint
+
 const recurringActions = Actions.set()
   .solRecurringLimit({
-    recurringAmount: BigInt(0.1 * LAMPORTS_PER_SOL),
-    window: BigInt(20), // block-based
+    recurringAmount: RECURRING_AMOUNT,
+    window: WINDOW_SLOTS, // slots
   })
   .get();
 
-const addAuthorityIx = await getAddAuthorityInstructions(
+const addAuthorityIxs = await getAddAuthorityInstructions(
   swig,
   rootRole.id,
   createEd25519AuthorityInfo(subscription.address),
   recurringActions,
+  { payer: root.address }, // explicit payer
 );
-await sendTransaction(connection, addAuthorityIx, root);
+await sendTransaction(connection, addAuthorityIxs, root);
 await swig.refetch();
-success('Added subscription service authority with 0.1 SOL monthly limit');
+success('Added subscription authority with 0.1 SOL / window');
 
 section('Testing subscription payments');
 
 async function tryTransfer(label: string, expectedToSucceed = true) {
-  info(`ℹ ${label}`);
+  info(label);
 
   const ix = getSolTransferInstruction({
     fromAddress: swigAddress,
     toAddress: subscription.address,
-    lamports: 0.1 * LAMPORTS_PER_SOL,
+    lamports: RECURRING_AMOUNT, // bigint
   });
 
+  // Refetch before looking up roles to be safe
+  await swig.refetch();
   const role = swig.findRolesByEd25519SignerPk(subscription.address)[0];
-  const signIx = await getSignInstructions(swig, role.id, [ix]);
+  const signIxs = await getSignInstructions(swig, role.id, [ix]);
 
   try {
-    await sendTransaction(connection, signIx, subscription);
+    await sendTransaction(connection, signIxs, subscription);
     if (expectedToSucceed) {
-      success(`✓ ${label}`);
+      success(`${label} succeeded`);
     } else {
-      fail(`✗ ${label} unexpectedly succeeded`);
+      fail(`${label} unexpectedly succeeded`);
     }
   } catch (err: any) {
     if (!expectedToSucceed) {
-      success(`✓ ${label} failed as expected (monthly limit reached)`);
+      success(`${label} failed as expected (limit reached)`);
     } else {
-      fail(`✗ ${label} failed unexpectedly: ${err.message}`);
+      fail(`${label} failed unexpectedly: ${err?.message ?? err}`);
+      throw err;
     }
   }
 }
 
-await tryTransfer('Attempting first 0.1 SOL subscription payment...');
+await tryTransfer('First 0.1 SOL payment…'); // should succeed
 console.log();
-await tryTransfer('Attempting second 0.1 SOL subscription payment immediately...', false);
+await tryTransfer('Second 0.1 SOL payment (same window)…', false); // should fail
 
 section('Testing limit reset');
-info('Waiting for 30 finalized blocks...');
-const startBlock = await connection.rpc
-  .getBlockHeight({ commitment: 'finalized' })
+// Wait by **slot** count (window + small buffer)
+info(`Waiting for ${WINDOW_SLOTS + 5n} finalized slots to elapse…`);
+const startSlot = await connection.rpc
+  .getSlot({ commitment: 'finalized' })
   .send();
+const target = BigInt(startSlot) + WINDOW_SLOTS + 5n;
 
-let currentBlock = BigInt(startBlock);
-const targetBlock = BigInt(startBlock) + 30n;
-
-while (currentBlock < targetBlock) {
+while (true) {
   await new Promise((r) => setTimeout(r, 500));
-  currentBlock = await connection.rpc
-    .getBlockHeight({ commitment: 'finalized' })
-    .send()
-    .then((r) => BigInt(r));
+  const s = await connection.rpc.getSlot({ commitment: 'finalized' }).send();
+  if (BigInt(s) >= target) break;
 }
-success(`Advanced from block ${startBlock} to ${currentBlock}`);
+success('Window elapsed');
 
-await tryTransfer('Attempting third 0.1 SOL subscription payment after window reset');
+await tryTransfer('Third 0.1 SOL payment after window reset…'); // should succeed
 
 console.log(chalk.green.bold('\n✨ Example completed successfully!'));
 console.log(
   chalk.gray(
-    'This demonstrates how SWIG can be used to implement subscription-based services',
+    'This demonstrates SWIG-driven recurring spend limits (subscriptions).',
   ),
 );

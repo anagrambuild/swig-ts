@@ -15,6 +15,7 @@ import {
   type IInstructionWithData,
   type KeyPairSigner,
   type ReadonlyUint8Array,
+  type Address,
 } from '@solana/kit';
 
 import {
@@ -36,7 +37,6 @@ import {
 import { Wallet } from '@ethereumjs/wallet';
 import { privateKeyToAccount } from 'viem/accounts';
 import { keccak256, hexToBytes } from 'viem';
-import { sleepSync } from 'bun';
 
 console.log('Starting Swig viem transfer on localnet...');
 console.log('This example demonstrates three different ways to sign transactions using Viem:');
@@ -45,10 +45,20 @@ console.log('2. Manual Ethereum personal sign prefix');
 console.log('3. Viem signMessage method (automatically adds Ethereum personal sign prefix)');
 console.log('Each method will transfer 0.1 SOL to show they all work equivalently.\n');
 
-// Set up Solana localnet RPC
+// ------------------ Setup ------------------
 const rpc = createSolanaRpc('http://localhost:8899');
 const rpcSubscriptions = createSolanaRpcSubscriptions('ws://localhost:8900');
 const connection = { rpc, rpcSubscriptions };
+
+const LAMPORTS_PER_SOL = 1_000_000_000n;
+
+// simple airdrop confirmer for localnet
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function confirmAirdrop(to: Address, amount: bigint) {
+  const sig = await rpc.requestAirdrop(to, lamports(amount)).send();
+  await rpc.getSignatureStatuses([sig]).send();
+  await delay(1200);
+}
 
 // Generate EVM wallet
 const userWallet = Wallet.generate();
@@ -57,12 +67,13 @@ const evmAccount = privateKeyToAccount(userWallet.getPrivateKeyString());
 // Generate localnet payers
 const payer = await generateKeyPairSigner();
 const dappTreasury = await generateKeyPairSigner();
-await rpc.requestAirdrop(payer.address, lamports(1_000_000_000n)).send();
-await rpc.requestAirdrop(dappTreasury.address, lamports(1_000_000_000n)).send();
-sleepSync(2000);
+await Promise.all([
+  confirmAirdrop(payer.address, 1n * LAMPORTS_PER_SOL),
+  confirmAirdrop(dappTreasury.address, 1n * LAMPORTS_PER_SOL),
+]);
 
 // Swig ID and address
-const swigId = Uint8Array.from(Array(32).fill(1));
+const swigId = Uint8Array.from({ length: 32 }, () => 1);
 const swigAddress = await findSwigPda(swigId);
 
 // Create Swig with secp256k1 authority
@@ -76,15 +87,15 @@ const createSwigIx = await getCreateSwigInstruction({
 await sendTransaction(connection, [{ ...createSwigIx, data: new Uint8Array(createSwigIx.data) }], payer);
 
 // Fund Swig PDA
-await rpc.requestAirdrop(swigAddress, lamports(1_000_000_000n)).send();
-sleepSync(2000);
+await confirmAirdrop(swigAddress, 1n * LAMPORTS_PER_SOL);
 
 // Fetch Swig account and role
 let swig = await fetchSwig(rpc, swigAddress);
 let rootRole = swig.findRolesBySecp256k1SignerAddress(evmAccount.address)[0];
 if (!rootRole) throw new Error('Root role not found');
 
-// Prepare transfer instruction (0.1 SOL)
+// Prepare transfer instruction (0.1 SOL) — pass raw bigint to encoder
+const TRANSFER_AMOUNT = 100_000_000n; // 0.1 SOL
 const transferIx = {
   programAddress: SYSTEM_PROGRAM_ADDRESS,
   accounts: [
@@ -93,12 +104,12 @@ const transferIx = {
   ],
   data: new Uint8Array(
     getTransferSolInstructionDataEncoder().encode({
-      amount: lamports(100_000_000n), // 0.1 SOL
+      amount: TRANSFER_AMOUNT,
     }),
   ),
-};
+} satisfies IInstructionWithData<ReadonlyUint8Array>;
 
-// Signing variants
+// ------------------ Signing variants ------------------
 
 // Method 1: Direct keccak256 hash - signs the raw message bytes directly
 const viemSign: SigningFn = async (message) => {
@@ -109,20 +120,17 @@ const viemSign: SigningFn = async (message) => {
 // Method 2: Manual Ethereum personal sign - adds "\x19Ethereum Signed Message:\n{length}" prefix manually
 const viemSignWithPrefix: SigningFn = async (message) => {
   const prefix = getEvmPersonalSignPrefix(message.length);
-  const prefixedMessage = new Uint8Array(prefix.length + message.length);
-  prefixedMessage.set(prefix);
-  prefixedMessage.set(message, prefix.length);
-  const sig = await evmAccount.sign({ hash: keccak256(prefixedMessage) });
+  const prefixed = new Uint8Array(prefix.length + message.length);
+  prefixed.set(prefix);
+  prefixed.set(message, prefix.length);
+  const sig = await evmAccount.sign({ hash: keccak256(prefixed) });
   return { signature: hexToBytes(sig), prefix };
 };
 
 // Method 3: Viem's signMessage - automatically adds Ethereum personal sign prefix
 const viemSignMessage: SigningFn = async (message) => {
   const sig = await evmAccount.signMessage({ message: { raw: message } });
-  return {
-    signature: hexToBytes(sig),
-    prefix: getEvmPersonalSignPrefix(message.length),
-  };
+  return { signature: hexToBytes(sig), prefix: getEvmPersonalSignPrefix(message.length) };
 };
 
 // Send transfers using each signing method
@@ -130,22 +138,30 @@ await signAndSendSwigTransfer('Direct keccak256 hash signing (raw message)', vie
 await signAndSendSwigTransfer('Manual Ethereum personal sign prefix (\\x19Ethereum Signed Message...)', viemSignWithPrefix);
 await signAndSendSwigTransfer('Viem signMessage method (includes Ethereum personal sign prefix)', viemSignMessage);
 
-// ---------- Helper Functions ----------
-
+// ------------------ Helpers ------------------
 async function signAndSendSwigTransfer(
   label: string,
   signingFn: SigningFn,
 ): Promise<void> {
-  const currentSlot = await rpc.getSlot().send();
+  // Use a finalized slot for deterministic `currentSlot`
+  const currentSlot = await rpc.getSlot({ commitment: 'finalized' }).send();
+
+  // Ensure freshest SWIG state & role before signing
   swig = await fetchSwig(rpc, swigAddress);
   rootRole = swig.findRolesBySecp256k1SignerAddress(evmAccount.address)[0];
   if (!rootRole) throw new Error('Role not found');
 
-  const signedIxs = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
-    payer: payer.address,
-    currentSlot,
-    signingFn,
-  });
+  const signedIxs = await getSignInstructions(
+    swig,
+    rootRole.id,
+    [transferIx],
+    false,
+    {
+      payer: payer.address,
+      currentSlot: BigInt(currentSlot),
+      signingFn,
+    },
+  );
 
   const before = (await rpc.getBalance(swigAddress).send()).value;
   const sig = await sendTransaction(connection, signedIxs, payer);

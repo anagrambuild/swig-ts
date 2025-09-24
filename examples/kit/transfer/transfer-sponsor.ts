@@ -24,9 +24,7 @@ import {
   TOKEN_PROGRAM_ADDRESS,
 } from '@solana-program/token';
 
-import {
-  getCreateAccountInstruction,
-} from '@solana-program/system';
+import { getCreateAccountInstruction } from '@solana-program/system';
 
 import {
   findSwigPda,
@@ -38,24 +36,20 @@ import {
   Actions,
 } from '@swig-wallet/kit';
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// ---------------- helpers ----------------
+const LAMPORTS_PER_SOL = 1_000_000_000n;
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function confirmAirdrop(
+  rpc: ReturnType<typeof createSolanaRpc>,
+  to: string,
+  amount: bigint
+) {
+  const sig = await (rpc as any).requestAirdrop(to, lamports(amount)).send();
+  await rpc.getSignatureStatuses([sig]).send();
+  await delay(1200);
 }
 
-function randomBytes(length: number): Uint8Array {
-  const arr = new Uint8Array(length);
-  crypto.getRandomValues(arr);
-  return arr;
-}
-
-const connection = {
-  rpc: createSolanaRpc('http://localhost:8899'),
-  rpcSubscriptions: createSolanaRpcSubscriptions('ws://localhost:8900'),
-};
-
-const DECIMALS = 6;
-
-// Helper to send instructions
 async function sendTx(instructions: any[], feePayer: any, signers: any[] = []) {
   const { value: blockhash } = await connection.rpc.getLatestBlockhash().send();
 
@@ -72,7 +66,21 @@ async function sendTx(instructions: any[], feePayer: any, signers: any[] = []) {
   return getSignatureFromTransaction(signed).toString();
 }
 
-// Main logic
+function randomBytes(length: number): Uint8Array {
+  const arr = new Uint8Array(length);
+  crypto.getRandomValues(arr);
+  return arr;
+}
+
+// ---------------- setup ----------------
+const connection = {
+  rpc: createSolanaRpc('http://localhost:8899'),
+  rpcSubscriptions: createSolanaRpcSubscriptions('ws://localhost:8900'),
+};
+
+const DECIMALS = 6;
+
+// ---------------- main ----------------
 (async () => {
   const userRoot = await generateKeyPairSigner();
   const userMgr = await generateKeyPairSigner();
@@ -80,13 +88,13 @@ async function sendTx(instructions: any[], feePayer: any, signers: any[] = []) {
   const usdcMint = await generateKeyPairSigner();
   const recipient = await generateKeyPairSigner();
 
-  // Ensure all accounts are properly funded
-  const accountsToFund = [userRoot.address, userMgr.address, devWallet.address, recipient.address];
-  for (const account of accountsToFund) {
-    const requiredLamports = lamports(1_000_000_000n); // 1 SOL
-    await connection.rpc.requestAirdrop(account, requiredLamports).send();
-  }
-  await sleep(3000);
+  // Fund accounts (no sleeps)
+  await Promise.all([
+    confirmAirdrop(connection.rpc, userRoot.address, LAMPORTS_PER_SOL),
+    confirmAirdrop(connection.rpc, userMgr.address, LAMPORTS_PER_SOL),
+    confirmAirdrop(connection.rpc, devWallet.address, LAMPORTS_PER_SOL),
+    confirmAirdrop(connection.rpc, recipient.address, LAMPORTS_PER_SOL),
+  ]);
 
   // Swig setup
   const id = randomBytes(32);
@@ -98,19 +106,21 @@ async function sendTx(instructions: any[], feePayer: any, signers: any[] = []) {
     authorityInfo: createEd25519AuthorityInfo(userRoot.address),
     actions: Actions.set().all().get(),
   });
-
   await sendTx([swigIx], userRoot);
-  await sleep(3000);
+
   const swig = await fetchSwig(connection.rpc, swigAddr);
 
-  const mgrIx = await getAddAuthorityInstructions(
+  const mgrIxs = await getAddAuthorityInstructions(
     swig,
     swig.findRolesByEd25519SignerPk(userRoot.address)[0].id,
     createEd25519AuthorityInfo(userMgr.address),
-    Actions.set().manageAuthority().get()
+    Actions.set().manageAuthority().get(),
+    { payer: userRoot.address }
   );
-  await sendTx(mgrIx, userRoot);
+  await sendTx(mgrIxs, userRoot);
+  await swig.refetch();
 
+  // ----- Mint USDC-like token -----
   const mintSize = BigInt(getMintSize());
   const rent = await connection.rpc.getMinimumBalanceForRentExemption(mintSize).send();
 
@@ -156,40 +166,53 @@ async function sendTx(instructions: any[], feePayer: any, signers: any[] = []) {
     mint: usdcMint.address,
     token: swigAta,
     mintAuthority: devWallet,
-    amount: 1000_000n,
+    amount: 1_000_000n, // 1.000000 with 6 decimals
     decimals: DECIMALS,
   });
 
-  await sendTx([
-    createMintIx,
-    initMintIx,
-    createSwigAtaIx,
-    createRecipAtaIx,
-    mintToIx,
-  ], devWallet);
+  await sendTx(
+    [createMintIx, initMintIx, createSwigAtaIx, createRecipAtaIx, mintToIx],
+    devWallet
+  );
 
+  // ----- Give devWallet token spend permissions on SWIG -----
   await swig.refetch();
 
-  const devIx = await getAddAuthorityInstructions(
+  const devIxs = await getAddAuthorityInstructions(
     swig,
     swig.findRolesByEd25519SignerPk(userMgr.address)[0].id,
     createEd25519AuthorityInfo(devWallet.address),
-    Actions.set().tokenLimit({ mint: usdcMint.address, amount: 1000_000n }).get()
+    Actions.set().tokenLimit({ mint: usdcMint.address, amount: 1_000_000n }).get(), // 1.000000 max
+    { payer: userMgr.address }
   );
-  await sendTx(devIx, userMgr);
+  await sendTx(devIxs, userMgr);
   await swig.refetch();
 
   const devRole = swig.findRolesByEd25519SignerPk(devWallet.address)[0];
+
+  // ----- Transfer 0.250000 tokens from SWIG to recipient -----
   const transferIx = getTransferCheckedInstruction({
     source: swigAta,
     destination: recipAta,
     mint: usdcMint.address,
     authority: swigAddr,
-    amount: 250_000n,
+    amount: 250_000n, // 0.250000
     decimals: DECIMALS,
   });
 
-  const signIxs = await getSignInstructions(swig, devRole.id, [transferIx]);
+  // Use a finalized slot for deterministic signing context
+  const currentSlot = BigInt(
+    await connection.rpc.getSlot({ commitment: 'finalized' }).send()
+  );
+
+  const signIxs = await getSignInstructions(
+    swig,
+    devRole.id,
+    [transferIx],
+    false,
+    { payer: devWallet.address, currentSlot }
+  );
+
   const sig = await sendTx(signIxs, devWallet);
 
   console.log(`Tx hash: https://explorer.solana.com/tx/${sig}?cluster=custom`);
