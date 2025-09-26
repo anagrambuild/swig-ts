@@ -13,7 +13,6 @@ import {
   getCreateSessionInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
-  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
 } from '@swig-wallet/classic';
@@ -118,7 +117,7 @@ sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
 //
 let swig = fetchSwig(svm, swigAddress);
 // swig.refetch(connection)
-const swigWalletAddress = await getSwigWalletAddress(swig)
+
 //
 // * find role by id
 //
@@ -126,7 +125,7 @@ let rootRole = swig.findRoleById(0);
 
 if (!rootRole) throw new Error('Role not found for authority');
 
-svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
+svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
 
 const newSessionInstruction = await getCreateSessionInstructions(
   swig,
@@ -168,7 +167,7 @@ console.log(
   ),
 );
 
-console.log('swig balance before first transfer:', svm.getBalance(swigWalletAddress));
+console.log('swig balance before first transfer:', svm.getBalance(swigAddress));
 console.log(
   'dapp treasury balance before first transfer:',
   svm.getBalance(dappTreasury),
@@ -178,7 +177,7 @@ console.log(
 // * spend max sol permitted
 //
 const transfer = SystemProgram.transfer({
-  fromPubkey: swigWalletAddress,
+  fromPubkey: swigAddress,
   toPubkey: dappTreasury,
   lamports: 0.1 * LAMPORTS_PER_SOL,
 });
@@ -193,7 +192,7 @@ const signTransfer = await getSignInstructions(
 
 sendSVMTransaction(svm, signTransfer, dappSessionKeypair);
 
-console.log('swig balance after first transfer:', svm.getBalance(swigWalletAddress));
+console.log('swig balance after first transfer:', svm.getBalance(swigAddress));
 console.log(
   'dapp treasury balance after first transfer:',
   svm.getBalance(dappTreasury),
