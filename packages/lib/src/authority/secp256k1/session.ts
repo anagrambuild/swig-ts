@@ -114,7 +114,7 @@ export class Secp256k1SessionAuthority
 
   signV2(args: {
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
@@ -123,7 +123,7 @@ export class Secp256k1SessionAuthority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress,
+        swigSystemAddress: args.swigSystemAddress,
       },
       {
         authorityData: this.sessionKey.toBytes(),
@@ -346,7 +346,7 @@ export class Secp256k1SessionAuthority
   transferAssets(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     roleId: number;
     options: InstructionDataOptions;
   }) {
@@ -354,7 +354,7 @@ export class Secp256k1SessionAuthority
       {
         payer: args.payer,
         swig: args.swigAddress,
-        swigWalletAddress: args.swigAddress,
+        swigSystemAddress: args.swigAddress,
       },
       {
         roleId: args.roleId,

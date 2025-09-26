@@ -15,14 +15,14 @@ import { SwigInstructionV1 } from '../src/instructions/SwigInstruction';
 test('getCreateV1BaseAccountMetas returns correct structure', () => {
   const accounts = {
     swig: 'Swig111111111111111111111111111111111111111' as any,
-    swigWalletAddress: 'SwigAcct11111111111111111111111111111111111' as any,
+    swigSystemAddress: 'SwigAcct11111111111111111111111111111111111' as any,
     payer: 'Payer11111111111111111111111111111111111111' as any,
   };
   const metas = getCreateV1BaseAccountMetas(accounts);
   expect(metas.length).toBe(4);
   expect(metas[0].publicKey.toAddress()).toBe(accounts.swig);
   expect(metas[1].publicKey.toAddress()).toBe(accounts.payer);
-  expect(metas[2].publicKey.toAddress()).toBe(accounts.swigWalletAddress);
+  expect(metas[2].publicKey.toAddress()).toBe(accounts.swigSystemAddress);
 });
 
 test('getAddAuthorityV1BaseAccountMetas returns correct structure', () => {

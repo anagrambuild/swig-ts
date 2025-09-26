@@ -20,7 +20,7 @@ import {
 } from '../solana';
 import {
   findSwigSubAccountPdaRaw,
-  findSwigWalletAddressPdaRaw,
+  findSwigSystemAddressPdaRaw,
   getUnprefixedSecpBytes,
 } from '../utils';
 
@@ -59,11 +59,6 @@ export class Swig {
     return 'v2';
   }
 
-  async walletAddress() {
-    if (this.accountVersion() === 'v1') return this.accountAddress();
-    return this.systemAddress();
-  }
-
   /**
    * The Address of the Swig PDA Account that holds all details of the Swig.
    * The address is the wallet address of the swig for legacy account
@@ -71,15 +66,6 @@ export class Swig {
    */
   accountAddress() {
     return this.address;
-  }
-
-  /**
-   * The Address of the System account associated with the new Swig account.
-   * The Address is the wallet address of the swig for Swig Account v2
-   * @returns the swig wallet address
-   */
-  async systemAddress() {
-    return (await findSwigWalletAddressPdaRaw(this.address))[0];
   }
 
   /**
@@ -339,7 +325,7 @@ export const getSignInstructionContext = async (
       innerInstructions,
       payer,
       swigAddress: swig.address,
-      swigWalletAddress: await swig.systemAddress(),
+      swigSystemAddress: await getSwigSystemAddressRaw(swig),
       options,
     });
   }
@@ -521,7 +507,7 @@ export const getTransferAssetsInstructionContext = async (
     roleId: role.id,
     payer,
     swigAddress: swig.address,
-    swigWalletAddress: await swig.systemAddress(),
+    swigSystemAddress: await getSwigSystemAddressRaw(swig),
     options,
   });
 };
@@ -563,6 +549,34 @@ async function assertInstructionOptions(
   const payer = new SolPublicKey(payerBytes);
 
   return { payer, role };
+}
+
+/**
+ * The Address of the Swig PDA Account that holds all details of the Swig.
+ * The address is the wallet address of the swig for legacy account
+ * @returns the swig account address
+ */
+export function getSwigAccountAddressRaw(swig: Swig) {
+  return swig.accountAddress();
+}
+
+/**
+ * The Address of the System account associated with the new Swig account.
+ * The Address is the wallet address of the swig for Swig Account v2
+ * @returns the swig wallet address
+ */
+export async function getSwigSystemAddressRaw(swig: Swig) {
+  return (await findSwigSystemAddressPdaRaw(swig.accountAddress()))[0];
+}
+
+/**
+ * Returns the wallet address of the swig based on the account version.
+ * @param swig Swig Account
+ * @returns account address in v1, or system address in v2
+ */
+export async function getSwigWalletAddressRaw(swig: Swig) {
+  if (swig.accountVersion() === 'v1') return getSwigAccountAddressRaw(swig);
+  return getSwigSystemAddressRaw(swig);
 }
 
 export type SwigOptions = {

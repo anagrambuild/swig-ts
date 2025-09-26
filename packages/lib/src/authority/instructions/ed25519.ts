@@ -74,7 +74,7 @@ export const Ed25519Instruction: AuthorityInstruction = {
       accounts.swig,
       signInstructionsAccount,
       data.innerInstructions,
-      [accounts.swigWalletAddress],
+      [accounts.swigSystemAddress],
     );
 
     return SwigInstructionV2.sign(metas, {

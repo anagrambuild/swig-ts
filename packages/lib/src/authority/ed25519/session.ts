@@ -91,7 +91,7 @@ export class Ed25519SessionAuthority
 
   signV2(args: {
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
@@ -100,7 +100,7 @@ export class Ed25519SessionAuthority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress,
+        swigSystemAddress: args.swigSystemAddress,
       },
       {
         authorityData: this.data,
@@ -307,7 +307,7 @@ export class Ed25519SessionAuthority
 
   transferAssets(args: {
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
     roleId: number;
   }) {
@@ -315,7 +315,7 @@ export class Ed25519SessionAuthority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress,
+        swigSystemAddress: args.swigSystemAddress,
       },
       {
         authorityData: this.data,

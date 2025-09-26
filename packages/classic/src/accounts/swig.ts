@@ -6,6 +6,8 @@ import {
 } from '@solana/web3.js';
 import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
 import {
+  getSwigSystemAddressRaw,
+  getSwigWalletAddressRaw,
   SolPublicKey,
   Swig,
   type SolPublicKeyData,
@@ -131,16 +133,16 @@ export function findSwigSubAccountPda(
 }
 
 export function getSwigAccountAddress(swig: Swig): PublicKey {
-  const publicKeyBytes = swig.accountAddress().toBytes();
+  const publicKeyBytes = getSwigAccountAddress(swig).toBytes();
   return new PublicKey(publicKeyBytes);
 }
 
 export async function getSwigSystemAddress(swig: Swig): Promise<PublicKey> {
-  const publicKeyBytes = (await swig.systemAddress()).toBytes();
+  const publicKeyBytes = (await getSwigSystemAddressRaw(swig)).toBytes();
   return new PublicKey(publicKeyBytes);
 }
 
 export async function getSwigWalletAddress(swig: Swig): Promise<PublicKey> {
-  const publicKeyBytes = (await swig.walletAddress()).toBytes();
+  const publicKeyBytes = (await getSwigWalletAddressRaw(swig)).toBytes();
   return new PublicKey(publicKeyBytes);
 }

@@ -74,7 +74,7 @@ export abstract class Authority {
    */
   abstract signV2(args: {
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
@@ -172,7 +172,7 @@ export abstract class Authority {
   abstract transferAssets(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     roleId: number;
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;
