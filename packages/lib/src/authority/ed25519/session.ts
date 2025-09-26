@@ -103,7 +103,7 @@ export class Ed25519SessionAuthority
         swigSystemAddress: args.swigSystemAddress,
       },
       {
-        authorityData: this.data,
+        authorityData: this.sessionKey.toBytes(),
         innerInstructions: args.innerInstructions,
         roleId: args.roleId,
       },
