@@ -25,11 +25,23 @@ import {
 } from '@swig-wallet/kit';
 
 import chalk from 'chalk';
-import { sleepSync } from 'bun';
 
 // ---------------------------------------
 // Util
 // ---------------------------------------
+const LAMPORTS_PER_SOL = 1_000_000_000n;
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function confirmAirdrop(
+  rpc: ReturnType<typeof createSolanaRpc>,
+  to: string,
+  amount: bigint
+) {
+  const sig = await (rpc as any).requestAirdrop(to, lamports(amount)).send();
+  await (rpc as any).getSignatureStatuses({ signatures: [sig] }).send();
+  await delay(1200);
+}
+
 function randomBytes(length: number): Uint8Array {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
@@ -63,29 +75,15 @@ async function sendTransaction<T extends IInstruction[]>(
   payer: KeyPairSigner,
   signers: KeyPairSigner[] = [],
 ) {
-  const { value: latestBlockhash } = await connection.rpc
-    .getLatestBlockhash()
-    .send();
-  const transactionMessage = getTransactionMessage(
-    instructions,
-    latestBlockhash,
-    payer,
-    signers,
-  );
-  const signedTransaction =
-    await signTransactionMessageWithSigners(transactionMessage);
-
-  await sendAndConfirmTransactionFactory(connection as any)(signedTransaction, {
-    commitment: 'confirmed',
-  });
-
-  const signature = getSignatureFromTransaction(signedTransaction);
-
-  return signature.toString();
+  const { value: latestBlockhash } = await connection.rpc.getLatestBlockhash().send();
+  const message = getTransactionMessage(instructions, latestBlockhash, payer, signers);
+  const signed = await signTransactionMessageWithSigners(message);
+  await sendAndConfirmTransactionFactory(connection as any)(signed, { commitment: 'confirmed' });
+  return getSignatureFromTransaction(signed).toString();
 }
 
 // ---------------------------------------
-// Create Swig Account (converted function)
+// Create Swig Account
 // ---------------------------------------
 async function createSwigAccount(
   connection: {
@@ -94,31 +92,25 @@ async function createSwigAccount(
   },
   user: KeyPairSigner,
 ) {
-  try {
-    const id = randomBytes(32);
-    const swigAddress = await findSwigPda(id);
-    const authorityInfo = createEd25519AuthorityInfo(user.address);
-    const actions = Actions.set().manageAuthority().get();
+  const id = randomBytes(32);
+  const swigAddress = await findSwigPda(id);
 
-    const ix = await getCreateSwigInstruction({
-      payer: user.address,
-      id,
-      authorityInfo,
-      actions,
-    });
+  // Use manageAuthority only; switch to Actions.set().all().get() for full access.
+  const actions = Actions.set().manageAuthority().get();
+  const authorityInfo = createEd25519AuthorityInfo(user.address);
 
-    const sig = await sendTransaction(connection, [ix], user);
+  const ix = await getCreateSwigInstruction({
+    payer: user.address,
+    id,
+    authorityInfo,
+    actions,
+  });
 
-    console.log(
-      chalk.green('✓ Swig account created at:'),
-      chalk.cyan(swigAddress.toString()),
-    );
-    console.log(chalk.blue('Transaction signature:'), chalk.cyan(sig));
-    return swigAddress;
-  } catch (error) {
-    console.error(chalk.red('✗ Error creating Swig account:'), chalk.red(error));
-    throw error;
-  }
+  const sig = await sendTransaction(connection, [ix], user);
+
+  console.log(chalk.green('✓ Swig account created at:'), chalk.cyan(swigAddress.toString()));
+  console.log(chalk.blue('Transaction signature:'), chalk.cyan(sig));
+  return swigAddress;
 }
 
 // ---------------------------------------
@@ -134,29 +126,18 @@ async function createSwigAccount(
 
   const user = await generateKeyPairSigner();
 
-  // Airdrop
-  await connection.rpc
-    .requestAirdrop(user.address, lamports(BigInt(100 * 1_000_000_000)))
-    .send();
+  // Airdrop & confirm
+  await confirmAirdrop(connection.rpc, user.address, 100n * LAMPORTS_PER_SOL);
 
-  await sleepSync(2000);
-
-  console.log(
-    chalk.green('👤 User public key:'),
-    chalk.cyan(user.address.toString()),
-  );
+  console.log(chalk.green('👤 User public key:'), chalk.cyan(user.address.toString()));
 
   const swigAddress = await createSwigAccount(connection, user);
 
-  setTimeout(() => {
-    console.log(chalk.green('\n✨ Everything looks good!'));
-    console.log(
-      chalk.yellow('🔍 Check out your transaction on Solana Explorer:'),
-    );
-    console.log(
-      chalk.cyan(
-        `https://explorer.solana.com/address/${swigAddress.toString()}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
-      ),
-    );
-  }, 2000);
+  console.log(chalk.green('\n✨ Everything looks good!'));
+  console.log(chalk.yellow('🔍 View on Solana Explorer:'));
+  console.log(
+    chalk.cyan(
+      `https://explorer.solana.com/address/${swigAddress.toString()}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+    ),
+  );
 })();
