@@ -194,7 +194,8 @@ describe('SwigInstructionV1', () => {
       SolAccountMeta.fromKitAccountMeta,
     ) as SubAccountToggleV1BaseAccountMetas;
     const data = {
-      roleId: 0,
+      actingRoleId: 0,
+      subAccountRoleId: 0,
       authorityPayload: new Uint8Array([]),
       enabled: true,
     };
