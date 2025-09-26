@@ -253,7 +253,8 @@ export class Secp256k1SessionAuthority
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
-    roleId: number;
+    subAccountRoleId: number;
+    actingRoleId: number;
     enabled: boolean;
     options: InstructionDataOptions;
   }) {
@@ -264,7 +265,8 @@ export class Secp256k1SessionAuthority
         subAccount: args.subAccount,
       },
       {
-        roleId: args.roleId,
+        subAccountRoleId: args.subAccountRoleId,
+        actingRoleId: args.actingRoleId,
         authorityData: this.data,
         enabled: args.enabled,
       },

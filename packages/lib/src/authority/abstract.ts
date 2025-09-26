@@ -143,7 +143,8 @@ export abstract class Authority {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
-    roleId: number;
+    actingRoleId: number;
+    subAccountRoleId: number;
     enabled: boolean;
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;

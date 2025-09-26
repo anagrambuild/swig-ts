@@ -24,15 +24,17 @@ import {
 
 export type SubAccountToggleV1InstructionData = {
   discriminator: number;
-  _padding: ReadonlyUint8Array;
   enabled: boolean;
-  roleId: number;
+  _padding: ReadonlyUint8Array;
+  subAccountRoleId: number;
+  actingRoleId: number;
   authorityPayload: ReadonlyUint8Array;
 };
 
 export type SubAccountToggleV1InstructionDataArgs = {
   enabled: boolean;
-  roleId: number;
+  subAccountRoleId: number;
+  actingRoleId: number;
   authorityPayload: ReadonlyUint8Array;
 };
 
@@ -43,13 +45,14 @@ export function getSubAccountToggleV1InstructionDataCodec() {
         ['discriminator', getSwigInstructionDiscriminatorEncoder()],
         ['_padding', fixEncoderSize(getBytesEncoder(), 1)],
         ['enabled', getBooleanEncoder()],
-        ['roleId', getU32Encoder()],
+        ['subAccountRoleId', getU32Encoder()],
+        ['actingRoleId', getU32Encoder()],
         ['authorityPayload', getBytesEncoder()],
       ]),
       (value) => ({
         ...value,
         discriminator: Discriminator.SubAccountToggleV1,
-        _padding: new Uint8Array(1),
+        _padding: new Uint8Array(5),
       }),
     );
 
@@ -60,12 +63,13 @@ export function getSubAccountToggleV1InstructionDataCodec() {
       ['discriminator', getSwigInstructionDiscriminatorEncoder()],
       ['_padding', fixEncoderSize(getBytesEncoder(), 1)],
       ['enabled', getBooleanEncoder()],
-      ['roleId', getU32Encoder()],
+      ['subAccountRoleId', getU32Encoder()],
+      ['actingRoleId', getU32Encoder()],
     ]),
     (value) => ({
       ...value,
       discriminator: Discriminator.SubAccountToggleV1,
-      _padding: new Uint8Array(1),
+      _padding: new Uint8Array(5),
     }),
   );
 
@@ -73,7 +77,8 @@ export function getSubAccountToggleV1InstructionDataCodec() {
     ['discriminator', getSwigInstructionDiscriminatorDecoder()],
     ['_padding', fixDecoderSize(getBytesDecoder(), 1)],
     ['enabled', getBooleanDecoder()],
-    ['roleId', getU32Decoder()],
+    ['subAccountRoleId', getU32Decoder()],
+    ['actingRoleId', getU32Decoder()],
     ['authorityPayload', getBytesDecoder()],
   ]);
 

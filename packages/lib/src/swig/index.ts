@@ -408,6 +408,7 @@ export const getToggleSubAccountInstructionContext = async (
   swig: Swig,
   roleId: number,
   enabled: boolean,
+  subAccountRoleId?: number,
   options?: SwigOptions,
 ) => {
   const { payer, role } = await assertInstructionOptions(
@@ -421,7 +422,8 @@ export const getToggleSubAccountInstructionContext = async (
     swigAddress: role.swigAddress,
     subAccount: (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
     payer,
-    roleId: role.id,
+    actingRoleId: role.id,
+    subAccountRoleId: subAccountRoleId ?? roleId,
     options,
     enabled,
   });
