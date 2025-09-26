@@ -21,8 +21,16 @@
     "transfer-svm-subaccount": "bun run transfer-svm-subaccount.ts",
     "transfer-svm-secp": "bun run transfer-svm-secp.ts",
     "transfer-svm-session": "bun run transfer-svm-session.ts",
+    "transfer-local-sol-destination": "bun run transfer-local-sol-destination.ts",
+    "transfer-local-token-destination": "bun run transfer-local-token-destination.ts",
+    "transfer-local-token-recurring-destination-limit": "bun run transfer-local-token-recurring-destination-limit.ts",
+    "transfer-svm-sol-destination": "bun run transfer-svm-sol-destination.ts",
+    "transfer-svm-sol-recurring-destination-limit": "bun run transfer-svm-sol-recurring-destination-limit.ts",
+    "transfer-svm-token-destination": "bun run transfer-svm-token-destination.ts",
+    "transfer-svm-token-recurring-destination-limit": "bun run transfer-svm-token-recurring-destination-limit.ts",
     "transfer-svm-viem": "bun run transfer-svm-viem.ts",
-    "transfer-svm": "bun run transfer-svm.ts"
+    "transfer-svm": "bun run transfer-svm.ts",
+    "withdraw-sol-subaccount": "bun run withdraw-sol-subaccount.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.2.5",

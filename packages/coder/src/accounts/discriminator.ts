@@ -9,8 +9,6 @@ import {
 
 export enum SwigAccountDiscriminator {
   Swig = 1,
-  // SubAccount = 2,
-  // SwigWalletAddress = 3,
 }
 
 export function getSwigAccountDiscriminatorEncoder(): Encoder<SwigAccountDiscriminator> {
