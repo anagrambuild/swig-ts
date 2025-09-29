@@ -18,8 +18,7 @@
     "transfer-local-subaccount": "bun run transfer-local-subaccount.ts",
     "transfer-local-viem": "bun run transfer-local-viem.ts",
     "transfer-local": "bun run transfer-local.ts",
-    "transfer-sponsor": "bun run transfer-sponsor.ts",
-    "test:all": "bun run run-scripts.ts"
+    "transfer-sponsor": "bun run transfer-sponsor.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.2.5",
