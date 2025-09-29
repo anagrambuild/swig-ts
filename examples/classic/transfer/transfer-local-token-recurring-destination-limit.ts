@@ -193,7 +193,7 @@ async function sendTransaction(
 
   // Create role with recurring token destination limit: 500 tokens per window to specific recipient
   const roleKeypair = Keypair.generate();
-  const recurringAmount = BigInt(600 * 10 ** decimals);
+  const recurringAmount = BigInt(500 * 10 ** decimals);
   const window = BigInt(100); // 100 slots window for testing
 
   const actions = Actions.set()
