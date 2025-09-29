@@ -30,7 +30,9 @@
     "transfer-svm-token-recurring-destination-limit": "bun run transfer-svm-token-recurring-destination-limit.ts",
     "transfer-svm-viem": "bun run transfer-svm-viem.ts",
     "transfer-svm": "bun run transfer-svm.ts",
-    "withdraw-sol-subaccount": "bun run withdraw-sol-subaccount.ts"
+    "withdraw-sol-subaccount": "bun run withdraw-sol-subaccount.ts",
+    "test:all": "bun run run-scripts.ts"
+
   },
   "devDependencies": {
     "@types/bun": "^1.2.5",

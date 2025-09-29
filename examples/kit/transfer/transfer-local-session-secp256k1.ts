@@ -1,17 +1,17 @@
 import {
+  AccountRole,
+  appendTransactionMessageInstructions,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
-  generateKeyPairSigner,
-  sendAndConfirmTransactionFactory,
-  getSignatureFromTransaction,
   createTransactionMessage,
+  generateKeyPairSigner,
+  getSignatureFromTransaction,
+  lamports,
+  pipe,
+  sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
   signTransactionMessageWithSigners,
-  pipe,
-  lamports,
-  AccountRole,
   type IInstruction,
   type KeyPairSigner,
 } from '@solana/kit';
@@ -24,12 +24,13 @@ import {
 import {
   Actions,
   createSecp256k1SessionAuthorityInfo,
-  findSwigPda,
-  getCreateSwigInstruction,
-  getSignInstructions,
   fetchSwig,
-  getSigningFnForSecp256k1PrivateKey,
+  findSwigPda,
   getCreateSessionInstructions,
+  getCreateSwigInstruction,
+  getSigningFnForSecp256k1PrivateKey,
+  getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 
 import { Wallet } from '@ethereumjs/wallet';
@@ -42,7 +43,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function confirmAirdrop(
   rpc: ReturnType<typeof createSolanaRpc>,
   to: string,
-  amount: bigint
+  amount: bigint,
 ) {
   const sig = await (rpc as any).requestAirdrop(to, lamports(amount)).send();
   // Nudge localnet to settle
@@ -77,7 +78,9 @@ async function sendAndConfirmTransactionWithLogs(
   });
 
   const sig = getSignatureFromTransaction(signed).toString();
-  console.log(`🔗 ${label}: https://explorer.solana.com/tx/${sig}?cluster=custom`);
+  console.log(
+    `🔗 ${label}: https://explorer.solana.com/tx/${sig}?cluster=custom`,
+  );
   return sig;
 }
 
@@ -130,15 +133,19 @@ async function sendAndConfirmTransactionWithLogs(
 
   // Fetch swig
   let swig = await fetchSwig(rpc, swigAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('📦 Swig wallet address:', swigWalletAddress.toString());
 
   const rootRole = swig.findRoleById(0);
   if (!rootRole) throw new Error('Root role not found');
 
   // Use a finalized slot for session ops
   const currentSlot = BigInt(
-    await rpc.getSlot({ commitment: 'finalized' }).send()
+    await rpc.getSlot({ commitment: 'finalized' }).send(),
   );
-  const signingFn = getSigningFnForSecp256k1PrivateKey(userWallet.getPrivateKey());
+  const signingFn = getSigningFnForSecp256k1PrivateKey(
+    userWallet.getPrivateKey(),
+  );
 
   // Create session
   console.log('Creating session...');
@@ -168,12 +175,12 @@ async function sendAndConfirmTransactionWithLogs(
   const sessionRole = swig.findRoleBySessionKey(dappSessionKeypair.address);
   if (!sessionRole) throw new Error('Session role not found');
 
-  // Fund the SWIG PDA & confirm
-  await confirmAirdrop(rpc, swigAddress, 1n * LAMPORTS_PER_SOL);
+  // Fund the SWIG wallet & confirm
+  await confirmAirdrop(rpc, swigWalletAddress, 1n * LAMPORTS_PER_SOL);
 
   console.log(
     '📦 Swig balance before transfer:',
-    (await rpc.getBalance(swigAddress).send()).value,
+    (await rpc.getBalance(swigWalletAddress).send()).value,
   );
 
   // Create transfer instruction (u64 as bigint)
@@ -182,8 +189,8 @@ async function sendAndConfirmTransactionWithLogs(
   const transferIx = {
     programAddress: SYSTEM_PROGRAM_ADDRESS,
     accounts: [
-      { address: swigAddress,          role: AccountRole.WRITABLE_SIGNER },
-      { address: dappTreasury.address,  role: AccountRole.WRITABLE },
+      { address: swigWalletAddress, role: AccountRole.WRITABLE_SIGNER },
+      { address: dappTreasury.address, role: AccountRole.WRITABLE },
     ],
     data: new Uint8Array(
       getTransferSolInstructionDataEncoder().encode({
@@ -194,7 +201,7 @@ async function sendAndConfirmTransactionWithLogs(
 
   // Recompute a fresh finalized slot before signing
   const signSlot = BigInt(
-    await rpc.getSlot({ commitment: 'finalized' }).send()
+    await rpc.getSlot({ commitment: 'finalized' }).send(),
   );
 
   const signTransferIxs = await getSignInstructions(
@@ -219,6 +226,6 @@ async function sendAndConfirmTransactionWithLogs(
 
   console.log(
     '✅ Swig balance after transfer:',
-    (await rpc.getBalance(swigAddress).send()).value,
+    (await rpc.getBalance(swigWalletAddress).send()).value,
   );
 })();

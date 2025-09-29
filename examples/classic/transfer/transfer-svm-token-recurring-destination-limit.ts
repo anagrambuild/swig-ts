@@ -22,9 +22,12 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
 } from '@swig-wallet/classic';
+import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
+import { SolPublicKey, type SwigFetchFn } from '@swig-wallet/lib';
 import {
   FailedTransactionMetadata,
   LiteSVM,
@@ -63,14 +66,23 @@ function sendSVMTransaction(
   }
 }
 
+function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
 function fetchSwig(
   svm: LiteSVM,
   swigAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('swig account not created');
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+  const swigAccount = fetchSwigAccount(svm, swigAddress);
+  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
+    fetchSwigAccount(
+      svm,
+      new PublicKey(new SolPublicKey(swigAddress).toBytes()),
+    );
+  return new Swig(swigAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -107,6 +119,10 @@ console.log('starting...');
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
 
+  // Get the Swig wallet address
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
+
   // Create SPL token mint
   const mintKeypair = Keypair.generate();
   const decimals = 6;
@@ -140,14 +156,14 @@ console.log('starting...');
   // Create Swig ATA
   const swigAta = getAssociatedTokenAddressSync(
     mintKeypair.publicKey,
-    swigAddress,
+    swigWalletAddress,
     true,
   );
 
   const createSwigAtaIx = createAssociatedTokenAccountInstruction(
     rootKeypair.publicKey,
     swigAta,
-    swigAddress,
+    swigWalletAddress,
     mintKeypair.publicKey,
   );
 
@@ -229,7 +245,7 @@ console.log('starting...');
   const transferIx1 = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress,
     transferAmount1,
   );
 
@@ -254,7 +270,7 @@ console.log('starting...');
   const transferIx2 = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress,
     transferAmount2,
   );
 
@@ -285,7 +301,7 @@ console.log('starting...');
     const transferIx3 = createTransferInstruction(
       swigAta,
       recipientAta,
-      swigAddress,
+      swigWalletAddress,
       transferAmount3,
     );
 
@@ -337,7 +353,7 @@ console.log('starting...');
     const unauthorizedTransferIx = createTransferInstruction(
       swigAta,
       unauthorizedAta,
-      swigAddress,
+      swigWalletAddress,
       BigInt(50 * 10 ** decimals),
     );
 

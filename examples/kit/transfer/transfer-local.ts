@@ -35,6 +35,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 
 function randomBytes(length: number): Uint8Array {
@@ -171,6 +172,8 @@ await sendTransaction(connection, [createSwigIx], userRootKeypair);
 
 // Fetch swig + roles
 const swig = await fetchSwig(connection.rpc, swigAddress);
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress);
 const rootRole = swig.findRolesByEd25519SignerPk(userRootKeypair.address)[0];
 if (!rootRole) throw new Error('Root role not found');
 
@@ -216,8 +219,8 @@ await sendTransaction(
   userAuthorityManagerKeypair,
 );
 
-// Fund the SWIG PDA
-await confirmAirdrop(connection.rpc, swigAddress, 1n * LAMPORTS_PER_SOL);
+// Fund the SWIG wallet
+await confirmAirdrop(connection.rpc, swigWalletAddress, 1n * LAMPORTS_PER_SOL);
 
 // Refresh state
 await swig.refetch();
@@ -254,7 +257,7 @@ if (
 // First transfer: spend the full 0.1 SOL allowance
 console.log(
   'balance before first transfer:',
-  (await connection.rpc.getBalance(swigAddress).send()).value.toString(),
+  (await connection.rpc.getBalance(swigWalletAddress).send()).value.toString(),
 );
 
 const finalizedSlot = BigInt(
@@ -262,7 +265,7 @@ const finalizedSlot = BigInt(
 );
 
 let transfer = getSolTransferInstruction({
-  fromAddress: swigAddress,
+  fromAddress: swigWalletAddress,
   toAddress: dappAuthorityKeypair.address,
   lamports: LAMPORTS_PER_SOL / 10n, // 0.1 SOL
 });
@@ -284,7 +287,7 @@ console.log(`https://explorer.solana.com/tx/${tx}?cluster=custom`);
 
 console.log(
   'balance after first transfer:',
-  (await connection.rpc.getBalance(swigAddress).send()).value.toString(),
+  (await connection.rpc.getBalance(swigWalletAddress).send()).value.toString(),
 );
 
 // Refresh before second attempt
@@ -292,7 +295,7 @@ await swig.refetch();
 
 // Second transfer: attempt to overspend (should fail)
 transfer = getSolTransferInstruction({
-  fromAddress: swigAddress,
+  fromAddress: swigWalletAddress,
   toAddress: dappAuthorityKeypair.address,
   lamports: (LAMPORTS_PER_SOL * 5n) / 100n, // 0.05 SOL
 });
@@ -324,5 +327,5 @@ await sendTransaction(connection, signTransferIxs, dappAuthorityKeypair)
 
 console.log(
   'balance after second transfer:',
-  (await connection.rpc.getBalance(swigAddress).send()).value,
+  (await connection.rpc.getBalance(swigWalletAddress).send()).value,
 );

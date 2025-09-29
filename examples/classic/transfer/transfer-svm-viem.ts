@@ -14,9 +14,14 @@ import {
   getCreateSwigInstruction,
   getEvmPersonalSignPrefix,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
   type SigningFn,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
 import {
   FailedTransactionMetadata,
@@ -52,10 +57,22 @@ function sendSVMTransaction(
   return res;
 }
 
-function fetchSwig(svm: LiteSVM, swigAddress: PublicKey): Swig {
-  const acc = svm.getAccount(swigAddress);
-  if (!acc) throw new Error('Swig not created');
-  return Swig.fromRawAccountData(swigAddress, Uint8Array.from(acc.data));
+function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
+function fetchSwig(
+  svm: LiteSVM,
+  swigAddress: PublicKey,
+): ReturnType<typeof Swig.fromRawAccountData> {
+  const swigAccount = fetchSwigAccount(svm, swigAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAddress));
+
+  return new Swig(swigAddress, swigAccount, swigFetchFn);
 }
 
 //
@@ -90,14 +107,17 @@ const createSwigIx = await getCreateSwigInstruction({
 sendSVMTransaction(svm, [createSwigIx], payer);
 
 let swig = fetchSwig(svm, swigAddress);
-svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
+
+svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
 
 let rootRole = swig.findRolesBySecp256k1SignerAddress(
   privateKeyAccount.address,
 )[0];
 if (!rootRole) throw new Error('Root role not found');
 
-console.log('💰 balance before transfers:', svm.getBalance(swigAddress));
+console.log('💰 balance before transfers:', svm.getBalance(swigWalletAddress));
 
 //
 // Signing functions
@@ -130,7 +150,7 @@ const viemSignMessage: SigningFn = async (msg: Uint8Array) => {
 //
 const lamports = Math.floor(0.1 * LAMPORTS_PER_SOL);
 const transferIx = SystemProgram.transfer({
-  fromPubkey: swigAddress,
+  fromPubkey: swigWalletAddress,
   toPubkey: dappTreasury,
   lamports,
 });
@@ -144,14 +164,16 @@ let signed = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
   payer: payer.publicKey,
 });
 sendSVMTransaction(svm, signed, payer);
-console.log('balance after viemSign:', svm.getBalance(swigAddress));
+console.log('balance after viemSign:', svm.getBalance(swigWalletAddress));
 
 //
 // Case 2: viemSignWithPrefix
 //
 svm.warpToSlot(100n);
 swig = fetchSwig(svm, swigAddress);
-rootRole = swig.findRolesBySecp256k1SignerAddress(privateKeyAccount.address)[0]!;
+rootRole = swig.findRolesBySecp256k1SignerAddress(
+  privateKeyAccount.address,
+)[0]!;
 
 signed = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
   currentSlot: svm.getClock().slot,
@@ -159,14 +181,19 @@ signed = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
   payer: payer.publicKey,
 });
 sendSVMTransaction(svm, signed, payer);
-console.log('balance after viemSignWithPrefix:', svm.getBalance(swigAddress));
+console.log(
+  'balance after viemSignWithPrefix:',
+  svm.getBalance(swigWalletAddress),
+);
 
 //
 // Case 3: viemSignMessage
 //
 svm.warpToSlot(200n);
 swig = fetchSwig(svm, swigAddress);
-rootRole = swig.findRolesBySecp256k1SignerAddress(privateKeyAccount.address)[0]!;
+rootRole = swig.findRolesBySecp256k1SignerAddress(
+  privateKeyAccount.address,
+)[0]!;
 
 signed = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
   currentSlot: svm.getClock().slot,
@@ -174,4 +201,7 @@ signed = await getSignInstructions(swig, rootRole.id, [transferIx], false, {
   payer: payer.publicKey,
 });
 sendSVMTransaction(svm, signed, payer);
-console.log('balance after viemSignMessage:', svm.getBalance(swigAddress));
+console.log(
+  'balance after viemSignMessage:',
+  svm.getBalance(swigWalletAddress),
+);

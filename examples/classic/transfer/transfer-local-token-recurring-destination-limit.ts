@@ -22,6 +22,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
 function sleep(s: number): Promise<void> {
@@ -102,6 +103,10 @@ async function sendTransaction(
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
 
+  // Get the Swig wallet address
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
+
   // Create SPL token mint
   const mintKeypair = Keypair.generate();
   const decimals = 6;
@@ -138,14 +143,14 @@ async function sendTransaction(
   // Create Swig ATA
   const swigAta = getAssociatedTokenAddressSync(
     mintKeypair.publicKey,
-    swigAddress,
+    swigWalletAddress,
     true,
   );
 
   const createSwigAtaIx = createAssociatedTokenAccountInstruction(
     rootKeypair.publicKey,
     swigAta,
-    swigAddress,
+    swigWalletAddress,
     mintKeypair.publicKey,
   );
 
@@ -233,7 +238,7 @@ async function sendTransaction(
   const transferIx1 = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress,
     transferAmount1,
   );
 
@@ -258,7 +263,7 @@ async function sendTransaction(
   const transferIx2 = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress,
     transferAmount2,
   );
 
@@ -300,7 +305,7 @@ async function sendTransaction(
     const transferIx3 = createTransferInstruction(
       swigAta,
       recipientAta,
-      swigAddress,
+      swigWalletAddress,
       transferAmount3,
     );
 
@@ -352,7 +357,7 @@ async function sendTransaction(
     const unauthorizedTransferIx = createTransferInstruction(
       swigAta,
       unauthorizedAta,
-      swigAddress,
+      swigWalletAddress,
       BigInt(50 * 10 ** decimals),
     );
 

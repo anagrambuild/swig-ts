@@ -83,10 +83,10 @@ async function sendTransaction(
   await sleep(2);
 
   const swig = await fetchSwig(connection, swigAddress);
-  const swigWallet = await getSwigWalletAddress(swig);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
 
   console.log('📦 Swig PDA:', swigAddress.toBase58());
-  console.log('🏦 Swig wallet address:', swigWallet.toBase58());
+  console.log('🏦 Swig wallet address:', swigWalletAddress.toBase58());
 
   const rootRole = swig.findRolesByEd25519SignerPk(root.publicKey)[0];
   if (!rootRole) throw new Error('Root role not found');
@@ -105,11 +105,15 @@ async function sendTransaction(
   );
   console.log('🪙 Mint created:', tokenMint.toBase58());
 
-  const swigAta = getAssociatedTokenAddressSync(tokenMint, swigAddress, true);
+  const swigAta = getAssociatedTokenAddressSync(
+    tokenMint,
+    swigWalletAddress,
+    true,
+  );
   const createAtaIx = createAssociatedTokenAccountInstruction(
     root.publicKey,
     swigAta,
-    swigAddress,
+    swigWalletAddress,
     tokenMint,
   );
   await sendTransaction(connection, [createAtaIx], root);

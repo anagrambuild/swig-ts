@@ -132,10 +132,10 @@ async function displayTokenBalance(
   console.log(chalk.yellow('\n📝 Creating Swig account...'));
   const swigAddress = await createSwigAccount(connection, rootUser);
   const swig = await fetchSwig(connection, swigAddress);
-  const swigWallet = await getSwigWalletAddress(swig);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log(
     chalk.green('📦 Swig wallet:'),
-    chalk.cyan(swigWallet.toBase58()),
+    chalk.cyan(swigWalletAddress.toBase58()),
   );
   console.log(
     chalk.blue('📋 Version:'),
@@ -160,7 +160,7 @@ async function displayTokenBalance(
     connection,
     rootUser,
     tokenMint,
-    swigWallet,
+    swigWalletAddress,
     {},
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -231,7 +231,7 @@ async function displayTokenBalance(
   const transferIx = createTransferInstruction(
     swigTokenAccount,
     recipientTokenAccount,
-    swigWallet, // Swig wallet is the owner
+    swigWalletAddress, // Swig wallet is the owner
     10n,
   );
 
@@ -256,7 +256,7 @@ async function displayTokenBalance(
     const transferIx2 = createTransferInstruction(
       swigTokenAccount,
       recipientTokenAccount,
-      swigWallet,
+      swigWalletAddress,
       1n,
     );
 

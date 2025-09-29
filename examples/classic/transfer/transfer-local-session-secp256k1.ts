@@ -3,11 +3,11 @@ import {
   Connection,
   Keypair,
   LAMPORTS_PER_SOL,
+  sendAndConfirmTransaction,
+  SendTransactionError,
   SystemProgram,
   Transaction,
   TransactionInstruction,
-  sendAndConfirmTransaction,
-  SendTransactionError,
 } from '@solana/web3.js';
 import {
   Actions,
@@ -40,7 +40,9 @@ async function sendAndConfirmTransactionWithLogs(
     commitment: 'confirmed',
   });
 
-  console.log(`🔗 ${label}: https://explorer.solana.com/tx/${sig}?cluster=custom`);
+  console.log(
+    `🔗 ${label}: https://explorer.solana.com/tx/${sig}?cluster=custom`,
+  );
   return sig;
 }
 
@@ -87,8 +89,8 @@ async function sendAndConfirmTransactionWithLogs(
 
   // Fetch Swig
   const swig = await fetchSwig(connection, swigAddress);
-  const swigWallet = await getSwigWalletAddress(swig);
-  console.log('🏦 Swig Wallet:', swigWallet.toBase58());
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('🏦 Swig Wallet:', swigWalletAddress.toBase58());
 
   const rootRole = swig.findRoleById(0);
   if (!rootRole) throw new Error('Root role not found');
@@ -126,18 +128,21 @@ async function sendAndConfirmTransactionWithLogs(
   if (!sessionRole) throw new Error('Session role not found');
   console.log('🪪 Session role id:', sessionRole.id.toString());
 
-  // Fund the Swig PDA
-  const sig = await connection.requestAirdrop(swigAddress, LAMPORTS_PER_SOL);
+  // Fund the Swig wallet
+  const sig = await connection.requestAirdrop(
+    swigWalletAddress,
+    LAMPORTS_PER_SOL,
+  );
   await connection.confirmTransaction(sig, 'confirmed');
   console.log(
     '📦 Swig balance before transfer:',
-    await connection.getBalance(swigAddress),
+    await connection.getBalance(swigWalletAddress),
   );
 
   // Prepare SOL transfer
   const lamports = BigInt(0.1 * LAMPORTS_PER_SOL);
   const transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: dappTreasury,
     lamports,
   });
@@ -173,6 +178,6 @@ async function sendAndConfirmTransactionWithLogs(
 
   console.log(
     '✅ Swig balance after transfer:',
-    await connection.getBalance(swigAddress),
+    await connection.getBalance(swigWalletAddress),
   );
 })();

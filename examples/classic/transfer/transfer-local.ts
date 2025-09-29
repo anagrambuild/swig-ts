@@ -15,6 +15,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
 //
@@ -27,10 +28,17 @@ async function sendTransaction(
   signers: Keypair[] = [],
 ) {
   const tx = new Transaction().add(...instructions);
-  const sig = await sendAndConfirmTransaction(connection, tx, [payer, ...signers], {
-    commitment: 'confirmed',
-  });
-  console.log(`🔗 Sent tx: https://explorer.solana.com/tx/${sig}?cluster=custom`);
+  const sig = await sendAndConfirmTransaction(
+    connection,
+    tx,
+    [payer, ...signers],
+    {
+      commitment: 'confirmed',
+    },
+  );
+  console.log(
+    `🔗 Sent tx: https://explorer.solana.com/tx/${sig}?cluster=custom`,
+  );
   return sig;
 }
 
@@ -79,6 +87,9 @@ async function main() {
   await sleep(2000);
 
   const swig = await fetchSwig(connection, swigAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
+
   const rootRole = swig.findRolesByEd25519SignerPk(root.publicKey)[0];
   if (!rootRole) throw new Error('Root role not found');
 
@@ -113,7 +124,7 @@ async function main() {
   );
 
   await sendTransaction(connection, addDappIx, manager);
-  await connection.requestAirdrop(swigAddress, LAMPORTS_PER_SOL);
+  await connection.requestAirdrop(swigWalletAddress, LAMPORTS_PER_SOL);
   await sleep(2000);
 
   await swig.refetch();
@@ -132,7 +143,7 @@ async function main() {
   // First transfer (should succeed)
   console.log('💸 Attempting first transfer of 0.1 SOL…');
   const transfer1 = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: dapp.publicKey,
     lamports: 0.1 * LAMPORTS_PER_SOL,
   });
@@ -143,13 +154,13 @@ async function main() {
 
   console.log(
     'Swig balance after transfer:',
-    await connection.getBalance(swigAddress),
+    await connection.getBalance(swigWalletAddress),
   );
 
   // Second transfer (should fail)
   console.log('💸 Attempting second transfer (0.05 SOL, should fail)…');
   const transfer2 = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: dapp.publicKey,
     lamports: 0.05 * LAMPORTS_PER_SOL,
   });
@@ -165,7 +176,7 @@ async function main() {
 
   console.log(
     'Final Swig balance:',
-    await connection.getBalance(swigAddress),
+    await connection.getBalance(swigWalletAddress),
   );
 }
 

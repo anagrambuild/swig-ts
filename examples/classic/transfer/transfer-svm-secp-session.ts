@@ -15,9 +15,14 @@ import {
   getCreateSwigInstruction,
   getSigningFnForSecp256k1PrivateKey,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
   type InstructionDataOptions,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
 import {
   FailedTransactionMetadata,
@@ -54,10 +59,22 @@ function sendSVMTransaction(
   return res;
 }
 
-function fetchSwig(svm: LiteSVM, swigAddress: PublicKey): Swig {
+function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
   const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('Swig account not created');
-  return Swig.fromRawAccountData(swigAddress, swigAccount.data);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
+function fetchSwig(
+  svm: LiteSVM,
+  swigAddress: PublicKey,
+): ReturnType<typeof Swig.fromRawAccountData> {
+  const swigAccount = fetchSwigAccount(svm, swigAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAddress));
+
+  return new Swig(swigAddress, swigAccount, swigFetchFn);
 }
 
 console.log('🚀 starting…');
@@ -74,9 +91,9 @@ console.log('📦 Swig program loaded into LiteSVM');
 // Keys / actors
 //
 const userWallet = Wallet.generate(); // secp256k1 root (session-capable)
-const userRootKeypair = Keypair.generate();          // lamport payer for create
+const userRootKeypair = Keypair.generate(); // lamport payer for create
 const userAuthorityManagerKeypair = Keypair.generate(); // fee payer later
-const dappSessionKeypair = Keypair.generate();       // session keypair (ed25519 for tx fee paying)
+const dappSessionKeypair = Keypair.generate(); // session keypair (ed25519 for tx fee paying)
 const dappTreasury = Keypair.generate().publicKey;
 
 svm.airdrop(userRootKeypair.publicKey, BigInt(LAMPORTS_PER_SOL));
@@ -111,6 +128,9 @@ if (res instanceof FailedTransactionMetadata) {
 //
 let swig = fetchSwig(svm, swigAddress);
 
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
+
 // Prefer a dedicated finder if available; otherwise, role 0 is root in fresh Swig
 const rootRole = swig.findRoleById(0);
 if (!rootRole) throw new Error('Root role not found');
@@ -119,7 +139,9 @@ console.log('🔑 Root role id:', rootRole.id.toString());
 //
 // Prepare signing ctx for secp256k1
 //
-const signingFn = getSigningFnForSecp256k1PrivateKey(userWallet.getPrivateKey());
+const signingFn = getSigningFnForSecp256k1PrivateKey(
+  userWallet.getPrivateKey(),
+);
 const instOptions: InstructionDataOptions = {
   currentSlot: svm.getClock().slot,
   signingFn,
@@ -132,7 +154,7 @@ const newSessionIxs = await getCreateSessionInstructions(
   swig,
   rootRole.id,
   dappSessionKeypair.publicKey, // session key
-  50n,                          // session spend limit
+  50n, // session spend limit
   { ...instOptions, payer: userRootKeypair.publicKey },
 );
 if (!newSessionIxs) throw new Error('Session instruction set not returned');
@@ -152,14 +174,14 @@ console.log('🪪 Session role id:', sessionRole.id?.toString?.() ?? 'undefined'
 //
 // Fund the Swig PDA and refetch
 //
-svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
+svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
 swig = fetchSwig(svm, swigAddress);
 await swig.refetch();
 
-const balanceBeforeTransfer = svm.getBalance(swigAddress);
+const balanceBeforeTransfer = svm.getBalance(swigWalletAddress);
 console.log(
   '💰 Balance before transfer:',
-  balanceBeforeTransfer !== null ? balanceBeforeTransfer.toString() : 'null'
+  balanceBeforeTransfer !== null ? balanceBeforeTransfer.toString() : 'null',
 );
 
 //
@@ -167,7 +189,7 @@ console.log(
 //
 const lamports = Math.floor(0.1 * LAMPORTS_PER_SOL);
 const transferIx = SystemProgram.transfer({
-  fromPubkey: swigAddress,
+  fromPubkey: swigWalletAddress,
   toPubkey: dappTreasury,
   lamports,
 });
@@ -188,8 +210,8 @@ if (res instanceof FailedTransactionMetadata) {
   throw new Error('Signed transfer failed');
 }
 
-const balanceAfterTransfer = svm.getBalance(swigAddress);
+const balanceAfterTransfer = svm.getBalance(swigWalletAddress);
 console.log(
   '💰 Balance after transfer:',
-  balanceAfterTransfer !== null ? balanceAfterTransfer.toString() : 'null'
+  balanceAfterTransfer !== null ? balanceAfterTransfer.toString() : 'null',
 );

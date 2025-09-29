@@ -52,7 +52,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function confirmAirdrop(
   rpc: Rpc<SolanaRpcApi>,
   to: Address,
-  amount: bigint
+  amount: bigint,
 ) {
   const sig = await rpc.requestAirdrop(to, lamports(amount)).send();
   await rpc.getSignatureStatuses([sig]).send();
@@ -109,7 +109,12 @@ async function sendTransaction<T extends IInstruction[]>(
     .getLatestBlockhash()
     .send();
 
-  const txMsg = getTransactionMessage(instructions, latestBlockhash, payer, signers);
+  const txMsg = getTransactionMessage(
+    instructions,
+    latestBlockhash,
+    payer,
+    signers,
+  );
   const signed = await signTransactionMessageWithSigners(txMsg);
 
   await sendAndConfirmTransactionFactory(connection)(signed, {
@@ -129,11 +134,19 @@ const connection = {
 
 // Root authority
 const rootAuthority = await generateKeyPairSigner();
-await confirmAirdrop(connection.rpc, rootAuthority.address, 1n * LAMPORTS_PER_SOL);
+await confirmAirdrop(
+  connection.rpc,
+  rootAuthority.address,
+  1n * LAMPORTS_PER_SOL,
+);
 
 // Sub-account authority manager
 const subAccountAuthority = await generateKeyPairSigner();
-await confirmAirdrop(connection.rpc, subAccountAuthority.address, 1n * LAMPORTS_PER_SOL);
+await confirmAirdrop(
+  connection.rpc,
+  subAccountAuthority.address,
+  1n * LAMPORTS_PER_SOL,
+);
 
 const id = randomBytes(32);
 const swigAddress = await findSwigPda(id);
@@ -167,8 +180,11 @@ await sendTransaction(connection, addAuthorityIxs, rootAuthority);
 // Refetch to see the new role
 await swig.refetch();
 
-let subAccountAuthRole = swig.findRolesByEd25519SignerPk(subAccountAuthority.address)[0];
-if (!subAccountAuthRole) throw new Error('Sub-account authority role not found');
+let subAccountAuthRole = swig.findRolesByEd25519SignerPk(
+  subAccountAuthority.address,
+)[0];
+if (!subAccountAuthRole)
+  throw new Error('Sub-account authority role not found');
 
 // Create a sub-account (payer = subAccountAuthority for clarity)
 const createSubAccountIx = await getCreateSubAccountInstructions(
@@ -181,7 +197,9 @@ await sendTransaction(connection, createSubAccountIx, subAccountAuthority);
 // Refetch and compute sub-account PDA
 await swig.refetch();
 
-subAccountAuthRole = swig.findRolesByEd25519SignerPk(subAccountAuthority.address)[0]!;
+subAccountAuthRole = swig.findRolesByEd25519SignerPk(
+  subAccountAuthority.address,
+)[0]!;
 const subAccountAddress = await findSwigSubAccountPda(
   subAccountAuthRole.swigId,
   subAccountAuthRole.id,
@@ -190,7 +208,8 @@ const subAccountAddress = await findSwigSubAccountPda(
 // Fund sub-account
 await confirmAirdrop(connection.rpc, subAccountAddress, 1n * LAMPORTS_PER_SOL);
 
-const subBalance = (await connection.rpc.getBalance(subAccountAddress).send()).value;
+const subBalance = (await connection.rpc.getBalance(subAccountAddress).send())
+  .value;
 console.log('sub account balance:', subBalance.toString());
 
 // Prepare a transfer from the sub-account
@@ -203,7 +222,7 @@ const transfer = getSolTransferInstruction({
 
 // Fresh finalized slot is good hygiene even for Ed25519
 const signSlot = BigInt(
-  await connection.rpc.getSlot({ commitment: 'finalized' }).send()
+  await connection.rpc.getSlot({ commitment: 'finalized' }).send(),
 );
 
 // Sign (from sub-account) and send
@@ -217,8 +236,11 @@ const signIx = await getSignInstructions(
 
 await sendTransaction(connection, signIx, subAccountAuthority);
 
-const newSubBalance = (await connection.rpc.getBalance(subAccountAddress).send()).value;
+const newSubBalance = (
+  await connection.rpc.getBalance(subAccountAddress).send()
+).value;
 console.log('new subaccount balance:', newSubBalance.toString());
 
-const recipientBalance = (await connection.rpc.getBalance(recipient).send()).value;
+const recipientBalance = (await connection.rpc.getBalance(recipient).send())
+  .value;
 console.log('recipient balance:', recipientBalance.toString());

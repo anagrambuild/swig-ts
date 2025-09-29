@@ -1,4 +1,3 @@
-import { type Address } from '@solana/kit';
 import {
   addSignersToTransactionMessage,
   appendTransactionMessageInstructions,
@@ -13,6 +12,7 @@ import {
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
+  type Address,
   type IInstruction,
   type KeyPairSigner,
 } from '@solana/kit';
@@ -23,6 +23,7 @@ import {
   findSwigPda,
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 
 // ---------- helpers ----------
@@ -107,6 +108,9 @@ async function confirmAirdrop(
 
   // Fetch SWIG + root role
   const swig = await fetchSwig(connection.rpc, swigAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('📦 Swig wallet address:', swigWalletAddress.toString());
+
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.address);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];

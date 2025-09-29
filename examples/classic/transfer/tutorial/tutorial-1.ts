@@ -77,16 +77,16 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
 
   // fetch swig & wallet
   const swig = await fetchSwig(connection, swigAddress);
-  const swigWallet = await getSwigWalletAddress(swig);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
 
   console.log(
     chalk.green('📦 Swig wallet address:'),
-    chalk.cyan(swigWallet.toBase58()),
+    chalk.cyan(swigWalletAddress.toBase58()),
   );
 
   // airdrop into the swig wallet
   const fundSig = await connection.requestAirdrop(
-    swigWallet,
+    swigWalletAddress,
     1 * LAMPORTS_PER_SOL,
   );
   const blockhash2 = await connection.getLatestBlockhash();

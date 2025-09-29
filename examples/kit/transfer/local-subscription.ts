@@ -30,6 +30,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 import chalk from 'chalk';
 
@@ -176,10 +177,13 @@ const createSwigIx = await getCreateSwigInstruction({
 await sendTransaction(connection, [createSwigIx], root);
 success('Created SWIG wallet with root authority');
 
-await confirmAirdrop(connection, swigAddress, 10n * LAMPORTS_PER_SOL);
+const swig = await fetchSwig(connection.rpc, swigAddress);
+const swigWalletAddress = await getSwigWalletAddress(swig);
+info(`SWIG wallet address: ${chalk.yellow(swigWalletAddress)}`);
+
+await confirmAirdrop(connection, swigWalletAddress, 10n * LAMPORTS_PER_SOL);
 success('Funded SWIG wallet with 10 SOL');
 
-const swig = await fetchSwig(connection.rpc, swigAddress);
 const rootRole = swig.findRolesByEd25519SignerPk(root.address)[0];
 
 section('Setting up subscription limits');
@@ -211,7 +215,7 @@ async function tryTransfer(label: string, expectedToSucceed = true) {
   info(label);
 
   const ix = getSolTransferInstruction({
-    fromAddress: swigAddress,
+    fromAddress: swigWalletAddress,
     toAddress: subscription.address,
     lamports: RECURRING_AMOUNT, // bigint
   });

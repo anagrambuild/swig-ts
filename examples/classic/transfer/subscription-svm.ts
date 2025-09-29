@@ -13,8 +13,13 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
 import chalk from 'chalk';
 import {
@@ -27,14 +32,22 @@ import { readFileSync } from 'node:fs';
 //
 // Helpers
 //
+function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
 function fetchSwig(
   svm: LiteSVM,
   swigAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('Swig account not created');
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+  const swigAccount = fetchSwigAccount(svm, swigAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAddress));
+
+  return new Swig(swigAddress, swigAccount, swigFetchFn);
 }
 
 function sendSVMTransaction(
@@ -109,11 +122,14 @@ async function main() {
     throw new Error('❌ Failed to create Swig wallet');
   }
   printSuccess('Created Swig with root authority');
-  svm.airdrop(swigAddress, BigInt(10 * LAMPORTS_PER_SOL));
 
   // Add subscription service authority with recurring limit
   printSection('Configuring subscription limit');
   let swig = await fetchSwig(svm, swigAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
+
+  svm.airdrop(swigWalletAddress, BigInt(10 * LAMPORTS_PER_SOL));
   await swig.refetch();
 
   const rootRoles = swig.findRolesByEd25519SignerPk(rootUser.publicKey);
@@ -155,7 +171,7 @@ async function main() {
   // First payment (should succeed)
   printInfo('Attempting first 0.1 SOL payment...');
   let transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: subscriptionService.publicKey,
     lamports: BigInt(0.1 * LAMPORTS_PER_SOL),
   });
@@ -170,7 +186,7 @@ async function main() {
   printInfo('Attempting second 0.1 SOL payment (same period)...');
   svm.warpToSlot(svm.getClock().slot + BigInt(1));
   transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: subscriptionService.publicKey,
     lamports: BigInt(0.1 * LAMPORTS_PER_SOL),
   });
@@ -191,7 +207,7 @@ async function main() {
   // Third payment (should succeed)
   printInfo('Attempting third payment after reset...');
   transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: subscriptionService.publicKey,
     lamports: BigInt(0.1 * LAMPORTS_PER_SOL),
   });

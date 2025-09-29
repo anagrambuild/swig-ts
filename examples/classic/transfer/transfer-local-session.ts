@@ -2,12 +2,14 @@ import {
   Connection,
   Keypair,
   LAMPORTS_PER_SOL,
+  SendTransactionError,
   SystemProgram,
   Transaction,
   TransactionInstruction,
-  type Signer,
   sendAndConfirmTransaction,
+  type Signer,
 } from '@solana/web3.js';
+
 import {
   Actions,
   createEd25519SessionAuthorityInfo,
@@ -16,11 +18,13 @@ import {
   getCreateSessionInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
-//
-// Helpers
-//
+import { randomBytes as nodeRandomBytes } from 'node:crypto';
+
+// ---------- Helpers ----------
+
 async function sendTransaction(
   connection: Connection,
   instructions: TransactionInstruction[],
@@ -28,52 +32,85 @@ async function sendTransaction(
   signers: Signer[] = [],
 ) {
   const tx = new Transaction().add(...instructions);
-  const sig = await sendAndConfirmTransaction(connection, tx, [payer, ...signers], {
-    commitment: 'confirmed',
-  });
-  console.log(`🔗 Sent tx: https://explorer.solana.com/tx/${sig}?cluster=custom`);
-  return sig;
+
+  try {
+    const sig = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [payer, ...signers],
+      {
+        commitment: 'confirmed',
+      },
+    );
+    console.log(
+      `🔗 Sent tx: https://explorer.solana.com/tx/${sig}?cluster=custom`,
+    );
+    return sig;
+  } catch (err: any) {
+    // Show detailed logs if available
+    if (err instanceof SendTransactionError) {
+      try {
+        const logs = await err.getLogs(connection);
+        console.error(
+          '❌ SendTransactionError logs:\n',
+          logs?.join('\n') ?? '(no logs)',
+        );
+      } catch {
+        console.error(
+          '❌ SendTransactionError thrown (no logs available via getLogs)',
+        );
+      }
+    }
+    console.error('❌ sendTransaction error:', err);
+    throw err;
+  }
 }
 
 function randomBytes(length: number): Uint8Array {
-  const randomArray = new Uint8Array(length);
-  crypto.getRandomValues(randomArray);
-  return randomArray;
+  // Node-friendly random bytes (no Web Crypto assumptions)
+  return new Uint8Array(nodeRandomBytes(length));
 }
 
-export function sleep(s: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, s * 1000));
+function sleep(s: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, s * 1000));
 }
+
+// ---------- Main ----------
 
 async function main() {
   console.log('🚀 starting...');
 
+  // Local validator
   const connection = new Connection('http://localhost:8899', 'confirmed');
 
-  // Root authority
+  // Root authority (session-based)
   const userRootKeypair = Keypair.generate();
   await connection.requestAirdrop(userRootKeypair.publicKey, LAMPORTS_PER_SOL);
 
-  // Session authority
+  // Dapp session authority (will spend within limit)
   const dappSessionKeypair = Keypair.generate();
-  await connection.requestAirdrop(dappSessionKeypair.publicKey, LAMPORTS_PER_SOL);
+  await connection.requestAirdrop(
+    dappSessionKeypair.publicKey,
+    LAMPORTS_PER_SOL,
+  );
 
-  // Treasury
+  // Treasury (recipient)
   const dappTreasury = Keypair.generate().publicKey;
 
   await sleep(2);
 
+  // Deterministic Swig PDA
   const id = randomBytes(32);
   const swigAddress = findSwigPda(id);
 
-  // Create Swig with root session authority
+  // 1) Create Swig with a root *session* authority (with its own limit)
   const rootActions = Actions.set().all().get();
   const createSwigIx = await getCreateSwigInstruction({
     id,
     authorityInfo: createEd25519SessionAuthorityInfo(
       userRootKeypair.publicKey,
       100n,
-    ),
+    ), // root session limit (lamports)
     actions: rootActions,
     payer: userRootKeypair.publicKey,
   });
@@ -81,28 +118,32 @@ async function main() {
   await sendTransaction(connection, [createSwigIx], userRootKeypair);
   await sleep(2);
 
+  // Fetch Swig account
   const swig = await fetchSwig(connection, swigAddress);
 
   const rootRole = swig.findRoleById(0);
   if (!rootRole) throw new Error('Root role not found');
 
-  // Create a session for dapp
-  const createSessionIx = await getCreateSessionInstructions(
+  // 2) Create a session for the dapp (spend limit = 50 lamports in this demo)
+  const createSessionIxs = await getCreateSessionInstructions(
     swig,
     rootRole.id,
     dappSessionKeypair.publicKey,
-    50n,
+    50n, // session spend limit (lamports)
     { payer: userRootKeypair.publicKey },
   );
 
-  await sendTransaction(connection, createSessionIx, userRootKeypair);
+  await sendTransaction(connection, createSessionIxs, userRootKeypair);
   await sleep(2);
 
-  // Fund Swig
-  await connection.requestAirdrop(swigAddress, LAMPORTS_PER_SOL);
+  // 3) FUND THE SWIG WALLET PDA (not the swig account PDA!)
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  await connection.requestAirdrop(swigWalletAddress, LAMPORTS_PER_SOL);
   await sleep(2);
 
   await swig.refetch();
+
+  console.log('👛 swig wallet address:', swigWalletAddress.toBase58());
 
   console.log(
     '🔎 Roles spend SOL capability:',
@@ -113,44 +154,48 @@ async function main() {
   );
 
   console.log(
-    '💰 Swig balance (before):',
-    await connection.getBalance(swigAddress),
+    '💰 Swig wallet balance (before):',
+    await connection.getBalance(swigWalletAddress),
   );
   console.log(
     '💰 Treasury balance (before):',
     await connection.getBalance(dappTreasury),
   );
 
-  // Spend from session
-  const transfer = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+  // 4) Spend from the session (0.1 SOL)
+  const transferIx = SystemProgram.transfer({
+    fromPubkey: swigWalletAddress, // ✅ must be the Swig WALLET PDA
     toPubkey: dappTreasury,
     lamports: 0.1 * LAMPORTS_PER_SOL,
   });
 
   const sessionRole = swig.findRoleBySessionKey(dappSessionKeypair.publicKey);
-  if (!sessionRole || !sessionRole.isSessionBased())
+  if (!sessionRole || !sessionRole.isSessionBased()) {
     throw new Error('Session role not found or not session based');
+  }
 
-  const signTransferIx = await getSignInstructions(
+  // Wrap the transfer for Swig to co-sign
+  const signIxs = await getSignInstructions(
     swig,
     sessionRole.id,
-    [transfer],
+    [transferIx],
     false,
-    { payer: dappSessionKeypair.publicKey },
+    { payer: dappSessionKeypair.publicKey }, // fee payer for the sign call
   );
 
-  await sendTransaction(connection, signTransferIx, dappSessionKeypair);
+  await sendTransaction(connection, signIxs, dappSessionKeypair);
   await sleep(2);
 
   console.log(
-    '💰 Swig balance (after):',
-    await connection.getBalance(swigAddress),
+    '💰 Swig wallet balance (after):',
+    await connection.getBalance(swigWalletAddress),
   );
   console.log(
     '💰 Treasury balance (after):',
     await connection.getBalance(dappTreasury),
   );
+
+  console.log('✅ done');
 }
 
 main().catch((err) => {

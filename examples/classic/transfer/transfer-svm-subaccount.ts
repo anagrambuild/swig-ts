@@ -16,16 +16,14 @@ import {
   getCreateSwigInstruction,
   getSignInstructions,
   getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
   toPublicKey,
   type SwigAccount,
   type SwigFetchFn,
 } from '@swig-wallet/classic';
-import {
-  FailedTransactionMetadata,
-  LiteSVM,
-} from 'litesvm';
+import { FailedTransactionMetadata, LiteSVM } from 'litesvm';
 import { readFileSync } from 'node:fs';
 
 //
@@ -92,6 +90,9 @@ sendSVMTransaction(svm, [createSwigIx], rootAuthority);
 
 const swig = fetchSwig(svm, swigAddress);
 console.log('swig account version:', swig.accountVersion());
+
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
 
 const rootRole = swig.roles[0];
 

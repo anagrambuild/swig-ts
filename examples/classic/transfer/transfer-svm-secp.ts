@@ -14,14 +14,23 @@ import {
   getCreateSwigInstruction,
   getSigningFnForSecp256k1PrivateKey,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
   type InstructionDataOptions,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
-import { LiteSVM, FailedTransactionMetadata } from 'litesvm';
+import { FailedTransactionMetadata, LiteSVM } from 'litesvm';
 import { readFileSync } from 'node:fs';
 
-function sendSVMTransaction(svm: LiteSVM, ixs: TransactionInstruction[], payer: Keypair) {
+function sendSVMTransaction(
+  svm: LiteSVM,
+  ixs: TransactionInstruction[],
+  payer: Keypair,
+) {
   svm.expireBlockhash();
   const tx = new Transaction();
   tx.instructions = ixs;
@@ -36,10 +45,22 @@ function sendSVMTransaction(svm: LiteSVM, ixs: TransactionInstruction[], payer: 
   return res;
 }
 
-function fetchSwig(svm: LiteSVM, addr: PublicKey) {
-  const acc = svm.getAccount(addr);
-  if (!acc) throw new Error('swig not created');
-  return Swig.fromRawAccountData(addr, Uint8Array.from(acc.data));
+function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
+function fetchSwig(
+  svm: LiteSVM,
+  swigAddress: PublicKey,
+): ReturnType<typeof Swig.fromRawAccountData> {
+  const swigAccount = fetchSwigAccount(svm, swigAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAddress));
+
+  return new Swig(swigAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting authority-secp256k1...');
@@ -75,13 +96,16 @@ const slot = svm.getClock().slot;
 const signingFn = getSigningFnForSecp256k1PrivateKey(wallet.getPrivateKey());
 const opts: InstructionDataOptions = { currentSlot: slot, signingFn };
 
-svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
+
+svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
 swig = fetchSwig(svm, swigAddress);
 
-console.log('balance before:', svm.getBalance(swigAddress));
+console.log('balance before:', svm.getBalance(swigWalletAddress));
 
 const transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
+  fromPubkey: swigWalletAddress,
   toPubkey: treasury,
   lamports: Math.floor(0.1 * LAMPORTS_PER_SOL),
 });
@@ -91,4 +115,4 @@ const signIx = await getSignInstructions(swig, role.id, [transfer], false, {
 });
 sendSVMTransaction(svm, signIx, manager);
 
-console.log('balance after:', svm.getBalance(swigAddress));
+console.log('balance after:', svm.getBalance(swigWalletAddress));

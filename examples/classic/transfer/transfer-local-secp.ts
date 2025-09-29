@@ -106,19 +106,22 @@ async function main() {
     `Transaction: https://explorer.solana.com/tx/${createSig}?cluster=custom`,
   );
 
-  // Fund the SWIG PDA
-  const fundSig = await connection.requestAirdrop(swigPda, LAMPORTS_PER_SOL);
-  await connection.confirmTransaction(fundSig);
-  printSuccess('Funded SWIG PDA with 1 SOL');
-
-  await sleep(1000);
-
   // Fetch SWIG account and get wallet address
   console.log(chalk.blue('\n🔍 Fetching SWIG Account'));
   const swig = await fetchSwig(connection, swigPda);
-  const swigWalletAddress = getSwigWalletAddress(swig);
-  printInfo(`SWIG Wallet Address: ${(await swigWalletAddress).toBase58()}`);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  printInfo(`SWIG Wallet Address: ${swigWalletAddress.toBase58()}`);
   printSuccess('Fetched SWIG account data');
+
+  // Fund the SWIG wallet
+  const fundSig = await connection.requestAirdrop(
+    swigWalletAddress,
+    LAMPORTS_PER_SOL,
+  );
+  await connection.confirmTransaction(fundSig);
+  printSuccess('Funded SWIG wallet with 1 SOL');
+
+  await sleep(1000);
 
   // Find role by secp256k1 authority
   console.log(chalk.blue('\n🔑 Finding Authority Role'));
@@ -148,11 +151,11 @@ async function main() {
   const transferAmount = BigInt(0.1 * LAMPORTS_PER_SOL);
   printInfo(`Transferring ${transferAmount.toString()} lamports (0.1 SOL)`);
 
-  const balanceBefore = await connection.getBalance(swigPda);
-  printInfo(`SWIG PDA balance before: ${balanceBefore} lamports`);
+  const balanceBefore = await connection.getBalance(swigWalletAddress);
+  printInfo(`SWIG wallet balance before: ${balanceBefore} lamports`);
 
   const transferInstruction = SystemProgram.transfer({
-    fromPubkey: swigPda,
+    fromPubkey: swigWalletAddress,
     toPubkey: recipient,
     lamports: transferAmount,
   });
@@ -178,8 +181,8 @@ async function main() {
   await swig.refetch();
   printSuccess('Refetched SWIG state');
 
-  const balanceAfter = await connection.getBalance(swigPda);
-  printInfo(`SWIG PDA balance after: ${balanceAfter} lamports`);
+  const balanceAfter = await connection.getBalance(swigWalletAddress);
+  printInfo(`SWIG wallet balance after: ${balanceAfter} lamports`);
   printInfo(
     `Transfer cost: ${(balanceBefore - balanceAfter).toString()} lamports`,
   );

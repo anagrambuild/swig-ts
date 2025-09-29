@@ -13,6 +13,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
 function sleep(s: number): Promise<void> {
@@ -120,8 +121,12 @@ async function sendTransaction(
   // refresh swig to get the newly added role
   await swig.refetch();
 
-  // fund the swig account so it can make transfers
-  await connection.requestAirdrop(swigAddress, 2 * LAMPORTS_PER_SOL);
+  // get the swig wallet address
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('🏦 Swig wallet address:', swigWalletAddress.toBase58());
+
+  // fund the swig wallet so it can make transfers
+  await connection.requestAirdrop(swigWalletAddress, 2 * LAMPORTS_PER_SOL);
 
   // fund the role keypair for transaction fees and rent exemption
   await connection.requestAirdrop(
@@ -131,16 +136,16 @@ async function sendTransaction(
   await sleep(5);
 
   // check balance to ensure funding was successful
-  const swigBalance = await connection.getBalance(swigAddress);
-  console.log(`💰 Swig account balance: ${swigBalance / LAMPORTS_PER_SOL} SOL`);
+  const swigBalance = await connection.getBalance(swigWalletAddress);
+  console.log(`💰 Swig wallet balance: ${swigBalance / LAMPORTS_PER_SOL} SOL`);
 
   if (swigBalance === 0) {
-    throw new Error('Failed to fund Swig account');
+    throw new Error('Failed to fund Swig wallet');
   }
 
   // now build the transfer
   const transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: recipient.publicKey,
     lamports: 1 * LAMPORTS_PER_SOL,
   });
@@ -169,7 +174,7 @@ async function sendTransaction(
 
   try {
     const unauthorizedTransferIx = SystemProgram.transfer({
-      fromPubkey: swigAddress,
+      fromPubkey: swigWalletAddress,
       toPubkey: unauthorizedRecipient.publicKey,
       lamports: 1 * LAMPORTS_PER_SOL,
     });

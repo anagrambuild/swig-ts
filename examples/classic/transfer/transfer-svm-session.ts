@@ -13,13 +13,15 @@ import {
   getCreateSessionInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
-import {
-  FailedTransactionMetadata,
-  LiteSVM,
-} from 'litesvm';
+import { FailedTransactionMetadata, LiteSVM } from 'litesvm';
 import { readFileSync } from 'node:fs';
 
 function sendSVMTransaction(
@@ -43,10 +45,22 @@ function sendSVMTransaction(
   return res;
 }
 
-function fetchSwig(svm: LiteSVM, addr: PublicKey) {
-  const acc = svm.getAccount(addr);
-  if (!acc) throw new Error('swig not created');
-  return Swig.fromRawAccountData(addr, Uint8Array.from(acc.data));
+function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
+function fetchSwig(
+  svm: LiteSVM,
+  swigAddress: PublicKey,
+): ReturnType<typeof Swig.fromRawAccountData> {
+  const swigAccount = fetchSwigAccount(svm, swigAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAddress));
+
+  return new Swig(swigAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting session-ed25519...');
@@ -75,9 +89,12 @@ const createIx = await getCreateSwigInstruction({
 sendSVMTransaction(svm, [createIx], root);
 
 let swig = fetchSwig(svm, swigAddress);
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
+
 const rootRole = swig.findRoleById(0)!;
 
-svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
+svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
 
 // create session
 const sessionIx = await getCreateSessionInstructions(
@@ -95,14 +112,25 @@ console.log('session key:', sessionRole.authority.session);
 
 // transfer
 const transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
+  fromPubkey: swigWalletAddress,
   toPubkey: treasury,
   lamports: Math.floor(0.1 * LAMPORTS_PER_SOL),
 });
 
-const signTransfer = await getSignInstructions(swig, sessionRole.id, [transfer], false, {
-  payer: sessionKeypair.publicKey,
-});
+const signTransfer = await getSignInstructions(
+  swig,
+  sessionRole.id,
+  [transfer],
+  false,
+  {
+    payer: sessionKeypair.publicKey,
+  },
+);
 sendSVMTransaction(svm, signTransfer, sessionKeypair);
 
-console.log('balances: swig', svm.getBalance(swigAddress), 'treasury', svm.getBalance(treasury));
+console.log(
+  'balances: swig',
+  svm.getBalance(swigWalletAddress),
+  'treasury',
+  svm.getBalance(treasury),
+);

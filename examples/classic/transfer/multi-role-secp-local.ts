@@ -69,8 +69,8 @@ function randomBytes(length: number): Uint8Array {
   // Fetch Swig
   await sleep(2);
   const swig = await fetchSwig(connection, swigAddress);
-  const swigWallet = await getSwigWalletAddress(swig);
-  console.log('🏦 Swig wallet:', swigWallet.toBase58());
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('🏦 Swig wallet:', swigWalletAddress.toBase58());
 
   // Root role lookup
   const rootRoles = swig.findRolesBySecp256k1SignerAddress(

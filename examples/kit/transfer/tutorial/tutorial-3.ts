@@ -1,17 +1,17 @@
 import {
+  addSignersToTransactionMessage,
+  appendTransactionMessageInstructions,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  createTransactionMessage,
   generateKeyPairSigner,
   getSignatureFromTransaction,
   lamports,
   pipe,
   sendAndConfirmTransactionFactory,
-  signTransactionMessageWithSigners,
-  createTransactionMessage,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
-  addSignersToTransactionMessage,
+  signTransactionMessageWithSigners,
   type IInstruction,
   type KeyPairSigner,
 } from '@solana/kit';
@@ -24,6 +24,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 
 import {
@@ -46,9 +47,11 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function confirmAirdrop(
   rpc: ReturnType<typeof createSolanaRpc>,
   to: string,
-  amount: bigint
+  amount: bigint,
 ) {
-  const sig = await (rpc as any).requestAirdrop?.(to, lamports(amount))?.send?.();
+  const sig = await (rpc as any)
+    .requestAirdrop?.(to, lamports(amount))
+    ?.send?.();
   if (!sig) {
     throw new Error('requestAirdrop is not supported by this RPC client');
   }
@@ -57,12 +60,17 @@ async function confirmAirdrop(
 }
 
 async function sendTransaction(
-  connection: { rpc: ReturnType<typeof createSolanaRpc>; rpcSubscriptions: ReturnType<typeof createSolanaRpcSubscriptions> },
+  connection: {
+    rpc: ReturnType<typeof createSolanaRpc>;
+    rpcSubscriptions: ReturnType<typeof createSolanaRpcSubscriptions>;
+  },
   instructions: IInstruction[],
   payer: KeyPairSigner,
-  signers: KeyPairSigner[] = []
+  signers: KeyPairSigner[] = [],
 ): Promise<string> {
-  const { value: latestBlockhash } = await connection.rpc.getLatestBlockhash().send();
+  const { value: latestBlockhash } = await connection.rpc
+    .getLatestBlockhash()
+    .send();
   const txMsg = pipe(
     createTransactionMessage({ version: 0 }),
     (tx) => setTransactionMessageFeePayerSigner(payer, tx),
@@ -71,7 +79,9 @@ async function sendTransaction(
     (tx) => addSignersToTransactionMessage(signers, tx),
   );
   const signedTx = await signTransactionMessageWithSigners(txMsg);
-  await sendAndConfirmTransactionFactory(connection as any)(signedTx, { commitment: 'confirmed' });
+  await sendAndConfirmTransactionFactory(connection as any)(signedTx, {
+    commitment: 'confirmed',
+  });
   return getSignatureFromTransaction(signedTx).toString();
 }
 
@@ -92,7 +102,10 @@ const connection = { rpc, rpcSubscriptions };
 
   // Root user & funding
   const rootUser = await generateKeyPairSigner();
-  console.log(chalk.green('👤 Root user:'), chalk.cyan(rootUser.address.toString()));
+  console.log(
+    chalk.green('👤 Root user:'),
+    chalk.cyan(rootUser.address.toString()),
+  );
   await confirmAirdrop(rpc, rootUser.address, 100n * LAMPORTS_PER_SOL);
 
   // Create SWIG with manageAuthority-only (switch to .all() if desired)
@@ -106,7 +119,18 @@ const connection = { rpc, rpcSubscriptions };
     authorityInfo: createEd25519AuthorityInfo(rootUser.address),
   });
   await sendTransaction(connection, [createSwigIx], rootUser);
-  console.log(chalk.green('✓ Swig created:'), chalk.cyan(swigAddress.toString()));
+  console.log(
+    chalk.green('✓ Swig created:'),
+    chalk.cyan(swigAddress.toString()),
+  );
+
+  // Fetch swig and show wallet address
+  const swigForWallet = await fetchSwig(rpc, swigAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swigForWallet);
+  console.log(
+    chalk.green('📦 Swig wallet address:'),
+    chalk.cyan(swigWalletAddress.toString()),
+  );
 
   // Give the SWIG PDA a bit of SOL for rent/fees (optional)
   await confirmAirdrop(rpc, swigAddress, 1n * LAMPORTS_PER_SOL);
@@ -136,14 +160,14 @@ const connection = { rpc, rpcSubscriptions };
 
   const [swigATA] = await findAssociatedTokenPda({
     mint: mint.address,
-    owner: swigAddress,
+    owner: swigWalletAddress,
     tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
   });
 
   const createSwigATAIx = await getCreateAssociatedTokenInstructionAsync({
     payer: mintAuthority,
     mint: mint.address,
-    owner: swigAddress,
+    owner: swigWalletAddress,
   });
 
   const mintToSwigIx = await getMintToCheckedInstruction({
@@ -199,17 +223,28 @@ const connection = { rpc, rpcSubscriptions };
   console.log(chalk.green('✓ Token authority added'));
 
   // Balances
-  const swigBalance = await rpc.getBalance(swigAddress).send();
-  console.log(chalk.green('✓ SWIG SOL balance:'), chalk.cyan(swigBalance.value.toString()));
+  const swigBalance = await rpc.getBalance(swigWalletAddress).send();
+  console.log(
+    chalk.green('✓ SWIG SOL balance:'),
+    chalk.cyan(swigBalance.value.toString()),
+  );
   const swigATABal = await rpc.getTokenAccountBalance(swigATA).send();
-  console.log(chalk.green('✓ SWIG ATA balance:'), chalk.cyan(swigATABal.value.amount));
+  console.log(
+    chalk.green('✓ SWIG ATA balance:'),
+    chalk.cyan(swigATABal.value.amount),
+  );
   const recipATABal = await rpc.getTokenAccountBalance(recipientATA).send();
-  console.log(chalk.green('✓ Recipient ATA balance:'), chalk.cyan(recipATABal.value.amount));
+  console.log(
+    chalk.green('✓ Recipient ATA balance:'),
+    chalk.cyan(recipATABal.value.amount),
+  );
 
   // ----- First transfer (should succeed): 10 tokens -----
   {
     const swigLatest = await fetchSwig(rpc, swigAddress);
-    const role = swigLatest.findRolesByEd25519SignerPk(tokenAuthority.address)[0];
+    const role = swigLatest.findRolesByEd25519SignerPk(
+      tokenAuthority.address,
+    )[0];
 
     const transfer = getTransferCheckedInstruction({
       source: swigATA,
@@ -217,15 +252,23 @@ const connection = { rpc, rpcSubscriptions };
       mint: mint.address,
       amount: 10n,
       decimals,
-      authority: swigAddress,
+      authority: swigWalletAddress,
     });
 
     // Use a finalized slot for deterministic signing context
-    const currentSlot = BigInt(await rpc.getSlot({ commitment: 'finalized' }).send());
-    const signed = await getSignInstructions(swigLatest, role.id, [transfer], false, {
-      payer: tokenAuthority.address,
-      currentSlot,
-    });
+    const currentSlot = BigInt(
+      await rpc.getSlot({ commitment: 'finalized' }).send(),
+    );
+    const signed = await getSignInstructions(
+      swigLatest,
+      role.id,
+      [transfer],
+      false,
+      {
+        payer: tokenAuthority.address,
+        currentSlot,
+      },
+    );
     const sig = await sendTransaction(connection, signed, tokenAuthority);
     console.log(chalk.green('✓ First transfer succeeded:'), chalk.cyan(sig));
   }
@@ -234,14 +277,22 @@ const connection = { rpc, rpcSubscriptions };
   {
     const swigATABal2 = await rpc.getTokenAccountBalance(swigATA).send();
     const recipATABal2 = await rpc.getTokenAccountBalance(recipientATA).send();
-    console.log(chalk.green('✓ SWIG ATA balance after transfer:'), chalk.cyan(swigATABal2.value.amount));
-    console.log(chalk.green('✓ Recipient ATA balance after transfer:'), chalk.cyan(recipATABal2.value.amount));
+    console.log(
+      chalk.green('✓ SWIG ATA balance after transfer:'),
+      chalk.cyan(swigATABal2.value.amount),
+    );
+    console.log(
+      chalk.green('✓ Recipient ATA balance after transfer:'),
+      chalk.cyan(recipATABal2.value.amount),
+    );
   }
 
   // ----- Second transfer (should fail; allowance spent) -----
   try {
     const swigLatest = await fetchSwig(rpc, swigAddress);
-    const role = swigLatest.findRolesByEd25519SignerPk(tokenAuthority.address)[0];
+    const role = swigLatest.findRolesByEd25519SignerPk(
+      tokenAuthority.address,
+    )[0];
 
     const transferAgain = getTransferCheckedInstruction({
       source: swigATA,
@@ -249,18 +300,28 @@ const connection = { rpc, rpcSubscriptions };
       mint: mint.address,
       amount: 1n, // exceed remaining allowance (should be 0)
       decimals,
-      authority: swigAddress,
+      authority: swigWalletAddress,
     });
 
-    const currentSlot = BigInt(await rpc.getSlot({ commitment: 'finalized' }).send());
-    const signed = await getSignInstructions(swigLatest, role.id, [transferAgain], false, {
-      payer: tokenAuthority.address,
-      currentSlot,
-    });
+    const currentSlot = BigInt(
+      await rpc.getSlot({ commitment: 'finalized' }).send(),
+    );
+    const signed = await getSignInstructions(
+      swigLatest,
+      role.id,
+      [transferAgain],
+      false,
+      {
+        payer: tokenAuthority.address,
+        currentSlot,
+      },
+    );
     await sendTransaction(connection, signed, tokenAuthority);
     console.error(chalk.red('✗ Second transfer unexpectedly succeeded!'));
   } catch {
-    console.log(chalk.green('✓ Second transfer failed as expected (no allowance left)'));
+    console.log(
+      chalk.green('✓ Second transfer failed as expected (no allowance left)'),
+    );
   }
 
   console.log(chalk.green('\n✨ Tutorial completed successfully!'));

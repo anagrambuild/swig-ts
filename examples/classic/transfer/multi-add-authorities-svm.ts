@@ -18,8 +18,10 @@ import {
   getSigningFnForSecp256k1PrivateKey,
   getSigningFnForSecp256r1PrivateKey,
   getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
   type SwigAccount,
   type SwigFetchFn,
 } from '@swig-wallet/classic';
@@ -67,7 +69,7 @@ function fetchSwig(
 ): ReturnType<typeof Swig.fromRawAccountData> {
   const account = fetchSwigAccount(svm, swigAddress);
   const swigFetchFn: SwigFetchFn = async (addr) =>
-    fetchSwigAccount(svm, new PublicKey((addr as any).toBase58()));
+    fetchSwigAccount(svm, toPublicKey(addr));
   return new Swig(swigAddress, account, swigFetchFn);
 }
 
@@ -120,6 +122,9 @@ sendSVMTransaction(svm, ixs, rootEd25519);
 // Fetch swig
 const swig = fetchSwig(svm, swigAddress);
 console.log('✅ Swig created with roles:', swig.roles.length);
+
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
 
 // Add multiple authorities using secp256k1 signer
 const addBuilder = await getAddMultipleAuthoritiesInstructionBuilder(swig, 2, {

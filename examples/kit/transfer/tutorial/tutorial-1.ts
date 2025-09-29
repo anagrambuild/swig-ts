@@ -1,27 +1,29 @@
 import {
+  addSignersToTransactionMessage,
+  appendTransactionMessageInstructions,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  createTransactionMessage,
   generateKeyPairSigner,
-  sendAndConfirmTransactionFactory,
-  signTransactionMessageWithSigners,
   getSignatureFromTransaction,
   lamports,
   pipe,
-  createTransactionMessage,
+  sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
-  addSignersToTransactionMessage,
+  signTransactionMessageWithSigners,
+  type Blockhash,
   type IInstruction,
   type KeyPairSigner,
-  type Blockhash,
 } from '@solana/kit';
 
 import {
   Actions,
   createEd25519AuthorityInfo,
+  fetchSwig,
   findSwigPda,
   getCreateSwigInstruction,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 
 import chalk from 'chalk';
@@ -35,10 +37,10 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function confirmAirdrop(
   rpc: ReturnType<typeof createSolanaRpc>,
   to: string,
-  amount: bigint
+  amount: bigint,
 ) {
   const sig = await (rpc as any).requestAirdrop(to, lamports(amount)).send();
-  await (rpc as any).getSignatureStatuses({ signatures: [sig] }).send();
+  await (rpc as any).getSignatureStatuses([sig]).send();
   await delay(1200);
 }
 
@@ -75,10 +77,19 @@ async function sendTransaction<T extends IInstruction[]>(
   payer: KeyPairSigner,
   signers: KeyPairSigner[] = [],
 ) {
-  const { value: latestBlockhash } = await connection.rpc.getLatestBlockhash().send();
-  const message = getTransactionMessage(instructions, latestBlockhash, payer, signers);
+  const { value: latestBlockhash } = await connection.rpc
+    .getLatestBlockhash()
+    .send();
+  const message = getTransactionMessage(
+    instructions,
+    latestBlockhash,
+    payer,
+    signers,
+  );
   const signed = await signTransactionMessageWithSigners(message);
-  await sendAndConfirmTransactionFactory(connection as any)(signed, { commitment: 'confirmed' });
+  await sendAndConfirmTransactionFactory(connection as any)(signed, {
+    commitment: 'confirmed',
+  });
   return getSignatureFromTransaction(signed).toString();
 }
 
@@ -108,7 +119,10 @@ async function createSwigAccount(
 
   const sig = await sendTransaction(connection, [ix], user);
 
-  console.log(chalk.green('✓ Swig account created at:'), chalk.cyan(swigAddress.toString()));
+  console.log(
+    chalk.green('✓ Swig account created at:'),
+    chalk.cyan(swigAddress.toString()),
+  );
   console.log(chalk.blue('Transaction signature:'), chalk.cyan(sig));
   return swigAddress;
 }
@@ -129,9 +143,21 @@ async function createSwigAccount(
   // Airdrop & confirm
   await confirmAirdrop(connection.rpc, user.address, 100n * LAMPORTS_PER_SOL);
 
-  console.log(chalk.green('👤 User public key:'), chalk.cyan(user.address.toString()));
+  console.log(
+    chalk.green('👤 User public key:'),
+    chalk.cyan(user.address.toString()),
+  );
 
   const swigAddress = await createSwigAccount(connection, user);
+
+  // Fetch swig and show wallet address
+  const { rpc } = connection;
+  const swig = await fetchSwig(rpc, swigAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log(
+    chalk.green('📦 Swig wallet address:'),
+    chalk.cyan(swigWalletAddress.toString()),
+  );
 
   console.log(chalk.green('\n✨ Everything looks good!'));
   console.log(chalk.yellow('🔍 View on Solana Explorer:'));

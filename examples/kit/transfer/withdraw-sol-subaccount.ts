@@ -1,4 +1,5 @@
 import {
+  address,
   addSignersToTransactionMessage,
   appendTransactionMessageInstructions,
   createSolanaRpc,
@@ -12,7 +13,6 @@ import {
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
-  type Address,
   type Blockhash,
   type IInstruction,
   type KeyPairSigner,
@@ -21,7 +21,6 @@ import {
   type SolanaRpcApi,
   type SolanaRpcSubscriptionsApi,
 } from '@solana/kit';
-import { address } from '@solana/kit';
 import {
   Actions,
   createEd25519AuthorityInfo,
@@ -31,6 +30,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSubAccountInstructions,
   getCreateSwigInstruction,
+  getSwigWalletAddress,
   getWithdrawFromSubAccountCheckedInstructions,
 } from '@swig-wallet/kit';
 import { sleepSync } from 'bun';
@@ -134,6 +134,10 @@ sleepSync(5000);
 
 const swig = await fetchSwig(connection.rpc, address(swigAddress));
 
+// Get the Swig wallet address
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress);
+
 let rootRole = swig.roles[0];
 
 // add a sub account authority
@@ -172,19 +176,23 @@ const subAccountAddress = await findSwigSubAccountPda(
 
 // fund the sub-account
 await connection.rpc
-  .requestAirdrop(address(subAccountAddress), lamports(BigInt(2 * LAMPORTS_PER_SOL)))
+  .requestAirdrop(
+    address(subAccountAddress),
+    lamports(BigInt(2 * LAMPORTS_PER_SOL)),
+  )
   .send();
 
 sleepSync(5000);
 
-const initialBalance = (await connection.rpc.getBalance(address(subAccountAddress)).send())
-  .value;
+const initialBalance = (
+  await connection.rpc.getBalance(address(subAccountAddress)).send()
+).value;
 console.log('initial sub-account balance:', initialBalance);
 
 // safe withdrawal with validation using Kit SDK checked function
 try {
   console.log('Using Kit SDK checked withdrawal with validation');
-  
+
   const safeWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
@@ -196,13 +204,17 @@ try {
   );
   await sendTransaction(connection, safeWithdrawIx, subAccountAuthority);
 } catch (error) {
-  console.log('Withdrawal blocked by safety validation:', error instanceof Error ? error.message : String(error));
+  console.log(
+    'Withdrawal blocked by safety validation:',
+    error instanceof Error ? error.message : String(error),
+  );
 }
 
 sleepSync(5000);
 
-const balanceAfterSafe = (await connection.rpc.getBalance(address(subAccountAddress)).send())
-  .value;
+const balanceAfterSafe = (
+  await connection.rpc.getBalance(address(subAccountAddress)).send()
+).value;
 console.log('balance after safe withdrawal:', balanceAfterSafe);
 
 // withdrawal that would drop below rent-exempt (with explicit override)
@@ -212,24 +224,18 @@ const largeWithdrawAmount = balanceAfterSafe - BigInt(0.001 * LAMPORTS_PER_SOL);
 
 try {
   // First trying without override (should fail) using Kit SDK
-  const blockedWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
-    swig,
-    subAccountAuthRole.id,
-    {
-      amount: largeWithdrawAmount,
-      currentBalance: balanceAfterSafe,
-      allowBelowRentExempt: false, // Should block this
-    },
-  );
   console.log('This should not happen - withdrawal should be blocked');
 } catch (error) {
-  console.log('Withdrawal correctly blocked:', error instanceof Error ? error.message : String(error));
+  console.log(
+    'Withdrawal correctly blocked:',
+    error instanceof Error ? error.message : String(error),
+  );
 }
 
 try {
   // Trying with explicit override using Kit SDK
   console.log('✅ Trying risky withdrawal with explicit override...');
-  
+
   const largeWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
@@ -239,16 +245,20 @@ try {
       allowBelowRentExempt: true, // Explicitly allow risky withdrawal
     },
   );
-  
+
   console.log('✅ Risky withdrawal allowed with explicit override');
   await sendTransaction(connection, largeWithdrawIx, subAccountAuthority);
 } catch (error) {
-  console.log('Large withdrawal failed:', error instanceof Error ? error.message : String(error));
+  console.log(
+    'Large withdrawal failed:',
+    error instanceof Error ? error.message : String(error),
+  );
 }
 
 sleepSync(5000);
 
-const finalBalance = (await connection.rpc.getBalance(address(subAccountAddress)).send())
-  .value;
+const finalBalance = (
+  await connection.rpc.getBalance(address(subAccountAddress)).send()
+).value;
 console.log('final balance after allowed withdrawal:', finalBalance);
 console.log('final balance is below rent-exempt:', finalBalance < 1224960n);

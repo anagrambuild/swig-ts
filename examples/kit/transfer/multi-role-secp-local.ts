@@ -1,16 +1,16 @@
 import {
+  appendTransactionMessageInstructions,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
-  generateKeyPairSigner,
-  sendAndConfirmTransactionFactory,
-  getSignatureFromTransaction,
   createTransactionMessage,
+  generateKeyPairSigner,
+  getSignatureFromTransaction,
+  lamports,
+  pipe,
+  sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
   signTransactionMessageWithSigners,
-  pipe,
-  lamports,
   type IInstruction,
   type KeyPairSigner,
 } from '@solana/kit';
@@ -23,6 +23,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSigningFnForSecp256k1PrivateKey,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 
 import { Wallet } from '@ethereumjs/wallet';
@@ -39,7 +40,7 @@ function delay(ms: number) {
 async function confirmAirdrop(
   rpc: ReturnType<typeof createSolanaRpc>,
   to: string,
-  amount: bigint
+  amount: bigint,
 ) {
   const sig = await (rpc as any).requestAirdrop(to, lamports(amount)).send();
   // Nudge localnet to finalize
@@ -55,7 +56,9 @@ async function sendTransaction<T extends IInstruction[]>(
   instructions: T,
   payer: KeyPairSigner,
 ): Promise<string> {
-  const { value: latestBlockhash } = await connection.rpc.getLatestBlockhash().send();
+  const { value: latestBlockhash } = await connection.rpc
+    .getLatestBlockhash()
+    .send();
 
   const txMessage = pipe(
     createTransactionMessage({ version: 0 }),
@@ -87,7 +90,9 @@ const balance = (await rpc.getBalance(payer.address).send()).value;
 console.log(`Payer balance: ${balance} lamports`);
 
 if (balance < lamports(100_000_000n)) {
-  throw new Error(`Airdrop failed or insufficient balance: ${balance} lamports`);
+  throw new Error(
+    `Airdrop failed or insufficient balance: ${balance} lamports`,
+  );
 }
 
 // ------------------ Authority Wallet (secp256k1 root) ------------------
@@ -106,7 +111,7 @@ try {
   const createSwigIx = await getCreateSwigInstruction({
     id: swigId,
     payer: payer.address,
-    authorityInfo,                  // secp256k1 root authority
+    authorityInfo, // secp256k1 root authority
     actions: Actions.set().all().get(),
   });
 
@@ -123,7 +128,12 @@ try {
 await delay(1200);
 
 const swig = await fetchSwig(rpc, swigAddress);
-const rootRole = swig.findRolesBySecp256k1SignerAddress(evmWallet.getAddress())?.[0];
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('📦 Swig wallet address:', swigWalletAddress.toString());
+
+const rootRole = swig.findRolesBySecp256k1SignerAddress(
+  evmWallet.getAddress(),
+)?.[0];
 if (!rootRole) throw new Error('Root role not found for EVM wallet');
 
 // ------------------ Define Roles (percent → bigint lamports) ------------------
@@ -133,10 +143,10 @@ if (!rootRole) throw new Error('Root role not found for EVM wallet');
  * amountLamports = (LAMPORTS_PER_SOL * percent) / 100
  */
 const rolesToCreate: Array<{ name: string; percent: bigint }> = [
-  { name: 'data-entry', percent: 5n },   // 0.05 SOL
-  { name: 'finance',    percent: 10n },  // 0.10 SOL
-  { name: 'developer',  percent: 20n },  // 0.20 SOL
-  { name: 'moderator',  percent: 5n },   // 0.05 SOL
+  { name: 'data-entry', percent: 5n }, // 0.05 SOL
+  { name: 'finance', percent: 10n }, // 0.10 SOL
+  { name: 'developer', percent: 20n }, // 0.20 SOL
+  { name: 'moderator', percent: 5n }, // 0.05 SOL
 ];
 
 // ------------------ Add Roles ------------------
@@ -145,13 +155,13 @@ for (const { name, percent } of rolesToCreate) {
   await delay(800);
 
   const roleWallet = Wallet.generate();
-  const roleAuthorityInfo = createSecp256k1AuthorityInfo(roleWallet.getPublicKey());
+  const roleAuthorityInfo = createSecp256k1AuthorityInfo(
+    roleWallet.getPublicKey(),
+  );
 
   const amountLamports = (LAMPORTS_PER_SOL * percent) / 100n;
 
-  const actions = Actions.set()
-    .solLimit({ amount: amountLamports })
-    .get();
+  const actions = Actions.set().solLimit({ amount: amountLamports }).get();
 
   const slot = await rpc.getSlot({ commitment: 'finalized' }).send();
 
@@ -164,15 +174,17 @@ for (const { name, percent } of rolesToCreate) {
       {
         preFetch: true,
         currentSlot: BigInt(slot),
-        signingFn,               // sign as the secp256k1 root
-        payer: payer.address,    // fee payer for the tx
+        signingFn, // sign as the secp256k1 root
+        payer: payer.address, // fee payer for the tx
       },
     );
 
     const sig = await sendTransaction(connection, addAuthorityIxs, payer);
     console.log(`✅ Role '${name}' added`);
     console.log(`   Tx: https://explorer.solana.com/tx/${sig}?cluster=custom`);
-    console.log(`   Secp256k1 address: 0x${Buffer.from(roleWallet.getAddress()).toString('hex')}`);
+    console.log(
+      `   Secp256k1 address: 0x${Buffer.from(roleWallet.getAddress()).toString('hex')}`,
+    );
   } catch (err) {
     console.error(`❌ Failed to add role '${name}':`, err);
     throw err;
