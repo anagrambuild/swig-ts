@@ -35,6 +35,9 @@ function randomBytes(length: number): Uint8Array {
   await sleep(2);
 
   const evmWallet = Wallet.generate();
+  // createSecp256k1AuthorityInfo now supports both compressed and uncompressed pubkeys
+  // This example uses uncompressed pubkey (64 bytes without prefix)
+  // See transfer-svm-secp.ts for an example using compressed pubkeys
   const authorityInfo = createSecp256k1AuthorityInfo(evmWallet.getPublicKey());
   const signingFn = getSigningFnForSecp256k1PrivateKey(
     evmWallet.getPrivateKey(),
