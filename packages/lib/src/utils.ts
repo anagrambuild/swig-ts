@@ -40,7 +40,7 @@ export async function findSwigPdaRaw(
   return [new SolPublicKey(address), bump];
 }
 
-async function findSwigWalletAddressPda(swigAddress: SolPublicKeyData) {
+async function findSwigSystemAddressPda(swigAddress: SolPublicKeyData) {
   const swigAddressBytes = new SolPublicKey(swigAddress).toBytes();
   return await getProgramDerivedAddress({
     programAddress: address(SWIG_PROGRAM_ADDRESS_STRING),
@@ -51,10 +51,10 @@ async function findSwigWalletAddressPda(swigAddress: SolPublicKeyData) {
   });
 }
 
-export async function findSwigWalletAddressPdaRaw(
+export async function findSwigSystemAddressPdaRaw(
   swigAddress: SolPublicKeyData,
 ): Promise<[SolPublicKey, number]> {
-  const [address, bump] = await findSwigWalletAddressPda(swigAddress);
+  const [address, bump] = await findSwigSystemAddressPda(swigAddress);
 
   return [new SolPublicKey(address), bump];
 }

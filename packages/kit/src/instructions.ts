@@ -123,12 +123,14 @@ export async function getToggleSubAccountInstructions(
   swig: Swig,
   roleId: number,
   enabled: boolean,
+  subAccountRoleId?: number,
   options?: SwigOptions,
 ): Promise<KitInstruction[]> {
   const context = await getToggleSubAccountInstructionContext(
     swig,
     roleId,
     enabled,
+    subAccountRoleId ?? roleId,
     options,
   );
 

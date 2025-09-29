@@ -75,7 +75,7 @@ export function getSecp256r1WebAuthnSigningFn(
   return (message) =>
     signWithSecp256r1Webauthn({
       ...publicKeyCredentialRequestOptions,
-      challenge: message,
+      challenge: message.slice(),
     });
 }
 

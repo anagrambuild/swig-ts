@@ -5,7 +5,7 @@ import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 export type CreateV1InstructionAccounts = {
   swig: SolPublicKeyData;
   payer: SolPublicKeyData;
-  swigWalletAddress: SolPublicKeyData;
+  swigSystemAddress: SolPublicKeyData;
 };
 
 export type CreateV1BaseAccountMetas = [
@@ -28,7 +28,7 @@ export function getCreateV1BaseAccountMetas(
       role: AccountRole.WRITABLE_SIGNER,
     }),
     SolAccountMeta.fromKitAccountMeta({
-      address: new SolPublicKey(accounts.swigWalletAddress).toAddress(),
+      address: new SolPublicKey(accounts.swigSystemAddress).toAddress(),
       role: AccountRole.WRITABLE,
     }),
     SolAccountMeta.fromKitAccountMeta({

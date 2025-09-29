@@ -91,7 +91,7 @@ export class Ed25519SessionAuthority
 
   signV2(args: {
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
@@ -100,10 +100,10 @@ export class Ed25519SessionAuthority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress,
+        swigSystemAddress: args.swigSystemAddress,
       },
       {
-        authorityData: this.data,
+        authorityData: this.sessionKey.toBytes(),
         innerInstructions: args.innerInstructions,
         roleId: args.roleId,
       },
@@ -222,7 +222,8 @@ export class Ed25519SessionAuthority
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
-    roleId: number;
+    subAccountRoleId: number;
+    actingRoleId: number;
     enabled: boolean;
   }) {
     return Ed25519Instruction.subAccountToggleV1Instruction(
@@ -232,7 +233,8 @@ export class Ed25519SessionAuthority
         subAccount: args.subAccount,
       },
       {
-        roleId: args.roleId,
+        subAccountRoleId: args.subAccountRoleId,
+        actingRoleId: args.actingRoleId,
         authorityData: this.data,
         enabled: args.enabled,
       },
@@ -305,7 +307,7 @@ export class Ed25519SessionAuthority
 
   transferAssets(args: {
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
     roleId: number;
   }) {
@@ -313,7 +315,7 @@ export class Ed25519SessionAuthority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress,
+        swigSystemAddress: args.swigSystemAddress,
       },
       {
         authorityData: this.data,

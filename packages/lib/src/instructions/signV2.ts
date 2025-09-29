@@ -4,7 +4,7 @@ import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 
 export type SignV2InstructionAccounts = {
   swig: SolPublicKeyData;
-  swigWalletAddress: SolPublicKeyData;
+  swigSystemAddress: SolPublicKeyData;
   payer: SolPublicKeyData;
 };
 
@@ -25,7 +25,7 @@ export function getSignV2BaseAccountMetas(
       // isWritable: true,
     }),
     SolAccountMeta.fromKitAccountMeta({
-      address: new SolPublicKey(accounts.swigWalletAddress).toAddress(),
+      address: new SolPublicKey(accounts.swigSystemAddress).toAddress(),
       role: AccountRole.WRITABLE,
       // isSigner: false,
       // isWritable: true,

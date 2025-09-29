@@ -83,7 +83,7 @@ export class Secp256r1Authority
 
   signV2(args: {
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
@@ -93,7 +93,7 @@ export class Secp256r1Authority
       {
         swig: args.swigAddress,
         payer: args.payer,
-        swigWalletAddress: args.swigWalletAddress,
+        swigSystemAddress: args.swigSystemAddress,
       },
       {
         authorityData: this.publicKeyBytes,
@@ -179,7 +179,7 @@ export class Secp256r1Authority
   subAccountSign(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
@@ -204,7 +204,8 @@ export class Secp256r1Authority
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
-    roleId: number;
+    subAccountRoleId: number;
+    actingRoleId: number;
     enabled: boolean;
     options: InstructionDataOptions;
   }) {
@@ -215,7 +216,8 @@ export class Secp256r1Authority
         subAccount: args.subAccount,
       },
       {
-        roleId: args.roleId,
+        subAccountRoleId: args.subAccountRoleId,
+        actingRoleId: args.actingRoleId,
         authorityData: this.publicKeyBytes,
         enabled: args.enabled,
       },
@@ -295,7 +297,7 @@ export class Secp256r1Authority
   transferAssets(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
-    swigWalletAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     roleId: number;
     roleIdToRemove: number;
     options: InstructionDataOptions;
@@ -304,7 +306,7 @@ export class Secp256r1Authority
       {
         payer: args.payer,
         swig: args.swigAddress,
-        swigWalletAddress: args.swigWalletAddress,
+        swigSystemAddress: args.swigSystemAddress,
       },
       {
         authorityData: this.data,

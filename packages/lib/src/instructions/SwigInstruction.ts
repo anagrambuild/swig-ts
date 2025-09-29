@@ -29,7 +29,7 @@ import {
   SwigInstructionContext,
   type SolPublicKeyData,
 } from '../solana';
-import { findSwigPdaRaw, findSwigWalletAddressPdaRaw } from '../utils';
+import { findSwigPdaRaw, findSwigSystemAddressPdaRaw } from '../utils';
 import { type AddAuthorityV1BaseAccountMetas } from './addAuthorityV1';
 import type { CreateSessionV1BaseAccountMetas } from './createSessionV1';
 import {
@@ -56,12 +56,12 @@ export async function createV1SwigInstruction(
   data: Omit<CreateV1InstructionDataArgs, 'bump' | 'walletBump'>,
 ): Promise<SwigInstructionContext> {
   const [swigAddress, bump] = await findSwigPdaRaw(Uint8Array.from(data.id));
-  const [swigWalletAddress, walletBump] =
-    await findSwigWalletAddressPdaRaw(swigAddress);
+  const [swigSystemAddress, walletBump] =
+    await findSwigSystemAddressPdaRaw(swigAddress);
   const createIxAccountMetas = getCreateV1BaseAccountMetas({
     ...accounts,
     swig: swigAddress,
-    swigWalletAddress,
+    swigSystemAddress,
   });
   return SwigInstructionV1.create(createIxAccountMetas, {
     ...data,
