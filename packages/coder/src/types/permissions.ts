@@ -85,6 +85,26 @@ export enum Permission {
    * to manage other authorities and their permissions.
    */
   AllButManageAuthority,
+
+  /**
+   * Allows a one-time transfer of a specified amount of SOL to a specific destination.
+   */
+  SolDestinationLimit,
+
+  /**
+   * Allows recurring SOL transfers up to a specified limit within a defined window to a specific destination.
+   */
+  SolRecurringDestinationLimit,
+
+  /**
+   * Allows a one-time transfer of a specific SPL token up to a set limit to a specific destination.
+   */
+  TokenDestinationLimit,
+
+  /**
+   * Allows recurring transfers of specific SPL tokens up to a limit within a time window to a specific destination.
+   */
+  TokenRecurringDestinationLimit,
 }
 
 /**

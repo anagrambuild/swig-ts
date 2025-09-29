@@ -1,16 +1,16 @@
 import {
+  appendTransactionMessageInstructions,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
-  generateKeyPairSigner,
-  sendAndConfirmTransactionFactory,
-  getSignatureFromTransaction,
   createTransactionMessage,
+  generateKeyPairSigner,
+  getSignatureFromTransaction,
+  lamports,
+  pipe,
+  sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
   signTransactionMessageWithSigners,
-  pipe,
-  lamports,
   type IInstruction,
   type KeyPairSigner,
 } from '@solana/kit';
@@ -26,8 +26,8 @@ import {
 } from '@swig-wallet/kit';
 
 import { Wallet } from '@ethereumjs/wallet';
-import { randomBytes } from 'crypto';
 import { sleepSync } from 'bun';
+import { randomBytes } from 'crypto';
 
 // ------------------ Setup ------------------
 
@@ -45,12 +45,16 @@ const balance = (await rpc.getBalance(payer.address).send()).value;
 console.log(`Payer balance: ${balance} lamports`);
 
 if (balance < lamports(100_000_000n)) {
-  throw new Error(`Airdrop failed or insufficient balance: ${balance} lamports`);
+  throw new Error(
+    `Airdrop failed or insufficient balance: ${balance} lamports`,
+  );
 }
 
 // ------------------ Authority Wallet ------------------
 
 const evmWallet = Wallet.generate();
+// createSecp256k1AuthorityInfo now supports both compressed and uncompressed pubkeys
+// evmWallet.getPublicKey() returns uncompressed format (64 bytes without prefix)
 const authorityInfo = createSecp256k1AuthorityInfo(evmWallet.getPublicKey());
 const signingFn = getSigningFnForSecp256k1PrivateKey(evmWallet.getPrivateKey());
 
@@ -81,7 +85,9 @@ try {
 sleepSync(2);
 
 const swig = await fetchSwig(rpc, swigAddress);
-const rootRole = swig.findRolesBySecp256k1SignerAddress(evmWallet.getAddress())?.[0];
+const rootRole = swig.findRolesBySecp256k1SignerAddress(
+  evmWallet.getAddress(),
+)?.[0];
 if (!rootRole) throw new Error('Root role not found for EVM wallet');
 
 // ------------------ Define Roles ------------------
@@ -99,13 +105,13 @@ for (const { name, amount } of rolesToCreate) {
   sleepSync(2);
 
   const roleWallet = Wallet.generate();
-  const roleAuthorityInfo = createSecp256k1AuthorityInfo(roleWallet.getPublicKey());
+  const roleAuthorityInfo = createSecp256k1AuthorityInfo(
+    roleWallet.getPublicKey(),
+  );
 
   const lamportAmount = BigInt(Math.floor(amount * 1_000_000_000));
 
-  const actions = Actions.set()
-    .solLimit({ amount: lamportAmount })
-    .get();
+  const actions = Actions.set().solLimit({ amount: lamportAmount }).get();
 
   const slot = await rpc.getSlot().send();
 
@@ -144,7 +150,9 @@ async function sendTransaction<T extends IInstruction[]>(
   instructions: T,
   payer: KeyPairSigner,
 ): Promise<string> {
-  const { value: latestBlockhash } = await connection.rpc.getLatestBlockhash().send();
+  const { value: latestBlockhash } = await connection.rpc
+    .getLatestBlockhash()
+    .send();
 
   const txMessage = pipe(
     createTransactionMessage({ version: 0 }),
