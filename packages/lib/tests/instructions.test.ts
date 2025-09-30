@@ -66,9 +66,9 @@ describe('SwigInstructionV1', () => {
       { address: dummyAddress('system'), role: AccountRole.READONLY },
       { address: dummyAddress('authority'), role: AccountRole.WRITABLE_SIGNER },
     ].map(SolAccountMeta.fromKitAccountMeta) as [
-      ...CreateV1BaseAccountMetas,
-      SolAccountMeta,
-    ];
+        ...CreateV1BaseAccountMetas,
+        SolAccountMeta,
+      ];
     const data = {
       actingRoleId: 0,
       newAuthorityType: AuthorityType.Ed25519,
@@ -118,10 +118,10 @@ describe('SwigInstructionV1', () => {
       { address: dummyAddress('payer'), role: AccountRole.WRITABLE_SIGNER },
       { address: dummyAddress('session'), role: AccountRole.READONLY },
     ].map(SolAccountMeta.fromKitAccountMeta) as [
-      SolAccountMeta,
-      SolAccountMeta,
-      SolAccountMeta,
-    ];
+        SolAccountMeta,
+        SolAccountMeta,
+        SolAccountMeta,
+      ];
     const data = {
       roleId: 0,
       sessionDuration: 0n,
@@ -153,7 +153,6 @@ describe('SwigInstructionV1', () => {
   it('subAccountSign returns an IInstruction', () => {
     const accounts: SubAccountSignV1BaseAccountMetas = [
       { address: dummyAddress('swig'), role: AccountRole.READONLY },
-      { address: dummyAddress('payer'), role: AccountRole.READONLY_SIGNER },
       { address: dummyAddress('subaccount'), role: AccountRole.WRITABLE },
       { address: dummyAddress('system'), role: AccountRole.READONLY },
     ].map(
