@@ -8,7 +8,7 @@ import {
   getSecp256k1SessionEncoder,
 } from '@swig-wallet/coder';
 import { SolPublicKey, type SolPublicKeyData } from '../solana';
-import { getUnprefixedSecpBytes } from '../utils';
+import { detectPubkeyFormat, getUnprefixedSecpBytes } from '../utils';
 import type { Authority } from './abstract';
 import { Ed25519Authority, Ed25519SessionAuthority } from './ed25519';
 import { Secp256k1Authority, Secp256k1SessionAuthority } from './secp256k1';
@@ -46,30 +46,59 @@ export function createEd25519SessionAuthorityInfo(
 }
 
 /**
- *
- * @param publicKey Uncomporesed Publickey bytes or Hex string
- * @returns
+ * Creates authority info for secp256k1 public key
+ * @param publicKey Compressed (33 bytes with 0x02/0x03 prefix or 32 bytes without prefix) or uncompressed (65 bytes with 0x04 prefix or 64 bytes without prefix) public key as bytes or hex string
+ * @returns CreateAuthorityInfo
  */
 export function createSecp256k1AuthorityInfo(
   publicKey: string | Uint8Array,
 ): CreateAuthorityInfo {
-  const data = getUnprefixedSecpBytes(publicKey, 64);
+  const format = detectPubkeyFormat(publicKey);
+
+  if (format === 'invalid') {
+    throw new Error(
+      'Invalid secp256k1 public key format. Expected 33-byte compressed or 64-byte uncompressed key.',
+    );
+  }
+
+  // Normalize to uncompressed format for internal processing
+  const data = getUnprefixedSecpBytes(
+    publicKey,
+    format === 'compressed' ? 33 : 64,
+  );
+
   const type = AuthorityType.Secp256k1;
 
   return { data, type };
 }
 
 /**
- *
- * @param publicKey Uncomporesed Publickey bytes or Hex string
- * @returns
+ * Creates session authority info for secp256k1 public key
+ * @param publicKey Compressed (33 bytes with 0x02/0x03 prefix or 32 bytes without prefix) or uncompressed (65 bytes with 0x04 prefix or 64 bytes without prefix) public key as bytes or hex string
+ * @param maxSessionDuration Maximum session duration in seconds
+ * @param sessionKey Optional session key
+ * @returns CreateAuthorityInfo
  */
 export function createSecp256k1SessionAuthorityInfo(
   publicKey: string | Uint8Array,
   maxSessionDuration: bigint,
   sessionKey?: SolPublicKeyData,
 ): CreateAuthorityInfo {
-  const publicKeyBytes = getUnprefixedSecpBytes(publicKey, 64);
+  const format = detectPubkeyFormat(publicKey);
+
+  if (format === 'invalid') {
+    throw new Error(
+      'Invalid secp256k1 public key format. Expected 33-byte compressed or 64-byte uncompressed key.',
+    );
+  }
+
+  // sanitise the publickey based on the format
+  const sanitisedPublicKey = getUnprefixedSecpBytes(
+    publicKey,
+    format === 'compressed' ? 33 : 64,
+  );
+  const publicKeyBytes = new Uint8Array(64);
+  publicKeyBytes.set(sanitisedPublicKey);
 
   const _sessionKey = sessionKey
     ? new SolPublicKey(sessionKey).toBytes()

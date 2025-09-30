@@ -85,6 +85,9 @@ const swigId = Uint8Array.from({ length: 32 }, () => 1);
 const swigAccountAddress = await findSwigPda(swigId);
 
 // Create Swig with secp256k1 authority
+// Note: createSecp256k1AuthorityInfo now supports both compressed and uncompressed pubkeys
+// evmAccount.publicKey is uncompressed (65 bytes with 0x04 prefix)
+// You can also pass compressed pubkeys (33 bytes with 0x02/0x03 prefix or 32 bytes without prefix)
 const rootActions = Actions.set().all().get();
 const createSwigIx = await getCreateSwigInstruction({
   authorityInfo: createSecp256k1AuthorityInfo(userWallet.getPublicKey()),

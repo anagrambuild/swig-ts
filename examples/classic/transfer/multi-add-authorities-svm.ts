@@ -57,7 +57,10 @@ function sendSVMTransaction(
   }
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+function fetchSwigAccount(
+  svm: LiteSVM,
+  swigAccountAddress: PublicKey,
+): SwigAccount {
   const account = svm.getAccount(swigAccountAddress);
   if (!account) throw new Error('Swig account not created');
   return getSwigCodec().decode(account.data);
