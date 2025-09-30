@@ -29,8 +29,8 @@ cd $PROGRAM_DIR
 echo "Program directory updated!"
 echo "building swig program..."
 cargo build-sbf --arch v1 -- -q > /dev/null 2>&1
-cp target/deploy/swig.so $WORKSPACE_DIR
-# Find the built program file
+
+# Find and copy the built program file (remove the duplicate cp command)
 if [ -f target/deploy/swig.so ]; then
     cp target/deploy/swig.so $WORKSPACE_DIR
 elif [ -f target/deploy/*.so ]; then
