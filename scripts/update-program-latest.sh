@@ -9,7 +9,13 @@ PROGRAM_DIR=$WORKSPACE_DIR/swig-program
 if [ ! -d "$PROGRAM_DIR/.git" ]; then
   echo "⚠️ Could not find swig program .git dir. Cloning from source (branch: '$BRANCH')..." 
   rm -rf $PROGRAM_DIR
-  git clone -q -b "$BRANCH" git@github.com:anagrambuild/swig-wallet.git $PROGRAM_DIR
+  
+  # Use HTTPS with token if available (for CI), otherwise fall back to SSH
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    git clone -q -b "$BRANCH" "https://${GITHUB_TOKEN}@github.com/anagrambuild/swig-wallet.git" $PROGRAM_DIR
+  else
+    git clone -q -b "$BRANCH" git@github.com:anagrambuild/swig-wallet.git $PROGRAM_DIR
+  fi
 else
   cd $PROGRAM_DIR
   echo "Pulling swig program latest from branch '$BRANCH'..."

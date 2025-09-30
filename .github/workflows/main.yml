@@ -51,7 +51,7 @@ jobs:
 
       - name: Install Dependencies
         run: bun install
-      
+
       - name: "Build repo"
         run: bun run build:packages
 
@@ -83,7 +83,7 @@ jobs:
 
       - name: Check typecript
         run: bun typecheck
-      
+
       - name: Check format
         run: bun run format
 
@@ -105,7 +105,9 @@ jobs:
 
       - name: Update program bin
         run: bun update:program
-      
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Build Packages
         run: bun run build:packages
 
