@@ -101,7 +101,7 @@ async function main() {
 
   // Deterministic Swig PDA
   const id = randomBytes(32);
-  const swigAddress = findSwigPda(id);
+  const swigAccountAddress = findSwigPda(id);
 
   // 1) Create Swig with a root *session* authority (with its own limit)
   const rootActions = Actions.set().all().get();
@@ -119,7 +119,7 @@ async function main() {
   await sleep(2);
 
   // Fetch Swig account
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
 
   const rootRole = swig.findRoleById(0);
   if (!rootRole) throw new Error('Root role not found');

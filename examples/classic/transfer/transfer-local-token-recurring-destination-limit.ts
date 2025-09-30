@@ -83,7 +83,7 @@ async function sendTransaction(
 
   // Create Swig root account
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
   const rootActions = Actions.set().all().get();
   const ix = await getCreateSwigInstruction({
@@ -98,7 +98,7 @@ async function sendTransaction(
   await sleep(2);
 
   // Fetch root role
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];

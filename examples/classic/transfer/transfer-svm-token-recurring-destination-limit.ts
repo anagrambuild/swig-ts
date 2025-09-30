@@ -66,23 +66,23 @@ function sendSVMTransaction(
   }
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const swigAccount = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
   return getSwigCodec().decode(swigAccount.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
     fetchSwigAccount(
       svm,
-      new PublicKey(new SolPublicKey(swigAddress).toBytes()),
+      new PublicKey(new SolPublicKey(swigAccountAddress).toBytes()),
     );
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -99,9 +99,9 @@ console.log('starting...');
 
   // Create Swig root account
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
-  console.log('swig address:', swigAddress.toBase58());
+  console.log('swig address:', swigAccountAddress.toBase58());
 
   const rootActions = Actions.set().all().get();
   const ix = await getCreateSwigInstruction({
@@ -114,7 +114,7 @@ console.log('starting...');
   sendSVMTransaction(svm, [ix], rootKeypair);
 
   // Fetch root role
-  let swig = fetchSwig(svm, swigAddress);
+  let swig = fetchSwig(svm, swigAccountAddress);
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
@@ -228,7 +228,7 @@ console.log('starting...');
   sendSVMTransaction(svm, addIx, rootKeypair);
 
   // Refresh swig to get the newly added role
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Fund the role keypair for transaction fees
   svm.airdrop(roleKeypair.publicKey, BigInt(0.1 * LAMPORTS_PER_SOL));
@@ -263,7 +263,7 @@ console.log('starting...');
   console.log('First transfer completed: 200 tokens');
 
   // Refresh swig after first transfer
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Second transfer: 300 tokens (should still be allowed, total 500 tokens)
   const transferAmount2 = BigInt(300 * 10 ** decimals);
@@ -293,7 +293,7 @@ console.log('starting...');
   );
 
   // Refresh swig after second transfer
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Third transfer: 100 tokens (should exceed the 500 token limit in current window)
   try {

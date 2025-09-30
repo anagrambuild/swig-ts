@@ -110,7 +110,7 @@ const connection = { rpc, rpcSubscriptions };
 
   // Create SWIG with manageAuthority-only (switch to .all() if desired)
   const id = randomBytes(32);
-  const swigAddress = await findSwigPda(id);
+  const swigAccountAddress = await findSwigPda(id);
   const rootActions = Actions.set().manageAuthority().get();
   const createSwigIx = await getCreateSwigInstruction({
     payer: rootUser.address,
@@ -121,11 +121,11 @@ const connection = { rpc, rpcSubscriptions };
   await sendTransaction(connection, [createSwigIx], rootUser);
   console.log(
     chalk.green('✓ Swig created:'),
-    chalk.cyan(swigAddress.toString()),
+    chalk.cyan(swigAccountAddress.toString()),
   );
 
   // Fetch swig and show wallet address
-  const swigForWallet = await fetchSwig(rpc, swigAddress);
+  const swigForWallet = await fetchSwig(rpc, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swigForWallet);
   console.log(
     chalk.green('📦 Swig wallet address:'),
@@ -133,7 +133,7 @@ const connection = { rpc, rpcSubscriptions };
   );
 
   // Give the SWIG PDA a bit of SOL for rent/fees (optional)
-  await confirmAirdrop(rpc, swigAddress, 1n * LAMPORTS_PER_SOL);
+  await confirmAirdrop(rpc, swigAccountAddress, 1n * LAMPORTS_PER_SOL);
   console.log(chalk.green('✓ Airdropped 1 SOL to SWIG'));
 
   // ----- Create a Token-2022 mint & fund SWIG ATA -----
@@ -209,7 +209,7 @@ const connection = { rpc, rpcSubscriptions };
     .tokenLimit({ mint: mint.address, amount: 10n })
     .get();
 
-  const swig = await fetchSwig(rpc, swigAddress);
+  const swig = await fetchSwig(rpc, swigAccountAddress);
   const rootRole = swig.findRolesByEd25519SignerPk(rootUser.address)[0];
 
   const addAuthorityIxs = await getAddAuthorityInstructions(
@@ -241,7 +241,7 @@ const connection = { rpc, rpcSubscriptions };
 
   // ----- First transfer (should succeed): 10 tokens -----
   {
-    const swigLatest = await fetchSwig(rpc, swigAddress);
+    const swigLatest = await fetchSwig(rpc, swigAccountAddress);
     const role = swigLatest.findRolesByEd25519SignerPk(
       tokenAuthority.address,
     )[0];
@@ -289,7 +289,7 @@ const connection = { rpc, rpcSubscriptions };
 
   // ----- Second transfer (should fail; allowance spent) -----
   try {
-    const swigLatest = await fetchSwig(rpc, swigAddress);
+    const swigLatest = await fetchSwig(rpc, swigAccountAddress);
     const role = swigLatest.findRolesByEd25519SignerPk(
       tokenAuthority.address,
     )[0];
@@ -328,7 +328,7 @@ const connection = { rpc, rpcSubscriptions };
   console.log(
     chalk.yellow('🔍 View your SWIG on Explorer:'),
     chalk.cyan(
-      `https://explorer.solana.com/address/${swigAddress}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+      `https://explorer.solana.com/address/${swigAccountAddress}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
     ),
   );
 })();

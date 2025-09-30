@@ -56,8 +56,8 @@ async function sendAndConfirmTransactionWithLogs(
   const dappTreasury = Keypair.generate().publicKey;
 
   const id = Uint8Array.from(Array(32).fill(0));
-  const swigAddress = findSwigPda(id);
-  console.log('📌 Swig PDA:', swigAddress.toBase58());
+  const swigAccountAddress = findSwigPda(id);
+  console.log('📌 Swig PDA:', swigAccountAddress.toBase58());
 
   // Airdrop SOL
   for (const keypair of [userRootKeypair, dappSessionKeypair]) {
@@ -88,7 +88,7 @@ async function sendAndConfirmTransactionWithLogs(
   );
 
   // Fetch Swig
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log('🏦 Swig Wallet:', swigWalletAddress.toBase58());
 

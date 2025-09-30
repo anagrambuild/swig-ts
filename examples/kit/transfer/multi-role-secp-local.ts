@@ -104,7 +104,7 @@ const signingFn = getSigningFnForSecp256k1PrivateKey(evmWallet.getPrivateKey());
 // ------------------ Create Swig ------------------
 
 const swigId = randomBytes(32);
-const swigAddress = await findSwigPda(swigId);
+const swigAccountAddress = await findSwigPda(swigId);
 
 console.log('Creating Swig...');
 try {
@@ -116,7 +116,7 @@ try {
   });
 
   const sig = await sendTransaction(connection, [createSwigIx], payer);
-  console.log(`✅ Swig created at: ${swigAddress.toString()}`);
+  console.log(`✅ Swig created at: ${swigAccountAddress.toString()}`);
   console.log(`   Tx: https://explorer.solana.com/tx/${sig}?cluster=custom`);
 } catch (err) {
   console.error('❌ Failed to create Swig:', err);
@@ -127,7 +127,7 @@ try {
 
 await delay(1200);
 
-const swig = await fetchSwig(rpc, swigAddress);
+const swig = await fetchSwig(rpc, swigAccountAddress);
 const swigWalletAddress = await getSwigWalletAddress(swig);
 console.log('📦 Swig wallet address:', swigWalletAddress.toString());
 

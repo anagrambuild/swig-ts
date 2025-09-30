@@ -157,8 +157,8 @@ await confirmAirdrop(
 );
 
 const id = randomBytes(32);
-const swigAddress = await findSwigPda(id);
-console.log('swig address:', swigAddress);
+const swigAccountAddress = await findSwigPda(id);
+console.log('swig address:', swigAccountAddress);
 
 // Create SWIG
 const rootActions = Actions.set().all().get();
@@ -171,7 +171,7 @@ const createSwigIx = await getCreateSwigInstruction({
 await sendTransaction(connection, [createSwigIx], userRootKeypair);
 
 // Fetch swig + roles
-const swig = await fetchSwig(connection.rpc, swigAddress);
+const swig = await fetchSwig(connection.rpc, swigAccountAddress);
 const swigWalletAddress = await getSwigWalletAddress(swig);
 console.log('swig wallet address:', swigWalletAddress);
 const rootRole = swig.findRolesByEd25519SignerPk(userRootKeypair.address)[0];

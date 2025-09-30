@@ -149,8 +149,8 @@ await confirmAirdrop(
 );
 
 const id = randomBytes(32);
-const swigAddress = await findSwigPda(id);
-console.log('swig address:', swigAddress);
+const swigAccountAddress = await findSwigPda(id);
+console.log('swig address:', swigAccountAddress);
 
 // Create SWIG (root has all actions)
 const createSwigIx = await getCreateSwigInstruction({
@@ -161,7 +161,7 @@ const createSwigIx = await getCreateSwigInstruction({
 });
 await sendTransaction(connection, [createSwigIx], rootAuthority);
 
-const swig = await fetchSwig(connection.rpc, swigAddress);
+const swig = await fetchSwig(connection.rpc, swigAccountAddress);
 
 // Resolve root role by signer (safer than indexing)
 const rootRole = swig.findRolesByEd25519SignerPk(rootAuthority.address)[0];

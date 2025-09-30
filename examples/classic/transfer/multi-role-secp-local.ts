@@ -44,7 +44,7 @@ function randomBytes(length: number): Uint8Array {
 
   // Create Swig PDA
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
   // Create Swig account
   const createIx = await getCreateSwigInstruction({
@@ -59,16 +59,16 @@ function randomBytes(length: number): Uint8Array {
     payer,
   ]);
   console.log('✅ Swig created');
-  console.log('   PDA:', swigAddress.toBase58());
+  console.log('   PDA:', swigAccountAddress.toBase58());
   console.log(
     '   Explorer:',
-    `https://explorer.solana.com/address/${swigAddress.toBase58()}?cluster=custom`,
+    `https://explorer.solana.com/address/${swigAccountAddress.toBase58()}?cluster=custom`,
   );
   console.log('   Tx:', createSig);
 
   // Fetch Swig
   await sleep(2);
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log('🏦 Swig wallet:', swigWalletAddress.toBase58());
 

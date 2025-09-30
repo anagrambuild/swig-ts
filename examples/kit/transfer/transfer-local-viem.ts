@@ -82,7 +82,7 @@ await Promise.all([
 
 // Swig ID and address
 const swigId = Uint8Array.from({ length: 32 }, () => 1);
-const swigAddress = await findSwigPda(swigId);
+const swigAccountAddress = await findSwigPda(swigId);
 
 // Create Swig with secp256k1 authority
 const rootActions = Actions.set().all().get();
@@ -98,7 +98,7 @@ await sendTransaction(
   payer,
 );
 
-let swig = await fetchSwig(rpc, swigAddress);
+let swig = await fetchSwig(rpc, swigAccountAddress);
 const swigWalletAddress = await getSwigWalletAddress(swig);
 await confirmAirdrop(swigWalletAddress, 1n * LAMPORTS_PER_SOL);
 
@@ -181,7 +181,7 @@ async function signAndSendSwigTransfer(
   const currentSlot = await rpc.getSlot({ commitment: 'finalized' }).send();
 
   // Ensure freshest SWIG state & role before signing
-  swig = await fetchSwig(rpc, swigAddress);
+  swig = await fetchSwig(rpc, swigAccountAddress);
   rootRole = swig.findRolesBySecp256k1SignerAddress(userWallet.getAddress())[0];
   if (!rootRole) throw new Error('Role not found');
 

@@ -57,20 +57,20 @@ function sendSVMTransaction(
   }
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const account = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const account = svm.getAccount(swigAccountAddress);
   if (!account) throw new Error('Swig account not created');
   return getSwigCodec().decode(account.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const account = fetchSwigAccount(svm, swigAddress);
+  const account = fetchSwigAccount(svm, swigAccountAddress);
   const swigFetchFn: SwigFetchFn = async (addr) =>
     fetchSwigAccount(svm, toPublicKey(addr));
-  return new Swig(swigAddress, account, swigFetchFn);
+  return new Swig(swigAccountAddress, account, swigFetchFn);
 }
 
 //
@@ -92,8 +92,8 @@ const secp256k1 = Wallet.generate();
 
 // Find Swig PDA
 const id = Uint8Array.from(Array(32).fill(7)); // random but fixed id
-const swigAddress = findSwigPda(id);
-console.log('📦 Swig account PDA:', swigAddress.toBase58());
+const swigAccountAddress = findSwigPda(id);
+console.log('📦 Swig account PDA:', swigAccountAddress.toBase58());
 
 // Create Swig with secp256r1 root, add ed25519 + secp256k1 as additional
 let ixs = await getCreateSwigInstructionBuilder({
@@ -101,7 +101,7 @@ let ixs = await getCreateSwigInstructionBuilder({
     signingFn: getSigningFnForSecp256r1PrivateKey(secp256r1.secretKey),
     currentSlot: svm.getClock().slot,
   },
-  swigAddress,
+  swigAddress: swigAccountAddress,
   authorityInfo: createSecp256r1AuthorityInfo(secp256r1.publicKey),
   id,
   payer: rootEd25519.publicKey,
@@ -120,7 +120,7 @@ let ixs = await getCreateSwigInstructionBuilder({
 sendSVMTransaction(svm, ixs, rootEd25519);
 
 // Fetch swig
-const swig = fetchSwig(svm, swigAddress);
+const swig = fetchSwig(svm, swigAccountAddress);
 console.log('✅ Swig created with roles:', swig.roles.length);
 
 const swigWalletAddress = await getSwigWalletAddress(swig);

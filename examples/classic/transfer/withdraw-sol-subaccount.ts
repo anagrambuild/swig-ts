@@ -54,23 +54,23 @@ function sendSVMTransaction(
   }
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const swigAccount = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
   return getSwigCodec().decode(swigAccount.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
     fetchSwigAccount(
       svm,
-      new PublicKey(new SolPublicKey(swigAddress).toBytes()),
+      new PublicKey(new SolPublicKey(swigAccountAddress).toBytes()),
     );
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -93,9 +93,9 @@ svm.airdrop(subAccountAuthority.publicKey, BigInt(LAMPORTS_PER_SOL));
 
 const id = Uint8Array.from(Array(32).fill(2));
 
-const swigAddress = findSwigPda(id);
+const swigAccountAddress = findSwigPda(id);
 
-console.log('swig address:', swigAddress.toBase58());
+console.log('swig address:', swigAccountAddress.toBase58());
 
 const createSwigIx = await getCreateSwigInstruction({
   payer: rootAuthority.publicKey,
@@ -105,7 +105,7 @@ const createSwigIx = await getCreateSwigInstruction({
 });
 sendSVMTransaction(svm, [createSwigIx], rootAuthority);
 
-const swig = fetchSwig(svm, swigAddress);
+const swig = fetchSwig(svm, swigAccountAddress);
 
 // Get the Swig wallet address
 const swigWalletAddress = await getSwigWalletAddress(swig);

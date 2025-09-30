@@ -23,7 +23,7 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
   const id = new Uint8Array(32);
   crypto.getRandomValues(id); // random id for PDA
 
-  const swigAddress = findSwigPda(id);
+  const swigAccountAddress = findSwigPda(id);
   const rootAuthorityInfo = createEd25519AuthorityInfo(user.publicKey);
   const rootActions = Actions.set().all().get();
 
@@ -39,22 +39,22 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
 
   console.log(
     chalk.green('✓ Swig account created at:'),
-    chalk.cyan(swigAddress.toBase58()),
+    chalk.cyan(swigAccountAddress.toBase58()),
   );
   console.log(chalk.blue('Transaction signature:'), chalk.cyan(sig));
 
-  return swigAddress;
+  return swigAccountAddress;
 }
 
 async function addNewAuthority(
   connection: Connection,
   rootUser: Keypair,
   newAuthority: Keypair,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
   actions: any,
   description: string,
 ) {
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
 
   const rootRole = swig.findRolesByEd25519SignerPk(rootUser.publicKey)[0];
   if (!rootRole) throw new Error('Root role not found for authority');
@@ -102,10 +102,10 @@ async function addNewAuthority(
 
   // create swig
   console.log(chalk.yellow('\n📝 Creating Swig account...'));
-  const swigAddress = await createSwigAccount(connection, rootUser);
+  const swigAccountAddress = await createSwigAccount(connection, rootUser);
 
   // fetch swig + wallet
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log(
     chalk.green('📦 Swig wallet address:'),
@@ -154,7 +154,7 @@ async function addNewAuthority(
     connection,
     rootUser,
     spendingAuthority,
-    swigAddress,
+    swigAccountAddress,
     spendingActions,
     'spending',
   );
@@ -169,13 +169,13 @@ async function addNewAuthority(
     connection,
     rootUser,
     tokenAuthority,
-    swigAddress,
+    swigAccountAddress,
     tokenActions,
     'token',
   );
 
   // verify roles
-  const updatedSwig = await fetchSwig(connection, swigAddress);
+  const updatedSwig = await fetchSwig(connection, swigAccountAddress);
   console.log(chalk.blue('\n📊 Authority Permissions:'));
 
   const spendingRole = updatedSwig.findRolesByEd25519SignerPk(
@@ -208,7 +208,7 @@ async function addNewAuthority(
   console.log(chalk.yellow('🔍 Check it out on Solana Explorer:'));
   console.log(
     chalk.cyan(
-      `https://explorer.solana.com/address/${swigAddress}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+      `https://explorer.solana.com/address/${swigAccountAddress}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
     ),
   );
 })();

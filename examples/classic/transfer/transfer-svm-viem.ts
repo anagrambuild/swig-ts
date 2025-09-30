@@ -57,22 +57,22 @@ function sendSVMTransaction(
   return res;
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const swigAccount = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
   return getSwigCodec().decode(swigAccount.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
 
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, toPublicKey(swigAddress));
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
 
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 //
@@ -93,7 +93,7 @@ svm.airdrop(payer.publicKey, BigInt(LAMPORTS_PER_SOL));
 const dappTreasury = Keypair.generate().publicKey;
 
 const id = Uint8Array.from(Array(32).fill(0));
-const swigAddress = findSwigPda(id);
+const swigAccountAddress = findSwigPda(id);
 
 //
 // Create Swig
@@ -106,7 +106,7 @@ const createSwigIx = await getCreateSwigInstruction({
 });
 sendSVMTransaction(svm, [createSwigIx], payer);
 
-let swig = fetchSwig(svm, swigAddress);
+let swig = fetchSwig(svm, swigAccountAddress);
 const swigWalletAddress = await getSwigWalletAddress(swig);
 console.log('swig wallet address:', swigWalletAddress.toBase58());
 
@@ -170,7 +170,7 @@ console.log('balance after viemSign:', svm.getBalance(swigWalletAddress));
 // Case 2: viemSignWithPrefix
 //
 svm.warpToSlot(100n);
-swig = fetchSwig(svm, swigAddress);
+swig = fetchSwig(svm, swigAccountAddress);
 rootRole = swig.findRolesBySecp256k1SignerAddress(
   privateKeyAccount.address,
 )[0]!;
@@ -190,7 +190,7 @@ console.log(
 // Case 3: viemSignMessage
 //
 svm.warpToSlot(200n);
-swig = fetchSwig(svm, swigAddress);
+swig = fetchSwig(svm, swigAccountAddress);
 rootRole = swig.findRolesBySecp256k1SignerAddress(
   privateKeyAccount.address,
 )[0]!;

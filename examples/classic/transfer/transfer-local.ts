@@ -73,7 +73,7 @@ async function main() {
 
   // Create Swig
   const id = randomBytes(32);
-  const swigAddress = findSwigPda(id);
+  const swigAccountAddress = findSwigPda(id);
   const rootActions = Actions.set().all().get();
 
   const createSwigIx = await getCreateSwigInstruction({
@@ -86,7 +86,7 @@ async function main() {
   await sendTransaction(connection, [createSwigIx], root);
   await sleep(2000);
 
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log('swig wallet address:', swigWalletAddress.toBase58());
 

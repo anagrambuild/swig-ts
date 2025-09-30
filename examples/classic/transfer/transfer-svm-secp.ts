@@ -45,22 +45,22 @@ function sendSVMTransaction(
   return res;
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const swigAccount = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
   return getSwigCodec().decode(swigAccount.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
 
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, toPublicKey(swigAddress));
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
 
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting authority-secp256k1...');
@@ -77,7 +77,7 @@ svm.airdrop(manager.publicKey, BigInt(LAMPORTS_PER_SOL));
 
 const treasury = Keypair.generate().publicKey;
 const id = Uint8Array.from(Array(32).fill(0));
-const swigAddress = findSwigPda(id);
+const swigAccountAddress = findSwigPda(id);
 
 // create swig
 const rootActions = Actions.set().all().get();
@@ -89,7 +89,7 @@ const createIx = await getCreateSwigInstruction({
 });
 sendSVMTransaction(svm, [createIx], root);
 
-let swig = fetchSwig(svm, swigAddress);
+let swig = fetchSwig(svm, swigAccountAddress);
 const role = swig.findRolesBySecp256k1SignerAddress(wallet.getAddress())[0]!;
 const slot = svm.getClock().slot;
 
@@ -100,7 +100,7 @@ const swigWalletAddress = await getSwigWalletAddress(swig);
 console.log('swig wallet address:', swigWalletAddress.toBase58());
 
 svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
-swig = fetchSwig(svm, swigAddress);
+swig = fetchSwig(svm, swigAccountAddress);
 
 console.log('balance before:', svm.getBalance(swigWalletAddress));
 

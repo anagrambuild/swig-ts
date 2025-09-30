@@ -164,8 +164,8 @@ success('Airdropped 10 SOL to root & subscription');
 
 section('Creating SWIG wallet');
 const swigId = randomBytes(32);
-const swigAddress = await findSwigPda(swigId);
-info(`SWIG wallet address: ${chalk.yellow(swigAddress)}`);
+const swigAccountAddress = await findSwigPda(swigId);
+info(`SWIG wallet address: ${chalk.yellow(swigAccountAddress)}`);
 
 section('Configuring SWIG wallet');
 const createSwigIx = await getCreateSwigInstruction({
@@ -177,7 +177,7 @@ const createSwigIx = await getCreateSwigInstruction({
 await sendTransaction(connection, [createSwigIx], root);
 success('Created SWIG wallet with root authority');
 
-const swig = await fetchSwig(connection.rpc, swigAddress);
+const swig = await fetchSwig(connection.rpc, swigAccountAddress);
 const swigWalletAddress = await getSwigWalletAddress(swig);
 info(`SWIG wallet address: ${chalk.yellow(swigWalletAddress)}`);
 

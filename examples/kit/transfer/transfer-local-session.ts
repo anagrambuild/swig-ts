@@ -90,8 +90,8 @@ console.log('Generated treasury address:', dappTreasury.address.toString());
 const id = randomBytes(32);
 console.log('Generated Swig ID:', Buffer.from(id).toString('hex'));
 
-const swigAddress = await findSwigPda(id);
-console.log('Swig PDA address:', swigAddress.toString());
+const swigAccountAddress = await findSwigPda(id);
+console.log('Swig PDA address:', swigAccountAddress.toString());
 
 const rootActions = Actions.set().all().get();
 
@@ -109,7 +109,7 @@ console.log('Creating Swig...');
 await sendTransaction(connection, [createSwigIx], userRootKeypair);
 console.log('Swig created.');
 
-let swig = await fetchSwig(connection.rpc, swigAddress);
+let swig = await fetchSwig(connection.rpc, swigAccountAddress);
 const swigWalletAddress = await getSwigWalletAddress(swig);
 console.log('swig wallet address:', swigWalletAddress);
 console.log('Fetched Swig:', swig.address.toString());
@@ -183,7 +183,7 @@ const transferIx = {
 } satisfies IInstruction;
 
 // Find session role
-swig = await fetchSwig(connection.rpc, swigAddress);
+swig = await fetchSwig(connection.rpc, swigAccountAddress);
 const sessionRole = swig.findRolesByEd25519SignerPk(
   dappSessionKeypair.address,
 )[0];

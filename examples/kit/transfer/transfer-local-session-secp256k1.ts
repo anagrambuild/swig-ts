@@ -100,7 +100,7 @@ async function sendAndConfirmTransactionWithLogs(
   const dappTreasury = await generateKeyPairSigner();
 
   const id = Uint8Array.from({ length: 32 }, () => 0);
-  const swigAddress = await findSwigPda(id);
+  const swigAccountAddress = await findSwigPda(id);
 
   // Airdrop SOL (confirm)
   await Promise.all([
@@ -132,7 +132,7 @@ async function sendAndConfirmTransactionWithLogs(
   );
 
   // Fetch swig
-  let swig = await fetchSwig(rpc, swigAddress);
+  let swig = await fetchSwig(rpc, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log('📦 Swig wallet address:', swigWalletAddress.toString());
 
@@ -170,7 +170,7 @@ async function sendAndConfirmTransactionWithLogs(
   console.log('✅ Session created');
 
   // Refetch swig and get session role
-  swig = await fetchSwig(rpc, swigAddress);
+  swig = await fetchSwig(rpc, swigAccountAddress);
 
   const sessionRole = swig.findRoleBySessionKey(dappSessionKeypair.address);
   if (!sessionRole) throw new Error('Session role not found');

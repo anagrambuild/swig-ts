@@ -93,7 +93,7 @@ async function confirmAirdrop(
   await confirmAirdrop(connection, rootKeypair.address, 1n * LAMPORTS_PER_SOL);
 
   const swigId = randomBytes(32);
-  const swigAddress = await findSwigPda(swigId);
+  const swigAccountAddress = await findSwigPda(swigId);
 
   // Create SWIG with full root actions
   const rootActions = Actions.set().all().get();
@@ -107,7 +107,7 @@ async function confirmAirdrop(
   await sendTransaction(connection, [createSwigIx], rootKeypair);
 
   // Fetch SWIG + root role
-  const swig = await fetchSwig(connection.rpc, swigAddress);
+  const swig = await fetchSwig(connection.rpc, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log('📦 Swig wallet address:', swigWalletAddress.toString());
 

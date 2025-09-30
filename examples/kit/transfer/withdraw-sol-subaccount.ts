@@ -117,9 +117,9 @@ sleepSync(5000);
 
 const id = randomBytes(32);
 
-const swigAddress = await findSwigPda(id);
+const swigAccountAddress = await findSwigPda(id);
 
-console.log('swig address:', swigAddress);
+console.log('swig address:', swigAccountAddress);
 
 const createSwigIx = await getCreateSwigInstruction({
   payer: rootAuthority.address,
@@ -132,7 +132,7 @@ await sendTransaction(connection, [createSwigIx], rootAuthority);
 
 sleepSync(5000);
 
-const swig = await fetchSwig(connection.rpc, address(swigAddress));
+const swig = await fetchSwig(connection.rpc, address(swigAccountAddress));
 
 // Get the Swig wallet address
 const swigWalletAddress = await getSwigWalletAddress(swig);

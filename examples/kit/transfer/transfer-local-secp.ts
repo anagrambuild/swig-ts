@@ -102,7 +102,7 @@ const dappTreasury = await generateKeyPairSigner();
 
 // ------------------ Swig ID and PDA ------------------
 const id = Uint8Array.from({ length: 32 }, () => 1);
-const swigAddress = await findSwigPda(id);
+const swigAccountAddress = await findSwigPda(id);
 
 // ------------------ Create Swig ------------------
 const rootActions = Actions.set().all().get();
@@ -115,7 +115,7 @@ const createSwigIx = await getCreateSwigInstruction({
 await sendTransaction(connection, [createSwigIx], payer);
 
 // ------------------ Fetch Swig + Root Role ------------------
-let swig = await fetchSwig(rpc, swigAddress);
+let swig = await fetchSwig(rpc, swigAccountAddress);
 const swigWalletAddress = await getSwigWalletAddress(swig);
 console.log('swig wallet address:', swigWalletAddress);
 
@@ -155,7 +155,7 @@ const signingFn = getSigningFnForSecp256k1PrivateKey(
 );
 
 // It’s good practice to refetch before signing to ensure fresh state.
-swig = await fetchSwig(rpc, swigAddress);
+swig = await fetchSwig(rpc, swigAccountAddress);
 
 const signIx = await getSignInstructions(swig, rootRole.id, [transfer], false, {
   payer: signer.address,

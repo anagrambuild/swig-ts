@@ -69,7 +69,7 @@ async function sendTransaction(
 
   // Swig creation
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
   const rootActions = Actions.set().all().get();
   const createIx = await getCreateSwigInstruction({
@@ -82,10 +82,10 @@ async function sendTransaction(
   await sendTransaction(connection, [createIx], root);
   await sleep(2);
 
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
 
-  console.log('📦 Swig PDA:', swigAddress.toBase58());
+  console.log('📦 Swig PDA:', swigAccountAddress.toBase58());
   console.log('🏦 Swig wallet address:', swigWalletAddress.toBase58());
 
   const rootRole = swig.findRolesByEd25519SignerPk(root.publicKey)[0];

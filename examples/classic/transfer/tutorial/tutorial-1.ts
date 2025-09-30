@@ -20,7 +20,7 @@ import chalk from 'chalk';
 async function createSwigAccount(connection: Connection, user: Keypair) {
   const id = new Uint8Array(32);
   crypto.getRandomValues(id); // random 32-byte id
-  const swigAddress = findSwigPda(id);
+  const swigAccountAddress = findSwigPda(id);
 
   const rootAuthorityInfo = createEd25519AuthorityInfo(user.publicKey);
   const rootActions = Actions.set().all().get();
@@ -39,11 +39,11 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
 
   console.log(
     chalk.green('✓ Swig account created at:'),
-    chalk.cyan(swigAddress.toBase58()),
+    chalk.cyan(swigAccountAddress.toBase58()),
   );
   console.log(chalk.blue('Transaction signature:'), chalk.cyan(signature));
 
-  return swigAddress;
+  return swigAccountAddress;
 }
 
 (async () => {
@@ -73,10 +73,10 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
   console.log(chalk.green('💸 Airdropped 10 SOL to user'));
 
   // create swig
-  const swigAddress = await createSwigAccount(connection, userKeypair);
+  const swigAccountAddress = await createSwigAccount(connection, userKeypair);
 
   // fetch swig & wallet
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
 
   console.log(
@@ -115,7 +115,7 @@ async function createSwigAccount(connection: Connection, user: Keypair) {
   console.log(chalk.yellow('🔍 Check your Swig account on Solana Explorer:'));
   console.log(
     chalk.cyan(
-      `https://explorer.solana.com/address/${swigAddress.toBase58()}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+      `https://explorer.solana.com/address/${swigAccountAddress.toBase58()}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
     ),
   );
 })();

@@ -58,22 +58,22 @@ function sendSVMTransaction(
   }
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const swigAccount = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
   return getSwigCodec().decode(swigAccount.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
 
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, toPublicKey(swigAddress));
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
 
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -90,9 +90,9 @@ console.log('starting...');
 
   // Create Swig root account
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
-  console.log('swig address:', swigAddress.toBase58());
+  console.log('swig address:', swigAccountAddress.toBase58());
 
   const rootActions = Actions.set().all().get();
   const ix = await getCreateSwigInstruction({
@@ -105,7 +105,7 @@ console.log('starting...');
   sendSVMTransaction(svm, [ix], rootKeypair);
 
   // Fetch root role
-  let swig = fetchSwig(svm, swigAddress);
+  let swig = fetchSwig(svm, swigAccountAddress);
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
@@ -132,7 +132,7 @@ console.log('starting...');
   sendSVMTransaction(svm, addIx, rootKeypair);
 
   // Refresh swig to get the newly added role
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log('swig wallet address:', swigWalletAddress.toBase58());
 
@@ -181,7 +181,7 @@ console.log('starting...');
   console.log('Swig role successfully sent 1 SOL to authorized recipient!');
 
   // Refresh swig after transfer
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Test unauthorized transfer to a different destination
   const unauthorizedRecipient = Keypair.generate();

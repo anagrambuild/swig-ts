@@ -95,7 +95,7 @@ async function sendTransaction<T extends IInstruction[]>(
 
 async function createSwigAccount(connection: any, user: KeyPairSigner) {
   const id = randomBytes(32);
-  const swigAddress = await findSwigPda(id);
+  const swigAccountAddress = await findSwigPda(id);
 
   // Use manageAuthority only; switch to .all() for full powers.
   const rootActions = Actions.set().manageAuthority().get();
@@ -112,22 +112,22 @@ async function createSwigAccount(connection: any, user: KeyPairSigner) {
 
   console.log(
     chalk.green('✓ Swig account created at:'),
-    chalk.cyan(swigAddress.toString()),
+    chalk.cyan(swigAccountAddress.toString()),
   );
   console.log(chalk.blue('Transaction signature:'), chalk.cyan(sig));
 
-  return { swigAddress, transactionSignature: sig };
+  return { swigAccountAddress, transactionSignature: sig };
 }
 
 async function addNewAuthority(
   connection: any,
   rootUser: KeyPairSigner,
   newAuthority: KeyPairSigner,
-  swigAddress: Address,
+  swigAccountAddress: Address,
   actions: ReturnType<ReturnType<(typeof Actions)['set']>['get']>,
   description: string,
 ) {
-  const swig = await fetchSwig(connection.rpc, swigAddress);
+  const swig = await fetchSwig(connection.rpc, swigAccountAddress);
   const rootRole = swig.findRolesByEd25519SignerPk(rootUser.address)[0];
   if (!rootRole) throw new Error('Root role not found');
 
@@ -170,7 +170,7 @@ async function addNewAuthority(
   );
 
   console.log(chalk.yellow('\n📝 Creating Swig account...'));
-  const { swigAddress } = await createSwigAccount(connection, rootUser);
+  const { swigAccountAddress } = await createSwigAccount(connection, rootUser);
 
   const spendingAuthority = await generateKeyPairSigner();
   const tokenAuthority = await generateKeyPairSigner();
@@ -193,7 +193,7 @@ async function addNewAuthority(
     connection,
     rootUser,
     spendingAuthority,
-    swigAddress,
+    swigAccountAddress,
     spendingActions,
     'spending',
   );
@@ -207,12 +207,12 @@ async function addNewAuthority(
     connection,
     rootUser,
     tokenAuthority,
-    swigAddress,
+    swigAccountAddress,
     tokenActions,
     'token',
   );
 
-  const swig = await fetchSwig(connection.rpc, swigAddress);
+  const swig = await fetchSwig(connection.rpc, swigAccountAddress);
   const swigWalletAddress = await getSwigWalletAddress(swig);
   console.log(
     chalk.green('📦 Swig wallet address:'),
@@ -253,7 +253,7 @@ async function addNewAuthority(
   console.log(chalk.yellow('🔍 View on Solana Explorer:'));
   console.log(
     chalk.cyan(
-      `https://explorer.solana.com/address/${swigAddress}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+      `https://explorer.solana.com/address/${swigAccountAddress}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
     ),
   );
 })();
