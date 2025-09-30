@@ -9,6 +9,7 @@ import {
 } from '@solana/web3.js';
 import {
   Actions,
+  compressPubkey,
   createEd25519AuthorityInfo,
   createSecp256k1AuthorityInfo,
   createSecp256r1AuthorityInfo,
@@ -121,7 +122,9 @@ let ixs = await getCreateSwigInstructionBuilder({
     Actions.set().manageAuthority().get(),
   )
   .addAuthority(
-    createSecp256k1AuthorityInfo(k1Keypair.getPublicKey()),
+    // Example using compressed pubkey in multi-authority setup
+    // createSecp256k1AuthorityInfo now supports both compressed and uncompressed pubkeys
+    createSecp256k1AuthorityInfo(compressPubkey(k1Keypair.getPublicKey())),
     Actions.set().all().get(),
   )
   .getInstructions();

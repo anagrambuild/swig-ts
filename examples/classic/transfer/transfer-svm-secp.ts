@@ -9,6 +9,7 @@ import {
 } from '@solana/web3.js';
 import {
   Actions,
+  compressPubkey,
   createSecp256k1AuthorityInfo,
   findSwigPda,
   getCreateSwigInstruction,
@@ -103,8 +104,13 @@ const swigAddress = findSwigPda(id);
 //
 const rootActions = Actions.set().all().get();
 
+// Example using compressed pubkey instead of uncompressed
+// createSecp256k1AuthorityInfo now supports both compressed and uncompressed pubkeys
+// This demonstrates the new compressed pubkey support
+const compressedPubkey = compressPubkey(userWallet.getPublicKey());
+
 const createSwigInstruction = await getCreateSwigInstruction({
-  authorityInfo: createSecp256k1AuthorityInfo(userWallet.getPublicKey()),
+  authorityInfo: createSecp256k1AuthorityInfo(compressedPubkey),
   id,
   payer: userRootKeypair.publicKey,
   actions: rootActions,
