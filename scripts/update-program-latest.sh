@@ -29,6 +29,16 @@ cd $PROGRAM_DIR
 echo "Program directory updated!"
 echo "building swig program..."
 cargo build-sbf --arch v1 -- -q > /dev/null 2>&1
-cp target/deploy/swig.so $WORKSPACE_DIR 
+cp target/deploy/swig.so $WORKSPACE_DIR
+# Find the built program file
+if [ -f target/deploy/swig.so ]; then
+    cp target/deploy/swig.so $WORKSPACE_DIR
+elif [ -f target/deploy/*.so ]; then
+    cp target/deploy/*.so $WORKSPACE_DIR/swig.so
+else
+    echo "❌ Could not find built program file"
+    find target -name "*.so" -type f | head -5
+    exit 1
+fi 
 
 echo "✅ Program updated: $WORKSPACE_DIR/swig.so"
