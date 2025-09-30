@@ -93,9 +93,6 @@ jobs:
   tests:
     name: Build and Test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      repository-projects: read
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
