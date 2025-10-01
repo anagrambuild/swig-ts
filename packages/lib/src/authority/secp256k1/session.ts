@@ -122,7 +122,6 @@ export class Secp256k1SessionAuthority
     return Ed25519Instruction.signV2Instruction(
       {
         swig: args.swigAddress,
-        payer: args.payer,
         swigSystemAddress: args.swigSystemAddress,
       },
       {
@@ -237,7 +236,6 @@ export class Secp256k1SessionAuthority
   }) {
     return Ed25519Instruction.subAccountSignV1Instruction(
       {
-        payer: args.payer,
         swig: args.swigAddress,
         subAccount: args.subAccount,
       },
