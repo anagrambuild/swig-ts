@@ -31,7 +31,6 @@
     "transfer-svm-viem": "bun run transfer-svm-viem.ts",
     "transfer-svm": "bun run transfer-svm.ts",
     "withdraw-sol-subaccount": "bun run withdraw-sol-subaccount.ts"
-
   },
   "devDependencies": {
     "@types/bun": "^1.2.5",
