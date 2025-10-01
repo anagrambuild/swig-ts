@@ -1,5 +1,31 @@
 # @swig-wallet/classic
 
+## 1.4.0
+
+### Minor Changes
+
+- ad962ee: Refactor to allow both compressed and uncompressed evm pubkeys to be used in secp256k1 authentication method.
+- 56e46d5: - `getWithdrawFromSubAccountCheckedInstructionContext`
+  - fix account meta for `SubAccountWithdrawV1`
+- 4dc32d9: - Migrate SubAccount from account to action
+  - SignV2 support
+  - TransferAssetV1 support
+  - Swig Account V2, separating wallet & config account
+  - ToggleSubAccountV1 includes actingRoleId
+- 0fec553: Add SOL and Token destination limits + Recurring Destination Limts for SOL and Tokens
+
+  The following PR addresses:
+  - solDestinationLimit
+  - tokenDestinationLimit
+  - solDestinationRecurringLimit
+  - tokenDestinationRecurringLimit
+
+### Patch Changes
+
+- Updated dependencies [4dc32d9]
+- Updated dependencies [0fec553]
+  - @swig-wallet/coder@1.4.0
+
 ## 1.3.0
 
 ### Minor Changes

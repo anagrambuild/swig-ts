@@ -1,5 +1,26 @@
 # @swig-wallet/classic
 
+## 1.4.0
+
+### Minor Changes
+
+- 56e46d5: - `getWithdrawFromSubAccountCheckedInstructions`
+- 4dc32d9: - Migrate SubAccount from account to action
+  - SignV2 support
+  - TransferAssetV1 support
+  - Swig Account V2, separating wallet & config account
+  - ToggleSubAccountV1 includes actingRoleId
+
+### Patch Changes
+
+- Updated dependencies [ad962ee]
+- Updated dependencies [56e46d5]
+- Updated dependencies [4dc32d9]
+- Updated dependencies [4dc32d9]
+- Updated dependencies [0fec553]
+  - @swig-wallet/lib@1.4.0
+  - @swig-wallet/coder@1.4.0
+
 ## 1.3.0
 
 ### Minor Changes

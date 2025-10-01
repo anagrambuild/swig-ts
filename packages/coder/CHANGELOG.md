@@ -1,5 +1,22 @@
 # @swig-wallet/coder
 
+## 1.4.0
+
+### Minor Changes
+
+- 4dc32d9: - Migrate SubAccount from account to action
+  - SignV2 support
+  - TransferAssetV1 support
+  - Swig Account V2, separating wallet & config account
+  - ToggleSubAccountV1 includes actingRoleId
+- 0fec553: Add SOL and Token destination limits + Recurring Destination Limts for SOL and Tokens
+
+  The following PR addresses:
+  - solDestinationLimit
+  - tokenDestinationLimit
+  - solDestinationRecurringLimit
+  - tokenDestinationRecurringLimit
+
 ## 1.3.0
 
 ## 1.2.1
