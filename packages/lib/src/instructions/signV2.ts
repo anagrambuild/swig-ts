@@ -7,10 +7,7 @@ export type SignV2InstructionAccounts = {
   swigSystemAddress: SolPublicKeyData;
 };
 
-export type SignV2BaseAccountMetas = [
-  SolAccountMeta,
-  SolAccountMeta
-];
+export type SignV2BaseAccountMetas = [SolAccountMeta, SolAccountMeta];
 
 export function getSignV2BaseAccountMetas(
   accounts: SignV2InstructionAccounts,
@@ -27,7 +24,7 @@ export function getSignV2BaseAccountMetas(
       role: AccountRole.WRITABLE,
       // isSigner: false,
       // isWritable: true,
-    })
+    }),
   ];
 }
 

@@ -17,7 +17,8 @@ import type { Ed25519BasedAuthority } from './based';
 
 export class Ed25519SessionAuthority
   extends SessionBasedAuthority
-  implements Ed25519BasedAuthority {
+  implements Ed25519BasedAuthority
+{
   type = AuthorityType.Ed25519Session;
 
   constructor(public data: Uint8Array) {
