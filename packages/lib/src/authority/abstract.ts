@@ -42,7 +42,7 @@ export abstract class Authority {
    */
   abstract signer: Uint8Array;
 
-  constructor(public data: Uint8Array) {}
+  constructor(public data: Uint8Array) { }
 
   /**
    * Creates a `Sign` instruction for signing provided instructions with the Swig
@@ -75,7 +75,6 @@ export abstract class Authority {
   abstract signV2(args: {
     swigAddress: SolPublicKeyData;
     swigSystemAddress: SolPublicKeyData;
-    payer: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
     options?: InstructionDataOptions;

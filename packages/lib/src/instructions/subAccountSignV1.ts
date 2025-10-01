@@ -4,12 +4,10 @@ import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 
 export type SubAccountSignV1InstructionAccounts = {
   swig: SolPublicKeyData;
-  payer: SolPublicKeyData;
   subAccount: SolPublicKeyData;
 };
 
 export type SubAccountSignV1BaseAccountMetas = [
-  SolAccountMeta,
   SolAccountMeta,
   SolAccountMeta,
   SolAccountMeta,
@@ -23,12 +21,6 @@ export function getSubAccountSignV1BaseAccountMetas(
       address: new SolPublicKey(accounts.swig).toAddress(),
       role: AccountRole.READONLY,
       // isSigner: false,
-      // isWritable: false,
-    }),
-    SolAccountMeta.fromKitAccountMeta({
-      address: new SolPublicKey(accounts.payer).toAddress(),
-      role: AccountRole.READONLY_SIGNER,
-      // isSigner: true,
       // isWritable: false,
     }),
     SolAccountMeta.fromKitAccountMeta({

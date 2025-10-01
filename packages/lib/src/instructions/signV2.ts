@@ -5,13 +5,11 @@ import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 export type SignV2InstructionAccounts = {
   swig: SolPublicKeyData;
   swigSystemAddress: SolPublicKeyData;
-  payer: SolPublicKeyData;
 };
 
 export type SignV2BaseAccountMetas = [
   SolAccountMeta,
-  SolAccountMeta,
-  SolAccountMeta,
+  SolAccountMeta
 ];
 
 export function getSignV2BaseAccountMetas(
@@ -29,13 +27,7 @@ export function getSignV2BaseAccountMetas(
       role: AccountRole.WRITABLE,
       // isSigner: false,
       // isWritable: true,
-    }),
-    SolAccountMeta.fromKitAccountMeta({
-      address: new SolPublicKey(accounts.payer).toAddress(),
-      role: AccountRole.WRITABLE_SIGNER,
-      // isSigner: true,
-      // isWritable: true,
-    }),
+    })
   ];
 }
 

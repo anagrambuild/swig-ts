@@ -66,7 +66,6 @@ export class Ed25519Authority
     return Ed25519Instruction.signV2Instruction(
       {
         swig: args.swigAddress,
-        payer: args.payer,
         swigSystemAddress: args.swigSystemAddress,
       },
       {
@@ -152,7 +151,6 @@ export class Ed25519Authority
   }) {
     return Ed25519Instruction.subAccountSignV1Instruction(
       {
-        payer: args.payer,
         swig: args.swigAddress,
         subAccount: args.subAccount,
       },
