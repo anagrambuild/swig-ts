@@ -17,8 +17,7 @@ import type { Ed25519BasedAuthority } from './based';
 
 export class Ed25519SessionAuthority
   extends SessionBasedAuthority
-  implements Ed25519BasedAuthority
-{
+  implements Ed25519BasedAuthority {
   type = AuthorityType.Ed25519Session;
 
   constructor(public data: Uint8Array) {
@@ -92,14 +91,12 @@ export class Ed25519SessionAuthority
   signV2(args: {
     swigAddress: SolPublicKeyData;
     swigSystemAddress: SolPublicKeyData;
-    payer: SolPublicKeyData;
     roleId: number;
     innerInstructions: SolInstruction[];
   }) {
     return Ed25519Instruction.signV2Instruction(
       {
         swig: args.swigAddress,
-        payer: args.payer,
         swigSystemAddress: args.swigSystemAddress,
       },
       {
@@ -198,7 +195,6 @@ export class Ed25519SessionAuthority
   }
 
   subAccountSign(args: {
-    payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
@@ -206,7 +202,6 @@ export class Ed25519SessionAuthority
   }) {
     return Ed25519Instruction.subAccountSignV1Instruction(
       {
-        payer: args.payer,
         swig: args.swigAddress,
         subAccount: args.subAccount,
       },

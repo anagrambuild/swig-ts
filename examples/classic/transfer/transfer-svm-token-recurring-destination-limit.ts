@@ -22,9 +22,12 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
 } from '@swig-wallet/classic';
+import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
+import { SolPublicKey, type SwigFetchFn } from '@swig-wallet/lib';
 import {
   FailedTransactionMetadata,
   LiteSVM,
@@ -63,14 +66,23 @@ function sendSVMTransaction(
   }
 }
 
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('swig account not created');
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(
+      svm,
+      new PublicKey(new SolPublicKey(swigAccountAddress).toBytes()),
+    );
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -87,9 +99,9 @@ console.log('starting...');
 
   // Create Swig root account
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
-  console.log('swig address:', swigAddress.toBase58());
+  console.log('swig address:', swigAccountAddress.toBase58());
 
   const rootActions = Actions.set().all().get();
   const ix = await getCreateSwigInstruction({
@@ -102,10 +114,14 @@ console.log('starting...');
   sendSVMTransaction(svm, [ix], rootKeypair);
 
   // Fetch root role
-  let swig = fetchSwig(svm, swigAddress);
+  let swig = fetchSwig(svm, swigAccountAddress);
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
+
+  // Get the Swig wallet address
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
 
   // Create SPL token mint
   const mintKeypair = Keypair.generate();
@@ -140,14 +156,14 @@ console.log('starting...');
   // Create Swig ATA
   const swigAta = getAssociatedTokenAddressSync(
     mintKeypair.publicKey,
-    swigAddress,
+    swigWalletAddress,
     true,
   );
 
   const createSwigAtaIx = createAssociatedTokenAccountInstruction(
     rootKeypair.publicKey,
     swigAta,
-    swigAddress,
+    swigWalletAddress,
     mintKeypair.publicKey,
   );
 
@@ -188,9 +204,9 @@ console.log('starting...');
 
   console.log('Recipient ATA:', recipientAta.toBase58());
 
-  // Create role with recurring token destination limit: 600 tokens per window to specific recipient
+  // Create role with recurring token destination limit: 500 tokens per window to specific recipient
   const roleKeypair = Keypair.generate();
-  const recurringAmount = BigInt(600 * 10 ** decimals);
+  const recurringAmount = BigInt(500 * 10 ** decimals);
   const window = BigInt(100); // 100 slots window for testing
 
   const actions = Actions.set()
@@ -212,7 +228,7 @@ console.log('starting...');
   sendSVMTransaction(svm, addIx, rootKeypair);
 
   // Refresh swig to get the newly added role
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Fund the role keypair for transaction fees
   svm.airdrop(roleKeypair.publicKey, BigInt(0.1 * LAMPORTS_PER_SOL));
@@ -229,7 +245,7 @@ console.log('starting...');
   const transferIx1 = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress,
     transferAmount1,
   );
 
@@ -247,14 +263,14 @@ console.log('starting...');
   console.log('First transfer completed: 200 tokens');
 
   // Refresh swig after first transfer
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Second transfer: 300 tokens (should still be allowed, total 500 tokens)
   const transferAmount2 = BigInt(300 * 10 ** decimals);
   const transferIx2 = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress,
     transferAmount2,
   );
 
@@ -277,7 +293,7 @@ console.log('starting...');
   );
 
   // Refresh swig after second transfer
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Third transfer: 100 tokens (should exceed the 500 token limit in current window)
   try {
@@ -285,7 +301,7 @@ console.log('starting...');
     const transferIx3 = createTransferInstruction(
       swigAta,
       recipientAta,
-      swigAddress,
+      swigWalletAddress,
       transferAmount3,
     );
 
@@ -337,7 +353,7 @@ console.log('starting...');
     const unauthorizedTransferIx = createTransferInstruction(
       swigAta,
       unauthorizedAta,
-      swigAddress,
+      swigWalletAddress,
       BigInt(50 * 10 ** decimals),
     );
 

@@ -37,36 +37,50 @@ import {
   getCreateSwigInstruction,
   getSignInstructions,
 } from '@swig-wallet/kit';
-import { sleepSync } from 'bun';
+
+function randomBytes(length: number): Uint8Array {
+  const arr = new Uint8Array(length);
+  crypto.getRandomValues(arr);
+  return arr;
+}
+
+const LAMPORTS_PER_SOL = 1_000_000_000n;
+
+// ---------- helpers ----------
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function confirmAirdrop(
+  rpc: Rpc<SolanaRpcApi>,
+  to: Address,
+  amount: bigint,
+) {
+  const sig = await rpc.requestAirdrop(to, lamports(amount)).send();
+  await rpc.getSignatureStatuses([sig]).send();
+  await delay(1000);
+}
 
 function getSolTransferInstruction(args: {
   fromAddress: Address;
   toAddress: Address;
-  lamports: number;
+  lamports: bigint; // bigint u64
 }) {
   return {
     programAddress: SYSTEM_PROGRAM_ADDRESS,
     accounts: [
-      {
-        address: args.fromAddress,
-        role: AccountRole.WRITABLE_SIGNER,
-      },
-      {
-        address: args.toAddress,
-        role: AccountRole.WRITABLE,
-      },
+      { address: args.fromAddress, role: AccountRole.WRITABLE_SIGNER },
+      { address: args.toAddress, role: AccountRole.WRITABLE },
     ],
     data: new Uint8Array(
       getTransferSolInstructionDataEncoder().encode({
         amount: args.lamports,
       }),
     ),
-  };
+  } satisfies IInstruction;
 }
 
 function getTransactionMessage<Inst extends IInstruction[]>(
   instructions: Inst,
-  lastestBlockhash: Readonly<{
+  latestBlockhash: Readonly<{
     blockhash: Blockhash;
     lastValidBlockHeight: bigint;
   }>,
@@ -76,7 +90,7 @@ function getTransactionMessage<Inst extends IInstruction[]>(
   return pipe(
     createTransactionMessage({ version: 0 }),
     (tx) => setTransactionMessageFeePayerSigner(feePayer, tx),
-    (tx) => setTransactionMessageLifetimeUsingBlockhash(lastestBlockhash, tx),
+    (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
     (tx) => appendTransactionMessageInstructions(instructions, tx),
     (tx) => addSignersToTransactionMessage(signers, tx),
   );
@@ -94,32 +108,23 @@ async function sendTransaction<T extends IInstruction[]>(
   const { value: latestBlockhash } = await connection.rpc
     .getLatestBlockhash()
     .send();
-  const transactionMessage = getTransactionMessage(
+
+  const txMsg = getTransactionMessage(
     instructions,
     latestBlockhash,
     payer,
     signers,
   );
-  const signedTransaction =
-    await signTransactionMessageWithSigners(transactionMessage);
+  const signed = await signTransactionMessageWithSigners(txMsg);
 
-  await sendAndConfirmTransactionFactory(connection)(signedTransaction, {
+  await sendAndConfirmTransactionFactory(connection)(signed, {
     commitment: 'confirmed',
   });
 
-  const signature = getSignatureFromTransaction(signedTransaction);
-
-  return signature.toString();
+  return getSignatureFromTransaction(signed).toString();
 }
 
-function randomBytes(length: number): Uint8Array {
-  const randomArray = new Uint8Array(length);
-  crypto.getRandomValues(randomArray);
-  return randomArray;
-}
-
-const LAMPORTS_PER_SOL = 1_000_000_000;
-
+// ---------- main ----------
 console.log('starting...');
 
 const connection = {
@@ -127,120 +132,115 @@ const connection = {
   rpcSubscriptions: createSolanaRpcSubscriptions('ws://localhost:8900'),
 };
 
-// user root
-//
+// Root authority
 const rootAuthority = await generateKeyPairSigner();
-await connection.rpc
-  .requestAirdrop(rootAuthority.address, lamports(BigInt(LAMPORTS_PER_SOL)))
-  .send();
+await confirmAirdrop(
+  connection.rpc,
+  rootAuthority.address,
+  1n * LAMPORTS_PER_SOL,
+);
 
-// user authority manager
-//
+// Sub-account authority manager
 const subAccountAuthority = await generateKeyPairSigner();
-await connection.rpc
-  .requestAirdrop(
-    subAccountAuthority.address,
-    lamports(BigInt(LAMPORTS_PER_SOL)),
-  )
-  .send();
-
-sleepSync(3000);
+await confirmAirdrop(
+  connection.rpc,
+  subAccountAuthority.address,
+  1n * LAMPORTS_PER_SOL,
+);
 
 const id = randomBytes(32);
+const swigAccountAddress = await findSwigPda(id);
+console.log('swig address:', swigAccountAddress);
 
-const swigAddress = await findSwigPda(id);
-
-console.log('swig address:', swigAddress);
-
+// Create SWIG (root has all actions)
 const createSwigIx = await getCreateSwigInstruction({
   payer: rootAuthority.address,
   actions: Actions.set().all().get(),
   authorityInfo: createEd25519AuthorityInfo(rootAuthority.address),
   id,
 });
-
 await sendTransaction(connection, [createSwigIx], rootAuthority);
 
-sleepSync(3000);
+const swig = await fetchSwig(connection.rpc, swigAccountAddress);
 
-const swig = await fetchSwig(connection.rpc, swigAddress);
+// Resolve root role by signer (safer than indexing)
+const rootRole = swig.findRolesByEd25519SignerPk(rootAuthority.address)[0];
+if (!rootRole) throw new Error('Root role not found');
 
-
-let rootRole = swig.roles[0];
-
-// add a sub account authority
-const addAuthorityIx = await getAddAuthorityInstructions(
+// Add an authority that can manage sub-accounts
+const addAuthorityIxs = await getAddAuthorityInstructions(
   swig,
   rootRole.id,
   createEd25519AuthorityInfo(subAccountAuthority.address),
   Actions.set().subAccount().get(),
+  { payer: rootAuthority.address },
 );
-await sendTransaction(connection, addAuthorityIx, rootAuthority);
+await sendTransaction(connection, addAuthorityIxs, rootAuthority);
 
-sleepSync(3000);
-
+// Refetch to see the new role
 await swig.refetch();
 
-let subAccountAuthRole = swig.roles[1];
+let subAccountAuthRole = swig.findRolesByEd25519SignerPk(
+  subAccountAuthority.address,
+)[0];
+if (!subAccountAuthRole)
+  throw new Error('Sub-account authority role not found');
 
-// create sub account
+// Create a sub-account (payer = subAccountAuthority for clarity)
 const createSubAccountIx = await getCreateSubAccountInstructions(
   swig,
   subAccountAuthRole.id,
+  { payer: subAccountAuthority.address },
 );
 await sendTransaction(connection, createSubAccountIx, subAccountAuthority);
 
-sleepSync(3000);
-
+// Refetch and compute sub-account PDA
 await swig.refetch();
 
-rootRole = swig.roles[0];
-subAccountAuthRole = swig.roles[1];
-
+subAccountAuthRole = swig.findRolesByEd25519SignerPk(
+  subAccountAuthority.address,
+)[0]!;
 const subAccountAddress = await findSwigSubAccountPda(
   subAccountAuthRole.swigId,
   subAccountAuthRole.id,
 );
 
-// svm.airdrop(subAccountAddress, BigInt(LAMPORTS_PER_SOL));
-
-await connection.rpc
-  .requestAirdrop(subAccountAddress, lamports(BigInt(LAMPORTS_PER_SOL)))
-  .send();
-
-sleepSync(3000);
+// Fund sub-account
+await confirmAirdrop(connection.rpc, subAccountAddress, 1n * LAMPORTS_PER_SOL);
 
 const subBalance = (await connection.rpc.getBalance(subAccountAddress).send())
   .value;
+console.log('sub account balance:', subBalance.toString());
 
-console.log('sub account balance:', subBalance);
-
+// Prepare a transfer from the sub-account
 const recipient = (await generateKeyPairSigner()).address;
-
 const transfer = getSolTransferInstruction({
-  lamports: 0.1 * LAMPORTS_PER_SOL,
+  lamports: LAMPORTS_PER_SOL / 10n, // 0.1 SOL
   toAddress: recipient,
   fromAddress: subAccountAddress,
 });
 
+// Fresh finalized slot is good hygiene even for Ed25519
+const signSlot = BigInt(
+  await connection.rpc.getSlot({ commitment: 'finalized' }).send(),
+);
+
+// Sign (from sub-account) and send
 const signIx = await getSignInstructions(
   swig,
   subAccountAuthRole.id,
   [transfer],
-  true,
+  true, // sign from sub-account context
+  { payer: subAccountAuthority.address, currentSlot: signSlot },
 );
 
 await sendTransaction(connection, signIx, subAccountAuthority);
 
-sleepSync(3000);
-
 const newSubBalance = (
   await connection.rpc.getBalance(subAccountAddress).send()
 ).value;
-
-console.log('new subaccount balance:', newSubBalance);
+console.log('new subaccount balance:', newSubBalance.toString());
 
 const recipientBalance = (await connection.rpc.getBalance(recipient).send())
   .value;
-
-console.log('recipient balance:', recipientBalance);
+console.log('recipient balance:', recipientBalance.toString());

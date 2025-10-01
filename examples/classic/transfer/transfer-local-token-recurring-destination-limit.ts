@@ -22,6 +22,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
 function sleep(s: number): Promise<void> {
@@ -82,7 +83,7 @@ async function sendTransaction(
 
   // Create Swig root account
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
   const rootActions = Actions.set().all().get();
   const ix = await getCreateSwigInstruction({
@@ -97,10 +98,14 @@ async function sendTransaction(
   await sleep(2);
 
   // Fetch root role
-  const swig = await fetchSwig(connection, swigAddress);
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
+
+  // Get the Swig wallet address
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
 
   // Create SPL token mint
   const mintKeypair = Keypair.generate();
@@ -138,14 +143,14 @@ async function sendTransaction(
   // Create Swig ATA
   const swigAta = getAssociatedTokenAddressSync(
     mintKeypair.publicKey,
-    swigAddress,
+    swigWalletAddress,
     true,
   );
 
   const createSwigAtaIx = createAssociatedTokenAccountInstruction(
     rootKeypair.publicKey,
     swigAta,
-    swigAddress,
+    swigWalletAddress,
     mintKeypair.publicKey,
   );
 
@@ -188,7 +193,7 @@ async function sendTransaction(
 
   // Create role with recurring token destination limit: 500 tokens per window to specific recipient
   const roleKeypair = Keypair.generate();
-  const recurringAmount = BigInt(600 * 10 ** decimals);
+  const recurringAmount = BigInt(500 * 10 ** decimals);
   const window = BigInt(100); // 100 slots window for testing
 
   const actions = Actions.set()
@@ -233,7 +238,7 @@ async function sendTransaction(
   const transferIx1 = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress,
     transferAmount1,
   );
 
@@ -258,7 +263,7 @@ async function sendTransaction(
   const transferIx2 = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress,
     transferAmount2,
   );
 
@@ -300,7 +305,7 @@ async function sendTransaction(
     const transferIx3 = createTransferInstruction(
       swigAta,
       recipientAta,
-      swigAddress,
+      swigWalletAddress,
       transferAmount3,
     );
 
@@ -352,7 +357,7 @@ async function sendTransaction(
     const unauthorizedTransferIx = createTransferInstruction(
       swigAta,
       unauthorizedAta,
-      swigAddress,
+      swigWalletAddress,
       BigInt(50 * 10 ** decimals),
     );
 

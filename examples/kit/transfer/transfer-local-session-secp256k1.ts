@@ -1,17 +1,17 @@
 import {
+  AccountRole,
+  appendTransactionMessageInstructions,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
-  generateKeyPairSigner,
-  sendAndConfirmTransactionFactory,
-  getSignatureFromTransaction,
   createTransactionMessage,
+  generateKeyPairSigner,
+  getSignatureFromTransaction,
+  lamports,
+  pipe,
+  sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
   signTransactionMessageWithSigners,
-  pipe,
-  lamports,
-  AccountRole,
   type IInstruction,
   type KeyPairSigner,
 } from '@solana/kit';
@@ -24,16 +24,32 @@ import {
 import {
   Actions,
   createSecp256k1SessionAuthorityInfo,
-  findSwigPda,
-  getCreateSwigInstruction,
-  getSignInstructions,
   fetchSwig,
-  getSigningFnForSecp256k1PrivateKey,
+  findSwigPda,
   getCreateSessionInstructions,
+  getCreateSwigInstruction,
+  getSigningFnForSecp256k1PrivateKey,
+  getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 
 import { Wallet } from '@ethereumjs/wallet';
-import { sleepSync } from 'bun';
+
+// ------------------ Helpers ------------------
+const LAMPORTS_PER_SOL = 1_000_000_000n;
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function confirmAirdrop(
+  rpc: ReturnType<typeof createSolanaRpc>,
+  to: string,
+  amount: bigint,
+) {
+  const sig = await (rpc as any).requestAirdrop(to, lamports(amount)).send();
+  // Nudge localnet to settle
+  await rpc.getSignatureStatuses([sig]).send();
+  await delay(1200);
+}
 
 async function sendAndConfirmTransactionWithLogs(
   connection: {
@@ -48,26 +64,27 @@ async function sendAndConfirmTransactionWithLogs(
     .getLatestBlockhash()
     .send();
 
-  const transactionMessage = pipe(
+  const txMsg = pipe(
     createTransactionMessage({ version: 0 }),
     (tx) => setTransactionMessageFeePayerSigner(payer, tx),
     (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
     (tx) => appendTransactionMessageInstructions(instructions, tx),
   );
 
-  const signedTransaction = await signTransactionMessageWithSigners(
-    transactionMessage,
-  );
+  const signed = await signTransactionMessageWithSigners(txMsg);
 
-  await sendAndConfirmTransactionFactory(connection as any)(signedTransaction, {
+  await sendAndConfirmTransactionFactory(connection as any)(signed, {
     commitment: 'confirmed',
   });
 
-  const sig = getSignatureFromTransaction(signedTransaction).toString();
-  console.log(`🔗 ${label}: https://explorer.solana.com/tx/${sig}?cluster=custom`);
+  const sig = getSignatureFromTransaction(signed).toString();
+  console.log(
+    `🔗 ${label}: https://explorer.solana.com/tx/${sig}?cluster=custom`,
+  );
   return sig;
 }
 
+// ------------------ Main ------------------
 (async () => {
   console.log('⏳ Starting on local validator...');
 
@@ -82,23 +99,22 @@ async function sendAndConfirmTransactionWithLogs(
   const dappSessionKeypair = await generateKeyPairSigner();
   const dappTreasury = await generateKeyPairSigner();
 
-  const id = Uint8Array.from(Array(32).fill(0));
-  const swigAddress = await findSwigPda(id);
+  const id = Uint8Array.from({ length: 32 }, () => 0);
+  const swigAccountAddress = await findSwigPda(id);
 
-  // Airdrop SOL
-  for (const keypair of [userRootKeypair, dappSessionKeypair]) {
-    await rpc.requestAirdrop(keypair.address, lamports(1_000_000_000n)).send();
-  }
-
-  sleepSync(3000); // Wait for airdrops
+  // Airdrop SOL (confirm)
+  await Promise.all([
+    confirmAirdrop(rpc, userRootKeypair.address, 1n * LAMPORTS_PER_SOL),
+    confirmAirdrop(rpc, dappSessionKeypair.address, 1n * LAMPORTS_PER_SOL),
+  ]);
 
   // Create Swig
   const rootActions = Actions.set().all().get();
 
-  // Create authority info with session capability (need to use the single role pattern from classic)
+  // Secp256k1 authority with session capability
   const authorityInfo = createSecp256k1SessionAuthorityInfo(
     userWallet.getPublicKey(),
-    100n, // Max session duration
+    100n, // Max session duration (slots) the authority may create
   );
 
   const createSwigInstruction = await getCreateSwigInstruction({
@@ -116,13 +132,20 @@ async function sendAndConfirmTransactionWithLogs(
   );
 
   // Fetch swig
-  let swig = await fetchSwig(rpc, swigAddress);
+  let swig = await fetchSwig(rpc, swigAccountAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('📦 Swig wallet address:', swigWalletAddress.toString());
 
   const rootRole = swig.findRoleById(0);
   if (!rootRole) throw new Error('Root role not found');
 
-  const currentSlot = await rpc.getSlot().send();
-  const signingFn = getSigningFnForSecp256k1PrivateKey(userWallet.getPrivateKey());
+  // Use a finalized slot for session ops
+  const currentSlot = BigInt(
+    await rpc.getSlot({ commitment: 'finalized' }).send(),
+  );
+  const signingFn = getSigningFnForSecp256k1PrivateKey(
+    userWallet.getPrivateKey(),
+  );
 
   // Create session
   console.log('Creating session...');
@@ -131,7 +154,7 @@ async function sendAndConfirmTransactionWithLogs(
     rootRole.id,
     dappSessionKeypair.address,
     50n, // Session duration in slots
-    { 
+    {
       payer: userRootKeypair.address,
       currentSlot,
       signingFn,
@@ -147,66 +170,62 @@ async function sendAndConfirmTransactionWithLogs(
   console.log('✅ Session created');
 
   // Refetch swig and get session role
-  swig = await fetchSwig(rpc, swigAddress);
+  swig = await fetchSwig(rpc, swigAccountAddress);
 
   const sessionRole = swig.findRoleBySessionKey(dappSessionKeypair.address);
   if (!sessionRole) throw new Error('Session role not found');
 
-  // Airdrop to swig
-  await rpc.requestAirdrop(swigAddress, lamports(1_000_000_000n)).send();
-  sleepSync(3000);
+  // Fund the SWIG wallet & confirm
+  await confirmAirdrop(rpc, swigWalletAddress, 1n * LAMPORTS_PER_SOL);
 
   console.log(
     '📦 Swig balance before transfer:',
-    (await rpc.getBalance(swigAddress).send()).value,
+    (await rpc.getBalance(swigWalletAddress).send()).value,
   );
 
-  // Create transfer instruction
+  // Create transfer instruction (u64 as bigint)
+  const TRANSFER_AMOUNT = 100_000_000n; // 0.1 SOL
+
   const transferIx = {
     programAddress: SYSTEM_PROGRAM_ADDRESS,
     accounts: [
-      {
-        address: swigAddress,
-        role: AccountRole.WRITABLE_SIGNER,
-      },
-      {
-        address: dappTreasury.address,
-        role: AccountRole.WRITABLE,
-      },
+      { address: swigWalletAddress, role: AccountRole.WRITABLE_SIGNER },
+      { address: dappTreasury.address, role: AccountRole.WRITABLE },
     ],
     data: new Uint8Array(
       getTransferSolInstructionDataEncoder().encode({
-        amount: 100_000_000, // 0.1 SOL (matching classic example)
+        amount: TRANSFER_AMOUNT,
       }),
     ),
-  };
+  } satisfies IInstruction;
 
-  const signTransfer = await getSignInstructions(
+  // Recompute a fresh finalized slot before signing
+  const signSlot = BigInt(
+    await rpc.getSlot({ commitment: 'finalized' }).send(),
+  );
+
+  const signTransferIxs = await getSignInstructions(
     swig,
     sessionRole.id,
     [transferIx],
     false,
     {
       payer: dappSessionKeypair.address,
-      currentSlot,
+      currentSlot: signSlot,
       signingFn,
     },
   );
 
-  try {
-    await sendAndConfirmTransactionWithLogs(
-      connection,
-      signTransfer,
-      dappSessionKeypair,
-      'TransferSOL',
-    );
-  } catch (err) {
-    console.error('🚨 Transaction failed:', err);
-    return;
-  }
+  // Send signed transaction
+  await sendAndConfirmTransactionWithLogs(
+    connection,
+    signTransferIxs,
+    dappSessionKeypair,
+    'TransferSOL',
+  );
 
   console.log(
     '✅ Swig balance after transfer:',
-    (await rpc.getBalance(swigAddress).send()).value,
+    (await rpc.getBalance(swigWalletAddress).send()).value,
   );
 })();

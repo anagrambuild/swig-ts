@@ -9,75 +9,113 @@ import {
 import {
   Actions,
   createEd25519AuthorityInfo,
+  fetchSwig,
   findSwigPda,
   getCreateSwigInstruction,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
 import chalk from 'chalk';
 
 async function createSwigAccount(connection: Connection, user: Keypair) {
-  try {
-    const id = new Uint8Array(32);
-    crypto.getRandomValues(id);
-    const swigAddress = findSwigPda(id);
-    const rootAuthorityInfo = createEd25519AuthorityInfo(user.publicKey);
-    const rootActions = Actions.set().manageAuthority().get();
+  const id = new Uint8Array(32);
+  crypto.getRandomValues(id); // random 32-byte id
+  const swigAccountAddress = findSwigPda(id);
 
-    const createSwigIx = await getCreateSwigInstruction({
-      payer: user.publicKey,
-      id,
-      actions: rootActions,
-      authorityInfo: rootAuthorityInfo,
-    });
+  const rootAuthorityInfo = createEd25519AuthorityInfo(user.publicKey);
+  const rootActions = Actions.set().all().get();
 
-    const transaction = new Transaction().add(createSwigIx);
-    const signature = await sendAndConfirmTransaction(connection, transaction, [
-      user,
-    ]);
+  const createSwigIx = await getCreateSwigInstruction({
+    payer: user.publicKey,
+    id,
+    actions: rootActions,
+    authorityInfo: rootAuthorityInfo,
+  });
 
-    console.log(
-      chalk.green('✓ Swig account created at:'),
-      chalk.cyan(swigAddress.toBase58()),
-    );
-    console.log(chalk.blue('Transaction signature:'), chalk.cyan(signature));
-    return swigAddress;
-  } catch (error) {
-    console.error(
-      chalk.red('✗ Error creating Swig account:'),
-      chalk.red(error),
-    );
-    throw error;
-  }
+  const transaction = new Transaction().add(createSwigIx);
+  const signature = await sendAndConfirmTransaction(connection, transaction, [
+    user,
+  ]);
+
+  console.log(
+    chalk.green('✓ Swig account created at:'),
+    chalk.cyan(swigAccountAddress.toBase58()),
+  );
+  console.log(chalk.blue('Transaction signature:'), chalk.cyan(signature));
+
+  return swigAccountAddress;
 }
 
 (async () => {
-  console.log(chalk.blue('🚀 Starting tutorial'));
+  console.log(chalk.blue('🚀 Starting Swig Creation'));
+
+  // connect to local validator
   const connection = new Connection('http://localhost:8899', 'confirmed');
+
+  // generate user root keypair
   const userKeypair = Keypair.generate();
-  const f = await connection.requestAirdrop(
-    userKeypair.publicKey,
-    100 * LAMPORTS_PER_SOL,
-  );
-  const blockhash = await connection.getLatestBlockhash();
-  await connection.confirmTransaction({
-    signature: f,
-    blockhash: blockhash.blockhash,
-    lastValidBlockHeight: blockhash.lastValidBlockHeight,
-  });
   console.log(
     chalk.green('👤 User public key:'),
     chalk.cyan(userKeypair.publicKey.toBase58()),
   );
-  const swigAddress = await createSwigAccount(connection, userKeypair);
-  setTimeout(() => {
-    console.log(chalk.green('\n✨ Everything looks good!'));
-    console.log(
-      chalk.yellow('🔍 Check out your transaction on Solana Explorer:'),
-    );
-    console.log(
-      chalk.cyan(
-        `https://explorer.solana.com/address/${swigAddress.toBase58()}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
-      ),
-    );
-  }, 2000);
+
+  // airdrop lamports for fees + funding
+  const sig = await connection.requestAirdrop(
+    userKeypair.publicKey,
+    10 * LAMPORTS_PER_SOL,
+  );
+  const blockhash = await connection.getLatestBlockhash();
+  await connection.confirmTransaction({
+    signature: sig,
+    blockhash: blockhash.blockhash,
+    lastValidBlockHeight: blockhash.lastValidBlockHeight,
+  });
+  console.log(chalk.green('💸 Airdropped 10 SOL to user'));
+
+  // create swig
+  const swigAccountAddress = await createSwigAccount(connection, userKeypair);
+
+  // fetch swig & wallet
+  const swig = await fetchSwig(connection, swigAccountAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+
+  console.log(
+    chalk.green('📦 Swig wallet address:'),
+    chalk.cyan(swigWalletAddress.toBase58()),
+  );
+
+  // airdrop into the swig wallet
+  const fundSig = await connection.requestAirdrop(
+    swigWalletAddress,
+    1 * LAMPORTS_PER_SOL,
+  );
+  const blockhash2 = await connection.getLatestBlockhash();
+  await connection.confirmTransaction({
+    signature: fundSig,
+    blockhash: blockhash2.blockhash,
+    lastValidBlockHeight: blockhash2.lastValidBlockHeight,
+  });
+  console.log(chalk.green('💸 Funded Swig wallet with 1 SOL'));
+
+  // show account version
+  const version = swig.accountVersion();
+  console.log(
+    chalk.blue('📋 Account Version:'),
+    chalk.yellow(`Swig ${version.toUpperCase()}`),
+  );
+
+  // print root roles (should exist for user)
+  const rootRoles = swig.findRolesByEd25519SignerPk(userKeypair.publicKey);
+  console.log(
+    chalk.magenta('🔑 Root roles found:'),
+    rootRoles.map((r) => r.id),
+  );
+
+  console.log(chalk.green('\n✨ Everything looks good!'));
+  console.log(chalk.yellow('🔍 Check your Swig account on Solana Explorer:'));
+  console.log(
+    chalk.cyan(
+      `https://explorer.solana.com/address/${swigAccountAddress.toBase58()}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+    ),
+  );
 })();

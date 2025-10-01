@@ -54,8 +54,8 @@ function sendSVMTransaction(
   }
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const swigAccount = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
   // Ensure we have a proper Uint8Array for the account data
   return getSwigCodec().decode(swigAccount.data);
@@ -63,14 +63,14 @@ function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
 
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, toPublicKey(swigAddress));
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
 
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -129,7 +129,7 @@ sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
 //
 // * swig.refetch(connection, ...args) method available
 //
-let swig = fetchSwig(svm, swigAccountAddress);
+const swig = fetchSwig(svm, swigAccountAddress);
 
 const swigWalletAddress = await getSwigWalletAddress(swig);
 console.log('swig wallet address:', swigWalletAddress.toBase58());

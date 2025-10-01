@@ -323,7 +323,6 @@ export const getSignInstructionContext = async (
     return role.authority.signV2({
       roleId: role.id,
       innerInstructions,
-      payer,
       swigAddress: swig.address,
       swigSystemAddress: await getSwigSystemAddressRaw(swig),
       options,

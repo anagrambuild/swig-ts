@@ -13,14 +13,14 @@ import {
   getAddAuthorityInstructions,
   getCreateSubAccountInstructions,
   getCreateSwigInstruction,
-  getWithdrawFromSubAccountInstructions,
+  getSwigWalletAddress,
   getWithdrawFromSubAccountCheckedInstructions,
-  getSwigCodec,
+  getWithdrawFromSubAccountInstructions,
   Swig,
   SWIG_PROGRAM_ADDRESS,
-  type SwigAccount,
-  type SwigFetchFn,
 } from '@swig-wallet/classic';
+import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
+import { SolPublicKey, type SwigFetchFn } from '@swig-wallet/lib';
 import {
   FailedTransactionMetadata,
   LiteSVM,
@@ -50,26 +50,27 @@ function sendSVMTransaction(
   }
 
   if (tx instanceof TransactionMetadata) {
-    console.log("tx:", tx.logs())
+    console.log('tx:', tx.logs());
   }
 }
 
-function fetchSwigAccount(svm: LiteSVM, swigAddress: PublicKey): SwigAccount {
-  const swigAccount = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
   return getSwigCodec().decode(swigAccount.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = fetchSwigAccount(svm, swigAddress);
-
-  const swigFetchFn: SwigFetchFn = async (swigAddress) =>
-    fetchSwigAccount(svm, new PublicKey((swigAddress as any).toBase58()));
-
-  return new Swig(swigAddress, swigAccount, swigFetchFn);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(
+      svm,
+      new PublicKey(new SolPublicKey(swigAccountAddress).toBytes()),
+    );
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -92,9 +93,9 @@ svm.airdrop(subAccountAuthority.publicKey, BigInt(LAMPORTS_PER_SOL));
 
 const id = Uint8Array.from(Array(32).fill(2));
 
-const swigAddress = findSwigPda(id);
+const swigAccountAddress = findSwigPda(id);
 
-console.log('swig address:', swigAddress.toBase58());
+console.log('swig address:', swigAccountAddress.toBase58());
 
 const createSwigIx = await getCreateSwigInstruction({
   payer: rootAuthority.publicKey,
@@ -104,7 +105,11 @@ const createSwigIx = await getCreateSwigInstruction({
 });
 sendSVMTransaction(svm, [createSwigIx], rootAuthority);
 
-const swig = fetchSwig(svm, swigAddress);
+const swig = fetchSwig(svm, swigAccountAddress);
+
+// Get the Swig wallet address
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
 
 let rootRole = swig.roles[0];
 
@@ -148,10 +153,10 @@ try {
     subAccountAuthRole.id,
     {
       amount: BigInt(0.1 * LAMPORTS_PER_SOL),
-    }
+    },
   );
   sendSVMTransaction(svm, basicWithdrawIx, subAccountAuthority);
-  
+
   const balanceAfterBasic = svm.getBalance(subAccountAddress)!;
   console.log('balance after basic withdrawal:', balanceAfterBasic);
 } catch (error) {
@@ -164,7 +169,7 @@ const withdrawAmount = BigInt(0.5 * LAMPORTS_PER_SOL);
 
 try {
   console.log('Using Classic SDK checked withdrawal with validation');
-  
+
   const safeWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
@@ -176,7 +181,10 @@ try {
   );
   sendSVMTransaction(svm, safeWithdrawIx, subAccountAuthority);
 } catch (error) {
-  console.log('Withdrawal blocked by safety validation:', error instanceof Error ? error.message : String(error));
+  console.log(
+    'Withdrawal blocked by safety validation:',
+    error instanceof Error ? error.message : String(error),
+  );
 }
 
 const balanceAfterSafe = svm.getBalance(subAccountAddress)!;
@@ -188,24 +196,18 @@ const largeWithdrawAmount = balanceAfterSafe - BigInt(0.001 * LAMPORTS_PER_SOL);
 
 try {
   // First trying without override (should fail) using Classic SDK
-  const blockedWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
-    swig,
-    subAccountAuthRole.id,
-    {
-      amount: largeWithdrawAmount,
-      currentBalance: balanceAfterSafe,
-      allowBelowRentExempt: false, // Should block this
-    },
-  );
   console.log('This should not happen - withdrawal should be blocked');
 } catch (error) {
-  console.log('Withdrawal correctly blocked:', error instanceof Error ? error.message : String(error));
+  console.log(
+    'Withdrawal correctly blocked:',
+    error instanceof Error ? error.message : String(error),
+  );
 }
 
 try {
   // Trying with explicit override using Classic SDK
   console.log('Trying risky withdrawal with explicit override...');
-  
+
   const largeWithdrawIx = await getWithdrawFromSubAccountCheckedInstructions(
     swig,
     subAccountAuthRole.id,
@@ -215,11 +217,14 @@ try {
       allowBelowRentExempt: true, // Explicitly allow risky withdrawal
     },
   );
-  
+
   console.log('Risky withdrawal allowed with explicit override');
   sendSVMTransaction(svm, largeWithdrawIx, subAccountAuthority);
 } catch (error) {
-  console.log('Large withdrawal failed:', error instanceof Error ? error.message : String(error));
+  console.log(
+    'Large withdrawal failed:',
+    error instanceof Error ? error.message : String(error),
+  );
 }
 
 const finalBalance = svm.getBalance(subAccountAddress)!;
