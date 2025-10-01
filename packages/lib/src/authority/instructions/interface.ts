@@ -6,16 +6,19 @@ import type {
   SubAccountCreateV1InstructionDataArgs,
   SubAccountToggleV1InstructionDataArgs,
   SubAccountWithdrawV1InstructionDataArgs,
+  TransferAssetsV1InstructionDataArgs,
 } from '@swig-wallet/coder';
 import {
   type AddAuthorityV1InstructionAccounts,
   type RemoveAuthorityV1InstructionAccounts,
   type SignV1InstructionAccounts,
+  type SignV2InstructionAccounts,
   type SubAccountCreateV1InstructionAccounts,
   type SubAccountSignV1InstructionAccounts,
   type SubAccountToggleV1InstructionAccounts,
   type SubAccountWithdrawV1SolInstructionAccounts,
   type SubAccountWithdrawV1TokenInstructionAccounts,
+  type TransferAssetsV1InstructionAccounts,
 } from '../../instructions';
 import type { SolInstruction, SwigInstructionContext } from '../../solana';
 
@@ -49,6 +52,16 @@ export interface AuthorityInstruction {
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;
 
+  signV2Instruction(
+    accounts: SignV2InstructionAccounts,
+    data: {
+      authorityData: ReadonlyUint8Array;
+      roleId: number;
+      innerInstructions: SolInstruction[];
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
   createSessionV1Instruction(
     accounts: SignV1InstructionAccounts,
     data: Omit<CreateSessionV1InstructionDataArgs, 'authorityPayload'> & {
@@ -61,6 +74,16 @@ export interface AuthorityInstruction {
     accounts: SubAccountCreateV1InstructionAccounts,
     data: Omit<SubAccountCreateV1InstructionDataArgs, 'authorityPayload'> & {
       authorityData: ReadonlyUint8Array;
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
+  subAccountSignV1Instruction(
+    accounts: SubAccountSignV1InstructionAccounts,
+    data: {
+      authorityData: ReadonlyUint8Array;
+      roleId: number;
+      innerInstructions: SolInstruction[];
     },
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;
@@ -89,12 +112,10 @@ export interface AuthorityInstruction {
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;
 
-  subAccountSignV1Instruction(
-    accounts: SubAccountSignV1InstructionAccounts,
-    data: {
+  transferAssetsV1Instruction(
+    accounts: TransferAssetsV1InstructionAccounts,
+    data: Omit<TransferAssetsV1InstructionDataArgs, 'authorityPayload'> & {
       authorityData: ReadonlyUint8Array;
-      roleId: number;
-      innerInstructions: SolInstruction[];
     },
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;

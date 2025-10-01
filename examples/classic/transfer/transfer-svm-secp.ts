@@ -9,209 +9,113 @@ import {
 } from '@solana/web3.js';
 import {
   Actions,
-  compressPubkey,
   createSecp256k1AuthorityInfo,
   findSwigPda,
   getCreateSwigInstruction,
   getSigningFnForSecp256k1PrivateKey,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
   type InstructionDataOptions,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
-import {
-  FailedTransactionMetadata,
-  LiteSVM,
-  TransactionMetadata,
-} from 'litesvm';
+import { FailedTransactionMetadata, LiteSVM } from 'litesvm';
 import { readFileSync } from 'node:fs';
 
-//
-// Helpers
-//
 function sendSVMTransaction(
   svm: LiteSVM,
-  instructions: TransactionInstruction[],
+  ixs: TransactionInstruction[],
   payer: Keypair,
 ) {
-  const transaction = new Transaction();
-  transaction.instructions = instructions;
-  transaction.feePayer = payer.publicKey;
-  transaction.recentBlockhash = svm.latestBlockhash();
+  svm.expireBlockhash();
+  const tx = new Transaction();
+  tx.instructions = ixs;
+  tx.feePayer = payer.publicKey;
+  tx.recentBlockhash = svm.latestBlockhash();
+  tx.sign(payer);
 
-  transaction.sign(payer);
-
-  const tx = svm.sendTransaction(transaction);
-
-  if (tx instanceof FailedTransactionMetadata) {
-    console.log('tx:', tx.meta().logs());
+  const res = svm.sendTransaction(tx);
+  if (res instanceof FailedTransactionMetadata) {
+    console.log('❌ logs:', res.meta().logs());
   }
+  return res;
+}
 
-  if (tx instanceof TransactionMetadata) {
-    // console.log("tx:", tx.logs())
-  }
+function fetchSwigAccount(
+  svm: LiteSVM,
+  swigAccountAddress: PublicKey,
+): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
 }
 
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('swig account not created');
-  // Ensure we have a proper Uint8Array for the account data
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
+
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
-console.log('starting...');
-//
-// Start program
-//
+
+console.log('starting authority-secp256k1...');
 const swigProgram = Uint8Array.from(readFileSync('../../../swig.so'));
 const svm = new LiteSVM();
-
 svm.addProgram(SWIG_PROGRAM_ADDRESS, swigProgram);
 
-const userWallet = Wallet.generate();
+const wallet = Wallet.generate();
+const root = Keypair.generate();
+svm.airdrop(root.publicKey, BigInt(LAMPORTS_PER_SOL));
 
-// user root
-//
-const userRootKeypair = Keypair.generate();
-svm.airdrop(userRootKeypair.publicKey, BigInt(LAMPORTS_PER_SOL));
+const manager = Keypair.generate();
+svm.airdrop(manager.publicKey, BigInt(LAMPORTS_PER_SOL));
 
-// user authority manager
-//
-const userAuthorityManagerKeypair = Keypair.generate();
-svm.airdrop(userAuthorityManagerKeypair.publicKey, BigInt(LAMPORTS_PER_SOL));
-
-// dapp authority
-//
-const dappAuthorityKeypair = Keypair.generate();
-svm.airdrop(dappAuthorityKeypair.publicKey, BigInt(LAMPORTS_PER_SOL));
-
-const dappTreasury = Keypair.generate().publicKey;
-
+const treasury = Keypair.generate().publicKey;
 const id = Uint8Array.from(Array(32).fill(0));
+const swigAccountAddress = findSwigPda(id);
 
-//
-// * Find a swig pda by id
-//
-const swigAddress = findSwigPda(id);
-
-//
-// * create swig instruction
-//
-// * createSwig(connection, ...args) imperative method available
-//
+// create swig
 const rootActions = Actions.set().all().get();
-
-// Example using compressed pubkey instead of uncompressed
-// createSecp256k1AuthorityInfo now supports both compressed and uncompressed pubkeys
-// This demonstrates the new compressed pubkey support
-const compressedPubkey = compressPubkey(userWallet.getPublicKey());
-
-const createSwigInstruction = await getCreateSwigInstruction({
-  authorityInfo: createSecp256k1AuthorityInfo(compressedPubkey),
+const createIx = await getCreateSwigInstruction({
+  authorityInfo: createSecp256k1AuthorityInfo(wallet.getPublicKey()),
   id,
-  payer: userRootKeypair.publicKey,
+  payer: root.publicKey,
   actions: rootActions,
 });
+sendSVMTransaction(svm, [createIx], root);
 
-sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
+let swig = fetchSwig(svm, swigAccountAddress);
+const role = swig.findRolesBySecp256k1SignerAddress(wallet.getAddress())[0]!;
+const slot = svm.getClock().slot;
 
-//
-// * fetch swig
-//
-// * swig.refetch(connection, ...args) method available
-//
-let swig = fetchSwig(svm, swigAddress);
-// swig.refetch(connection)
+const signingFn = getSigningFnForSecp256k1PrivateKey(wallet.getPrivateKey());
+const opts: InstructionDataOptions = { currentSlot: slot, signingFn };
 
-// * find role by authority
-//
-let rootRole = swig.findRolesBySecp256k1SignerAddress(
-  userWallet.getAddress(),
-)[0];
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
 
-if (!rootRole) throw new Error('Role not found for authority');
+svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
+swig = fetchSwig(svm, swigAccountAddress);
 
-let currentSlot = svm.getClock().slot;
+console.log('balance before:', svm.getBalance(swigWalletAddress));
 
-let signingFn = getSigningFnForSecp256k1PrivateKey(userWallet.getPrivateKey());
-
-let instOptions: InstructionDataOptions = { currentSlot, signingFn };
-
-svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
-
-swig = fetchSwig(svm, swigAddress);
-
-console.log('balance before first transfer:', svm.getBalance(swigAddress));
-
-//
-// * spend max sol permitted
-//
-let transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
-  toPubkey: dappTreasury,
-  lamports: 0.1 * LAMPORTS_PER_SOL,
+const transfer = SystemProgram.transfer({
+  fromPubkey: swigWalletAddress,
+  toPubkey: treasury,
+  lamports: Math.floor(0.1 * LAMPORTS_PER_SOL),
 });
-
-let signTransfer = await getSignInstructions(
-  swig,
-  rootRole.id,
-  [transfer],
-  undefined,
-  { ...instOptions, payer: userAuthorityManagerKeypair.publicKey },
-);
-
-sendSVMTransaction(svm, signTransfer, userAuthorityManagerKeypair);
-
-console.log('balance after first transfer:', svm.getBalance(swigAddress));
-
-svm.warpToSlot(50n);
-
-//
-// * fetch swig
-//
-// * swig.refetch(connection, ...args) method available
-//
-swig = fetchSwig(svm, swigAddress);
-// swig.refetch(connection)
-
-// * find role by authority
-//
-rootRole = swig.findRolesBySecp256k1SignerAddress(userWallet.getAddress())[0];
-
-if (!rootRole) throw new Error('Role not found for authority');
-
-currentSlot = svm.getClock().slot;
-
-signingFn = getSigningFnForSecp256k1PrivateKey(userWallet.getPrivateKey());
-
-instOptions = { currentSlot, signingFn };
-
-svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
-
-swig = fetchSwig(svm, swigAddress);
-
-console.log('balance before first transfer:', svm.getBalance(swigAddress));
-
-//
-// * spend max sol permitted
-//
-transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
-  toPubkey: dappTreasury,
-  lamports: 0.1 * LAMPORTS_PER_SOL,
+const signIx = await getSignInstructions(swig, role.id, [transfer], false, {
+  ...opts,
+  payer: manager.publicKey,
 });
+sendSVMTransaction(svm, signIx, manager);
 
-signTransfer = await getSignInstructions(
-  swig,
-  rootRole.id,
-  [transfer],
-  undefined,
-  { ...instOptions, payer: userAuthorityManagerKeypair.publicKey },
-);
-
-sendSVMTransaction(svm, signTransfer, userAuthorityManagerKeypair);
-
-console.log('balance after first transfer:', svm.getBalance(swigAddress));
+console.log('balance after:', svm.getBalance(swigWalletAddress));

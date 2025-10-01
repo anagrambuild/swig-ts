@@ -10,20 +10,24 @@ import {
   getSubAccountCreateV1InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
+  getTransferAssetsV1InstructionDataCodec,
 } from '@swig-wallet/coder';
 import {
   SwigInstructionV1,
+  SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetas,
+  getCreateSessionV1BaseAccountMetasWithSystemProgram,
   getRemoveAuthorityV1BaseAccountMetas,
   getSignV1BaseAccountMetas,
+  getSignV2BaseAccountMetas,
   getSubAccountCreateV1BaseAccountMetas,
   getSubAccountSignV1BaseAccountMetas,
   getSubAccountToggleV1BaseAccountMetas,
   getSubAccountWithdrawV1SolAccountMetas,
   getSubAccountWithdrawV1TokenAccountMetas,
+  getTransferAssetsV1BaseAccountMetas,
 } from '../../instructions';
-import { getCreateSessionV1BaseAccountMetasWithSystemProgram } from '../../instructions/createSessionV1';
 import { SolAccountMeta } from '../../solana';
 import type { AuthorityInstruction, SigningFn } from './interface';
 
@@ -128,6 +132,45 @@ export const Secp256k1Instruction: AuthorityInstruction = {
     });
   },
 
+  async signV2Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const signInstructionsAccount = getSignV2BaseAccountMetas(accounts);
+
+    const { accounts: metas, compactIxs } = compactInstructions(
+      accounts.swig,
+      signInstructionsAccount,
+      data.innerInstructions,
+      [accounts.swigSystemAddress],
+    );
+
+    const encodedCompactInstructions = getArrayEncoder(
+      getCompactInstructionEncoder(),
+      {
+        size: getU8Encoder(),
+      },
+    ).encode(compactIxs);
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(encodedCompactInstructions),
+      metas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV2.sign(metas, {
+      roleId: data.roleId,
+      authorityPayload,
+      compactInstructions: compactIxs,
+    });
+  },
+
   async createSessionV1Instruction(accounts, data, options) {
     if (!options?.signingFn || options?.currentSlot === undefined)
       throw new Error(
@@ -199,7 +242,7 @@ export const Secp256k1Instruction: AuthorityInstruction = {
       accounts.swig,
       signInstructionsAccount,
       data.innerInstructions,
-      accounts.subAccount,
+      [accounts.subAccount],
     );
 
     const encodedCompactInstructions = getArrayEncoder(
@@ -305,6 +348,34 @@ export const Secp256k1Instruction: AuthorityInstruction = {
     );
 
     return SwigInstructionV1.subAccountToggle(accountMetas, {
+      ...data,
+      authorityPayload,
+    });
+  },
+
+  async transferAssetsV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const accountMetas = getTransferAssetsV1BaseAccountMetas(accounts);
+
+    const { payloadEncoder } = getTransferAssetsV1InstructionDataCodec();
+
+    const message = payloadEncoder.encode(data);
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(message),
+      accountMetas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.transferAssets(accountMetas, {
       ...data,
       authorityPayload,
     });

@@ -31,8 +31,8 @@ export type CreateV1InstructionData = {
   discriminator: number;
   authorityType: AuthorityType;
   authorityDataLen: number;
-  noOfActions: number;
   bump: number;
+  walletBump: number;
   id: ReadonlyUint8Array;
   authorityData: ReadonlyUint8Array;
   actions: ReadonlyUint8Array;
@@ -43,9 +43,9 @@ export type CreateV1InstructionDataArgs = {
   authorityData: ReadonlyUint8Array;
   bump: number;
   /**
-   * no of actions to add to the role
+   * wallet address bump
    */
-  noOfActions: number;
+  walletBump: number;
   id: ReadonlyUint8Array;
   actions: ReadonlyUint8Array;
 };
@@ -57,7 +57,7 @@ export function getCreateV1InstructionDataCodec() {
       ['authorityType', getAuthorityTypeEncoder()],
       ['authorityDataLen', getU16Encoder()],
       ['bump', getU8Encoder()],
-      ['noOfActions', getU8Encoder()],
+      ['walletBump', getU8Encoder()],
       ['id', fixEncoderSize(getBytesEncoder(), 32)],
       ['authorityData', getBytesEncoder()],
       ['actions', getBytesEncoder()],
@@ -74,7 +74,7 @@ export function getCreateV1InstructionDataCodec() {
     ['authorityType', getAuthorityTypeDecoder()],
     ['authorityDataLen', getU16Decoder()],
     ['bump', getU8Decoder()],
-    ['noOfActions', getU8Decoder()],
+    ['walletBump', getU8Decoder()],
     ['id', fixDecoderSize(getBytesDecoder(), 32)],
     ['authorityData', getBytesDecoder()],
     ['actions', getBytesDecoder()],

@@ -20,9 +20,13 @@ export function compactInstructions<
   swigAccount: SolPublicKeyData,
   accounts: T,
   innerInstructions: SolInstruction[],
-  subAccount?: SolPublicKeyData,
+  otherSwigPdas: SolPublicKeyData[] = [],
 ): { accounts: T; compactIxs: CompactInstruction[] } {
   const compactIxs: CompactInstruction[] = [];
+
+  otherSwigPdas.push(swigAccount);
+
+  const swigPdas = otherSwigPdas.map((pda) => new SolPublicKey(pda));
 
   const hashmap = new Map<string, number>(
     accounts.map((x, i) => [x.publicKey.toBase58(), i]),
@@ -35,11 +39,10 @@ export function compactInstructions<
 
     const accts: number[] = [];
     for (const ixAccount of ix.accounts) {
-      const subAcct = subAccount ? new SolPublicKey(subAccount) : undefined;
       if (
-        ixAccount.publicKey.toBase58() ===
-          new SolPublicKey(swigAccount).toBase58() ||
-        ixAccount.publicKey.toBase58() === subAcct?.toBase58()
+        swigPdas.find(
+          (pda) => pda.toBase58() === ixAccount.publicKey.toBase58(),
+        )
       ) {
         ixAccount.setSigner(false);
       }
@@ -55,13 +58,15 @@ export function compactInstructions<
       }
     }
     if (handleUnbalanced) {
-      const accountIndex = subAccount
-        ? hashmap.get(subAccount.toString())
-        : hashmap.get(swigAccount.toString());
-      if (accountIndex !== undefined) {
-        accts.push(accountIndex);
-      } else {
-        accts.push(0); // Should be first account until SignV2 changes come
+      for (const swigPda of ix.accounts) {
+        const accountIndex = swigPda
+          ? hashmap.get(swigPda.toString())
+          : hashmap.get(swigAccount.toString());
+        if (accountIndex !== undefined) {
+          accts.push(accountIndex);
+        } else {
+          accts.push(0); // Should be first account until SignV2 changes come
+        }
       }
       handleUnbalanced = false;
     }

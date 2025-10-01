@@ -8,7 +8,7 @@ import {
   getUtf8Encoder,
 } from '@solana/kit';
 import { SWIG_PROGRAM_ADDRESS_STRING } from './consts';
-import { SolPublicKey } from './solana';
+import { SolPublicKey, type SolPublicKeyData } from './solana';
 
 export function uint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
@@ -36,6 +36,25 @@ export async function findSwigPdaRaw(
   id: Uint8Array,
 ): Promise<[SolPublicKey, number]> {
   const [address, bump] = await findSwigPda(id);
+
+  return [new SolPublicKey(address), bump];
+}
+
+async function findSwigSystemAddressPda(swigAddress: SolPublicKeyData) {
+  const swigAddressBytes = new SolPublicKey(swigAddress).toBytes();
+  return await getProgramDerivedAddress({
+    programAddress: address(SWIG_PROGRAM_ADDRESS_STRING),
+    seeds: [
+      getUtf8Encoder().encode('swig-wallet-address'),
+      getBytesEncoder().encode(swigAddressBytes),
+    ],
+  });
+}
+
+export async function findSwigSystemAddressPdaRaw(
+  swigAddress: SolPublicKeyData,
+): Promise<[SolPublicKey, number]> {
+  const [address, bump] = await findSwigSystemAddressPda(swigAddress);
 
   return [new SolPublicKey(address), bump];
 }

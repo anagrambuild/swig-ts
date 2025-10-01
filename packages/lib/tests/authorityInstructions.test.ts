@@ -164,7 +164,8 @@ describe('Ed25519Instruction', () => {
       authorityData,
       subAccountId: dummyUint8(),
       enabled: true,
-      roleId: 1,
+      subAccountRoleId: 1,
+      actingRoleId: 1,
     };
     const ix = await Ed25519Instruction.subAccountToggleV1Instruction(
       accounts,
@@ -338,7 +339,8 @@ describe('Secp256k1Instruction', () => {
     const data = {
       authorityData: dummyUint8(32),
       enabled: true,
-      roleId: 1,
+      subAccountRoleId: 1,
+      actingRoleId: 1,
     };
     const ix = await Secp256k1Instruction.subAccountToggleV1Instruction(
       accounts,

@@ -13,8 +13,13 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
 import {
   FailedTransactionMetadata,
@@ -53,14 +58,20 @@ function sendSVMTransaction(
   }
 }
 
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('swig account not created');
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -77,9 +88,9 @@ console.log('starting...');
 
   // Create Swig root account
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
-  console.log('swig address:', swigAddress.toBase58());
+  console.log('swig address:', swigAccountAddress.toBase58());
 
   const rootActions = Actions.set().all().get();
   const ix = await getCreateSwigInstruction({
@@ -92,7 +103,7 @@ console.log('starting...');
   sendSVMTransaction(svm, [ix], rootKeypair);
 
   // Fetch root role
-  let swig = fetchSwig(svm, swigAddress);
+  let swig = fetchSwig(svm, swigAccountAddress);
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
@@ -124,19 +135,21 @@ console.log('starting...');
   sendSVMTransaction(svm, addIx, rootKeypair);
 
   // Refresh swig to get the newly added role
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
 
-  // Fund the swig account and role keypair
-  svm.airdrop(swigAddress, BigInt(5 * LAMPORTS_PER_SOL));
+  // Fund the swig wallet address and role keypair
+  svm.airdrop(swigWalletAddress, BigInt(5 * LAMPORTS_PER_SOL));
   svm.airdrop(roleKeypair.publicKey, BigInt(0.1 * LAMPORTS_PER_SOL));
 
   // Check balance before transfers
-  console.log('balance before transfers:', svm.getBalance(swigAddress));
+  console.log('balance before transfers:', svm.getBalance(swigWalletAddress));
 
   // First transfer: 0.3 SOL (within limit)
   const transferAmount1 = BigInt(0.3 * LAMPORTS_PER_SOL);
   const transferIx1 = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: recipient.publicKey,
     lamports: transferAmount1,
   });
@@ -154,16 +167,16 @@ console.log('starting...');
 
   console.log(
     'balance after first transfer (0.3 SOL):',
-    svm.getBalance(swigAddress),
+    svm.getBalance(swigWalletAddress),
   );
 
   // Refresh swig after first transfer
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Second transfer: 0.2 SOL (should still be allowed, total 0.5 SOL)
   const transferAmount2 = BigInt(0.2 * LAMPORTS_PER_SOL);
   const transferIx2 = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: recipient.publicKey,
     lamports: transferAmount2,
   });
@@ -183,18 +196,18 @@ console.log('starting...');
 
   console.log(
     'balance after second transfer (0.2 SOL, total 0.5 SOL):',
-    svm.getBalance(swigAddress),
+    svm.getBalance(swigWalletAddress),
   );
   console.log('Successfully sent recurring transfers to authorized recipient!');
 
   // Refresh swig after second transfer
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Third transfer: 0.1 SOL (should exceed the 0.5 SOL limit in current window)
   try {
     const transferAmount3 = BigInt(0.1 * LAMPORTS_PER_SOL);
     const transferIx3 = SystemProgram.transfer({
-      fromPubkey: swigAddress,
+      fromPubkey: swigWalletAddress,
       toPubkey: recipient.publicKey,
       lamports: transferAmount3,
     });
@@ -231,7 +244,7 @@ console.log('starting...');
 
   try {
     const unauthorizedTransferIx = SystemProgram.transfer({
-      fromPubkey: swigAddress,
+      fromPubkey: swigWalletAddress,
       toPubkey: unauthorizedRecipient.publicKey,
       lamports: BigInt(0.1 * LAMPORTS_PER_SOL),
     });

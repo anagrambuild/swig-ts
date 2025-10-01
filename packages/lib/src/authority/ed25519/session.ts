@@ -89,6 +89,25 @@ export class Ed25519SessionAuthority
     );
   }
 
+  signV2(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    roleId: number;
+    innerInstructions: SolInstruction[];
+  }) {
+    return Ed25519Instruction.signV2Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+      },
+      {
+        authorityData: this.sessionKey.toBytes(),
+        innerInstructions: args.innerInstructions,
+        roleId: args.roleId,
+      },
+    );
+  }
+
   addAuthority(args: {
     swigAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
@@ -177,7 +196,6 @@ export class Ed25519SessionAuthority
   }
 
   subAccountSign(args: {
-    payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
@@ -185,7 +203,6 @@ export class Ed25519SessionAuthority
   }) {
     return Ed25519Instruction.subAccountSignV1Instruction(
       {
-        payer: args.payer,
         swig: args.swigAddress,
         subAccount: args.subAccount,
       },
@@ -201,7 +218,8 @@ export class Ed25519SessionAuthority
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
-    roleId: number;
+    subAccountRoleId: number;
+    actingRoleId: number;
     enabled: boolean;
   }) {
     return Ed25519Instruction.subAccountToggleV1Instruction(
@@ -211,7 +229,8 @@ export class Ed25519SessionAuthority
         subAccount: args.subAccount,
       },
       {
-        roleId: args.roleId,
+        subAccountRoleId: args.subAccountRoleId,
+        actingRoleId: args.actingRoleId,
         authorityData: this.data,
         enabled: args.enabled,
       },
@@ -278,6 +297,25 @@ export class Ed25519SessionAuthority
         roleId: args.roleId,
         authorityData: this.data,
         amount: args.amount,
+      },
+    );
+  }
+
+  transferAssets(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    payer: SolPublicKeyData;
+    roleId: number;
+  }) {
+    return Ed25519Instruction.transferAssetsV1Instruction(
+      {
+        swig: args.swigAddress,
+        payer: args.payer,
+        swigSystemAddress: args.swigSystemAddress,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
       },
     );
   }

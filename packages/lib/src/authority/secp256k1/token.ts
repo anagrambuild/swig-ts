@@ -92,6 +92,28 @@ export class Secp256k1Authority
     );
   }
 
+  signV2(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    payer: SolPublicKeyData;
+    roleId: number;
+    innerInstructions: SolInstruction[];
+    options: InstructionDataOptions;
+  }) {
+    return Secp256k1Instruction.signV2Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+      },
+      {
+        authorityData: this.publicKeyBytes,
+        innerInstructions: args.innerInstructions,
+        roleId: args.roleId,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
   addAuthority(args: {
     swigAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
@@ -174,7 +196,6 @@ export class Secp256k1Authority
   }) {
     return Secp256k1Instruction.subAccountSignV1Instruction(
       {
-        payer: args.payer,
         swig: args.swigAddress,
         subAccount: args.subAccount,
       },
@@ -191,7 +212,8 @@ export class Secp256k1Authority
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
-    roleId: number;
+    subAccountRoleId: number;
+    actingRoleId: number;
     enabled: boolean;
     options: InstructionDataOptions;
   }) {
@@ -202,7 +224,8 @@ export class Secp256k1Authority
         subAccount: args.subAccount,
       },
       {
-        roleId: args.roleId,
+        subAccountRoleId: args.subAccountRoleId,
+        actingRoleId: args.actingRoleId,
         authorityData: this.publicKeyBytes,
         enabled: args.enabled,
       },
@@ -274,6 +297,27 @@ export class Secp256k1Authority
         roleId: args.roleId,
         authorityData: this.publicKeyBytes,
         amount: args.amount,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
+  transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256k1Instruction.transferAssetsV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigAddress,
+      },
+      {
+        roleId: args.roleId,
+        authorityData: this.publicKeyBytes,
       },
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );

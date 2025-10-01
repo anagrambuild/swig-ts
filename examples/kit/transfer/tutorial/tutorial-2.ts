@@ -1,17 +1,17 @@
 import {
+  addSignersToTransactionMessage,
+  appendTransactionMessageInstructions,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  createTransactionMessage,
   generateKeyPairSigner,
   getSignatureFromTransaction,
   lamports,
   pipe,
   sendAndConfirmTransactionFactory,
-  signTransactionMessageWithSigners,
-  createTransactionMessage,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstructions,
-  addSignersToTransactionMessage,
+  signTransactionMessageWithSigners,
   type Address,
   type Blockhash,
   type IInstruction,
@@ -25,10 +25,24 @@ import {
   findSwigPda,
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
+  getSwigWalletAddress,
 } from '@swig-wallet/kit';
 
 import chalk from 'chalk';
-import { sleepSync } from 'bun';
+
+// ---------------- Utils ----------------
+const LAMPORTS_PER_SOL = 1_000_000_000n;
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function confirmAirdrop(
+  rpc: ReturnType<typeof createSolanaRpc>,
+  to: string,
+  amount: bigint,
+) {
+  const sig = await (rpc as any).requestAirdrop(to, lamports(amount)).send();
+  await rpc.getSignatureStatuses([sig]).send();
+  await delay(1200);
+}
 
 function randomBytes(length: number): Uint8Array {
   const arr = new Uint8Array(length);
@@ -66,15 +80,24 @@ async function sendTransaction<T extends IInstruction[]>(
   const { value: latestBlockhash } = await connection.rpc
     .getLatestBlockhash()
     .send();
-  const txMsg = getTransactionMessage(instructions, latestBlockhash, payer, signers);
+  const txMsg = getTransactionMessage(
+    instructions,
+    latestBlockhash,
+    payer,
+    signers,
+  );
   const signedTx = await signTransactionMessageWithSigners(txMsg);
-  await sendAndConfirmTransactionFactory(connection as any)(signedTx, { commitment: 'confirmed' });
+  await sendAndConfirmTransactionFactory(connection as any)(signedTx, {
+    commitment: 'confirmed',
+  });
   return getSignatureFromTransaction(signedTx).toString();
 }
 
 async function createSwigAccount(connection: any, user: KeyPairSigner) {
   const id = randomBytes(32);
-  const swigAddress = await findSwigPda(id);
+  const swigAccountAddress = await findSwigPda(id);
+
+  // Use manageAuthority only; switch to .all() for full powers.
   const rootActions = Actions.set().manageAuthority().get();
   const authorityInfo = createEd25519AuthorityInfo(user.address);
 
@@ -87,21 +110,24 @@ async function createSwigAccount(connection: any, user: KeyPairSigner) {
 
   const sig = await sendTransaction(connection, [ix], user);
 
-  console.log(chalk.green('✓ Swig account created at:'), chalk.cyan(swigAddress.toString()));
+  console.log(
+    chalk.green('✓ Swig account created at:'),
+    chalk.cyan(swigAccountAddress.toString()),
+  );
   console.log(chalk.blue('Transaction signature:'), chalk.cyan(sig));
 
-  return { swigAddress, transactionSignature: sig };
+  return { swigAccountAddress, transactionSignature: sig };
 }
 
 async function addNewAuthority(
   connection: any,
   rootUser: KeyPairSigner,
   newAuthority: KeyPairSigner,
-  swigAddress: Address,
-  actions: any, // Actions built from the Actions builder pattern
+  swigAccountAddress: Address,
+  actions: ReturnType<ReturnType<(typeof Actions)['set']>['get']>,
   description: string,
 ) {
-  const swig = await fetchSwig(connection.rpc, swigAddress);
+  const swig = await fetchSwig(connection.rpc, swigAccountAddress);
   const rootRole = swig.findRolesByEd25519SignerPk(rootUser.address)[0];
   if (!rootRole) throw new Error('Root role not found');
 
@@ -110,6 +136,7 @@ async function addNewAuthority(
     rootRole.id,
     createEd25519AuthorityInfo(newAuthority.address),
     actions,
+    { payer: rootUser.address }, // explicit payer for fees
   );
 
   await sendTransaction(connection, ix, rootUser);
@@ -120,6 +147,7 @@ async function addNewAuthority(
   );
 }
 
+// ---------------- Main ----------------
 (async () => {
   console.log(chalk.blue('🚀 Starting tutorial - Swig + Kit style'));
 
@@ -129,69 +157,103 @@ async function addNewAuthority(
   };
 
   const rootUser = await generateKeyPairSigner();
-  console.log(chalk.green('👤 Root user public key:'), chalk.cyan(rootUser.address.toString()));
+  console.log(
+    chalk.green('👤 Root user public key:'),
+    chalk.cyan(rootUser.address.toString()),
+  );
 
-  await connection.rpc
-    .requestAirdrop(rootUser.address, lamports(BigInt(100 * 1_000_000_000)))
-    .send();
-
-  sleepSync(2000);
+  // Airdrop & confirm (100 SOL)
+  await confirmAirdrop(
+    connection.rpc,
+    rootUser.address,
+    100n * LAMPORTS_PER_SOL,
+  );
 
   console.log(chalk.yellow('\n📝 Creating Swig account...'));
-  const { swigAddress } = await createSwigAccount(connection, rootUser);
+  const { swigAccountAddress } = await createSwigAccount(connection, rootUser);
 
   const spendingAuthority = await generateKeyPairSigner();
   const tokenAuthority = await generateKeyPairSigner();
 
-  console.log(chalk.green('\n👥 Spending authority public key:'), chalk.cyan(spendingAuthority.address.toString()));
-  console.log(chalk.green('👥 Token authority public key:'), chalk.cyan(tokenAuthority.address.toString()));
+  console.log(
+    chalk.green('\n👥 Spending authority public key:'),
+    chalk.cyan(spendingAuthority.address.toString()),
+  );
+  console.log(
+    chalk.green('👥 Token authority public key:'),
+    chalk.cyan(tokenAuthority.address.toString()),
+  );
 
-  sleepSync(2000);
-
+  // Build actions (bigint-only lamports)
   const spendingActions = Actions.set()
-    .solLimit({ amount: BigInt(0.1 * 1_000_000_000) })
+    .solLimit({ amount: LAMPORTS_PER_SOL / 10n }) // 0.1 SOL
     .get();
 
-  await addNewAuthority(connection, rootUser, spendingAuthority, swigAddress, spendingActions, 'spending');
+  await addNewAuthority(
+    connection,
+    rootUser,
+    spendingAuthority,
+    swigAccountAddress,
+    spendingActions,
+    'spending',
+  );
 
-  const fakeMint = await generateKeyPairSigner(); // fake mint as publicKey
+  const fakeMint = await generateKeyPairSigner(); // stand-in for a mint pubkey
   const tokenActions = Actions.set()
-    .tokenLimit({ mint: fakeMint.address, amount: BigInt(1_000_000) })
+    .tokenLimit({ mint: fakeMint.address, amount: 1_000_000n }) // e.g., 1.000000 with 6 decimals
     .get();
 
-  await addNewAuthority(connection, rootUser, tokenAuthority, swigAddress, tokenActions, 'token');
+  await addNewAuthority(
+    connection,
+    rootUser,
+    tokenAuthority,
+    swigAccountAddress,
+    tokenActions,
+    'token',
+  );
 
-  const swig = await fetchSwig(connection.rpc, swigAddress);
+  const swig = await fetchSwig(connection.rpc, swigAccountAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log(
+    chalk.green('📦 Swig wallet address:'),
+    chalk.cyan(swigWalletAddress.toString()),
+  );
 
   console.log(chalk.blue('\n📊 Authority Permissions:'));
 
-  const spendingRole = swig.findRolesByEd25519SignerPk(spendingAuthority.address)[0];
+  const spendingRole = swig.findRolesByEd25519SignerPk(
+    spendingAuthority.address,
+  )[0];
+  if (!spendingRole) throw new Error('Spending role not found');
+
   console.log(chalk.yellow('Spending Authority:'));
   console.log(
     '- Can spend SOL:',
-    chalk.green(spendingRole.actions.canSpendSol(BigInt(0.1 * 1_000_000_000))),
+    chalk.green(spendingRole.actions.canSpendSol(LAMPORTS_PER_SOL / 10n)),
   );
   console.log(
     '- Can spend tokens:',
-    chalk.red(spendingRole.actions.canSpendToken(fakeMint.address, BigInt(1_000_000))),
+    chalk.red(spendingRole.actions.canSpendToken(fakeMint.address, 1_000_000n)),
   );
 
   const tokenRole = swig.findRolesByEd25519SignerPk(tokenAuthority.address)[0];
+  if (!tokenRole) throw new Error('Token role not found');
+
   console.log(chalk.yellow('\nToken Authority:'));
   console.log(
     '- Can spend SOL:',
-    chalk.red(tokenRole.actions.canSpendSol(BigInt(0.1 * 1_000_000_000))),
+    chalk.red(tokenRole.actions.canSpendSol(LAMPORTS_PER_SOL / 10n)),
   );
   console.log(
     '- Can spend tokens:',
-    chalk.green(tokenRole.actions.canSpendToken(fakeMint.address, BigInt(1_000_000))),
+    chalk.green(tokenRole.actions.canSpendToken(fakeMint.address, 1_000_000n)),
   );
 
   console.log(chalk.green('\n✨ Tutorial completed successfully!'));
-  console.log(chalk.yellow('🔍 Check out your transaction on Solana Explorer:'));
- console.log(
+  console.log(chalk.yellow('🔍 View on Solana Explorer:'));
+  console.log(
     chalk.cyan(
-      `https://explorer.solana.com/address/${swigAddress}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+      `https://explorer.solana.com/address/${swigAccountAddress}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
     ),
   );
 })();

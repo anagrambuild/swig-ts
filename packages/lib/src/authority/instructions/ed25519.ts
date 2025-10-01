@@ -1,16 +1,19 @@
 import {
   SwigInstructionV1,
+  SwigInstructionV2,
   compactInstructions,
   getAddV1BaseAccountMetasWithAuthority,
+  getCreateSessionV1BaseAccountMetasWithAuthority,
   getRemoveV1BaseAccountMetasWithAuthority,
   getSignV1BaseAccountMetasWithAuthority,
+  getSignV2BaseAccountMetasWithAuthority,
   getSubAccountCreateV1BaseAccountMetasWithAuthority,
   getSubAccountSignV1BaseAccountMetasWithAuthority,
   getSubAccountToggleV1BaseAccountMetasWithAuthority,
   getSubAccountWithdrawV1SolAccountMetasWithAuthority,
   getSubAccountWithdrawV1TokenAccountMetasWithAuthority,
+  getTransferAssetsV1BaseAccountMetasWithAuthority,
 } from '../../instructions';
-import { getCreateSessionV1BaseAccountMetasWithAuthority } from '../../instructions/createSessionV1';
 import { SolPublicKey } from '../../solana';
 import type { AuthorityInstruction } from './interface';
 
@@ -55,6 +58,26 @@ export const Ed25519Instruction: AuthorityInstruction = {
     );
 
     return SwigInstructionV1.sign(metas, {
+      roleId: data.roleId,
+      authorityPayload: new Uint8Array([authorityPayload]),
+      compactInstructions: compactIxs,
+    });
+  },
+
+  async signV2Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [signInstructionsAccount, authorityPayload] =
+      getSignV2BaseAccountMetasWithAuthority(accounts, authority);
+
+    const { accounts: metas, compactIxs } = compactInstructions(
+      accounts.swig,
+      signInstructionsAccount,
+      data.innerInstructions,
+      [accounts.swigSystemAddress],
+    );
+
+    return SwigInstructionV2.sign(metas, {
       roleId: data.roleId,
       authorityPayload: new Uint8Array([authorityPayload]),
       compactInstructions: compactIxs,
@@ -134,13 +157,25 @@ export const Ed25519Instruction: AuthorityInstruction = {
       accounts.swig,
       signAccounts,
       data.innerInstructions,
-      accounts.subAccount,
+      [accounts.subAccount],
     );
 
     return SwigInstructionV1.subAccountSign(metas, {
       roleId: data.roleId,
       authorityPayload: new Uint8Array([authorityPayload]),
       compactInstructions: compactIxs,
+    });
+  },
+
+  async transferAssetsV1Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [metas, authorityPayload] =
+      getTransferAssetsV1BaseAccountMetasWithAuthority(accounts, authority);
+
+    return SwigInstructionV1.transferAssets(metas, {
+      ...data,
+      authorityPayload: Uint8Array.from([authorityPayload]),
     });
   },
 };

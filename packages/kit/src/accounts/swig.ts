@@ -21,6 +21,9 @@ import {
 } from '@solana/kit';
 import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
 import {
+  getSwigAccountAddressRaw,
+  getSwigSystemAddressRaw,
+  getSwigWalletAddressRaw,
   SolPublicKey,
   Swig,
   type SolPublicKeyData,
@@ -164,4 +167,16 @@ export async function findSwigSubAccountPda(
       ],
     })
   )[0];
+}
+
+export function getSwigAccountAddress(swig: Swig): Address {
+  return getSwigAccountAddressRaw(swig).toAddress();
+}
+
+export async function getSwigSystemAddress(swig: Swig): Promise<Address> {
+  return (await getSwigSystemAddressRaw(swig)).toAddress();
+}
+
+export async function getSwigWalletAddress(swig: Swig): Promise<Address> {
+  return (await getSwigWalletAddressRaw(swig)).toAddress();
 }

@@ -4,19 +4,23 @@ import {
   getCreateV1InstructionDataCodec,
   getRemoveAuthorityV1InstructionCodec,
   getSignV1InstructionCodec,
+  getSignV2InstructionCodec,
   getSubAccountCreateV1InstructionDataCodec,
   getSubAccountSignV1InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
+  getTransferAssetsV1InstructionDataCodec,
   type AddAuthorityV1InstructionDataArgs,
   type CreateSessionV1InstructionDataArgs,
   type CreateV1InstructionDataArgs,
   type RemoveAuthorityV1InstructionDataArgs,
   type SignV1InstructionDataArgs,
+  type SignV2InstructionDataArgs,
   type SubAccountCreateV1InstructionDataArgs,
   type SubAccountSignV1InstructionDataArgs,
   type SubAccountToggleV1InstructionDataArgs,
   type SubAccountWithdrawV1InstructionDataArgs,
+  type TransferAssetsV1InstructionDataArgs,
 } from '@swig-wallet/coder';
 import {
   SolAccountMeta,
@@ -25,7 +29,7 @@ import {
   SwigInstructionContext,
   type SolPublicKeyData,
 } from '../solana';
-import { findSwigPdaRaw } from '../utils';
+import { findSwigPdaRaw, findSwigSystemAddressPdaRaw } from '../utils';
 import { type AddAuthorityV1BaseAccountMetas } from './addAuthorityV1';
 import type { CreateSessionV1BaseAccountMetas } from './createSessionV1';
 import {
@@ -34,10 +38,12 @@ import {
 } from './createV1';
 import { type RemoveAuthorityV1BaseAccountMetas } from './removeAuthorityV1';
 import { type SignV1BaseAccountMetas } from './signV1';
+import type { SignV2BaseAccountMetas } from './signV2';
 import type { SubAccountCreateV1BaseAccountMetas } from './subAccountCreateV1';
 import type { SubAccountSignV1BaseAccountMetas } from './subAccountSignV1';
 import type { SubAccountToggleV1BaseAccountMetas } from './subAccountToggleV1';
 import type { SubAccountWithdrawV1BaseAccountMetas } from './subAccountWithdrawV1';
+import type { TransferAssetsV1BaseAccountMetas } from './transferAssetsV1';
 
 /**
  *
@@ -47,14 +53,21 @@ import type { SubAccountWithdrawV1BaseAccountMetas } from './subAccountWithdrawV
  */
 export async function createV1SwigInstruction(
   accounts: { payer: SolPublicKeyData },
-  data: Omit<CreateV1InstructionDataArgs, 'bump'>,
+  data: Omit<CreateV1InstructionDataArgs, 'bump' | 'walletBump'>,
 ): Promise<SwigInstructionContext> {
   const [swigAddress, bump] = await findSwigPdaRaw(Uint8Array.from(data.id));
+  const [swigSystemAddress, walletBump] =
+    await findSwigSystemAddressPdaRaw(swigAddress);
   const createIxAccountMetas = getCreateV1BaseAccountMetas({
     ...accounts,
     swig: swigAddress,
+    swigSystemAddress,
   });
-  return SwigInstructionV1.create(createIxAccountMetas, { ...data, bump });
+  return SwigInstructionV1.create(createIxAccountMetas, {
+    ...data,
+    bump,
+    walletBump,
+  });
 }
 
 export class SwigInstructionV1 {
@@ -231,6 +244,40 @@ export class SwigInstructionV1 {
     options?: SwigInstructionContextOptions,
   ): SwigInstructionContext {
     const encoder = getSubAccountToggleV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
+
+  static transferAssets<
+    T extends [...TransferAssetsV1BaseAccountMetas, ...SolAccountMeta[]],
+  >(
+    accounts: T,
+    data: TransferAssetsV1InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getTransferAssetsV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
+}
+
+export class SwigInstructionV2 {
+  static sign<T extends [...SignV2BaseAccountMetas, ...SolAccountMeta[]]>(
+    accounts: T,
+    data: SignV2InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getSignV2InstructionCodec(
+      data.authorityPayload.length,
+    ).encoder;
 
     const instructionData = encoder.encode(data);
 

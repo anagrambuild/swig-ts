@@ -13,8 +13,13 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
 import {
   FailedTransactionMetadata,
@@ -49,15 +54,23 @@ function sendSVMTransaction(
   }
 }
 
-function fetchSwig(
-  svm: LiteSVM,
-  swigAddress: PublicKey,
-): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
   // Ensure we have a proper Uint8Array for the account data
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+  return getSwigCodec().decode(swigAccount.data);
+}
+
+function fetchSwig(
+  svm: LiteSVM,
+  swigAccountAddress: PublicKey,
+): ReturnType<typeof Swig.fromRawAccountData> {
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
+
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -91,9 +104,9 @@ const id = Uint8Array.from(Array(32).fill(2));
 //
 // * Find a swig pda by id
 //
-const swigAddress = findSwigPda(id);
+const swigAccountAddress = findSwigPda(id);
 
-console.log('swig address:', swigAddress.toBase58());
+console.log('swig account address:', swigAccountAddress.toBase58());
 
 //
 // * create swig instruction
@@ -116,8 +129,10 @@ sendSVMTransaction(svm, [createSwigInstruction], userRootKeypair);
 //
 // * swig.refetch(connection, ...args) method available
 //
-let swig = fetchSwig(svm, swigAddress);
-// swig.refetch(connection)
+const swig = fetchSwig(svm, swigAccountAddress);
+
+const swigWalletAddress = await getSwigWalletAddress(swig);
+console.log('swig wallet address:', swigWalletAddress.toBase58());
 
 //
 // * find role by ed25519 signer
@@ -149,7 +164,7 @@ const addAuthorityIx = await getAddAuthorityInstructions(
 
 sendSVMTransaction(svm, addAuthorityIx, userRootKeypair);
 
-swig = fetchSwig(svm, swigAddress);
+await swig.refetch();
 
 const managerRoles = swig.findRolesByEd25519SignerPk(
   userAuthorityManagerKeypair.publicKey,
@@ -193,9 +208,9 @@ sendSVMTransaction(
   userAuthorityManagerKeypair,
 );
 
-svm.airdrop(swigAddress, BigInt(LAMPORTS_PER_SOL));
+svm.airdrop(swigWalletAddress, BigInt(LAMPORTS_PER_SOL));
 
-swig = fetchSwig(svm, swigAddress);
+await swig.refetch();
 
 //
 // * role array methods (we check what roles can spend sol)
@@ -237,13 +252,16 @@ if (
 )
   throw new Error('Role authority is not the authority');
 
-console.log('balance before first transfer:', svm.getBalance(swigAddress));
+console.log(
+  'balance before first transfer:',
+  svm.getBalance(swigWalletAddress),
+);
 
 //
 // * spend max sol permitted
 //
 let transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
+  fromPubkey: swigWalletAddress,
   toPubkey: dappTreasury,
   lamports: 0.1 * LAMPORTS_PER_SOL,
 });
@@ -262,22 +280,18 @@ let signTransfer = await getSignInstructions(swig, dappAuthorityRole.id, [
 
 sendSVMTransaction(svm, signTransfer, dappAuthorityKeypair);
 
-console.log('balance after first transfer:', svm.getBalance(swigAddress));
+console.log('balance after first transfer:', svm.getBalance(swigWalletAddress));
 
-swig = fetchSwig(svm, swigAddress);
+await swig.refetch();
 
 //
 // * try spend sol
 //
 transfer = SystemProgram.transfer({
-  fromPubkey: swigAddress,
+  fromPubkey: swigWalletAddress,
   toPubkey: dappTreasury,
   lamports: 0.05 * LAMPORTS_PER_SOL,
 });
-
-// dappAuthorityRole = swig.findRoleByAuthority(dappAuthority);
-
-// if (!dappAutorityRole) throw new Error('Role not found for authority');
 
 signTransfer = await getSignInstructions(swig, dappAuthorityRole.id, [
   transfer,
@@ -285,4 +299,7 @@ signTransfer = await getSignInstructions(swig, dappAuthorityRole.id, [
 
 sendSVMTransaction(svm, signTransfer, dappAuthorityKeypair);
 
-console.log('balance after try second transfer:', svm.getBalance(swigAddress));
+console.log(
+  'balance after try second transfer:',
+  svm.getBalance(swigWalletAddress),
+);

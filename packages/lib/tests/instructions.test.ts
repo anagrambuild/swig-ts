@@ -15,12 +15,14 @@ import { SwigInstructionV1 } from '../src/instructions/SwigInstruction';
 test('getCreateV1BaseAccountMetas returns correct structure', () => {
   const accounts = {
     swig: 'Swig111111111111111111111111111111111111111' as any,
+    swigSystemAddress: 'SwigAcct11111111111111111111111111111111111' as any,
     payer: 'Payer11111111111111111111111111111111111111' as any,
   };
   const metas = getCreateV1BaseAccountMetas(accounts);
-  expect(metas.length).toBe(3);
+  expect(metas.length).toBe(4);
   expect(metas[0].publicKey.toAddress()).toBe(accounts.swig);
   expect(metas[1].publicKey.toAddress()).toBe(accounts.payer);
+  expect(metas[2].publicKey.toAddress()).toBe(accounts.swigSystemAddress);
 });
 
 test('getAddAuthorityV1BaseAccountMetas returns correct structure', () => {
@@ -151,12 +153,11 @@ describe('SwigInstructionV1', () => {
   it('subAccountSign returns an IInstruction', () => {
     const accounts: SubAccountSignV1BaseAccountMetas = [
       { address: dummyAddress('swig'), role: AccountRole.READONLY },
-      { address: dummyAddress('payer'), role: AccountRole.READONLY_SIGNER },
       { address: dummyAddress('subaccount'), role: AccountRole.WRITABLE },
       { address: dummyAddress('system'), role: AccountRole.READONLY },
     ].map(
       SolAccountMeta.fromKitAccountMeta,
-    ) as SubAccountCreateV1BaseAccountMetas;
+    ) as SubAccountSignV1BaseAccountMetas;
     const data = {
       roleId: 0,
       authorityPayload: new Uint8Array([]),
@@ -192,7 +193,8 @@ describe('SwigInstructionV1', () => {
       SolAccountMeta.fromKitAccountMeta,
     ) as SubAccountToggleV1BaseAccountMetas;
     const data = {
-      roleId: 0,
+      actingRoleId: 0,
+      subAccountRoleId: 0,
       authorityPayload: new Uint8Array([]),
       enabled: true,
     };

@@ -13,8 +13,13 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  toPublicKey,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
 import {
   FailedTransactionMetadata,
@@ -53,14 +58,22 @@ function sendSVMTransaction(
   }
 }
 
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
+  if (!swigAccount) throw new Error('swig account not created');
+  return getSwigCodec().decode(swigAccount.data);
+}
+
 function fetchSwig(
   svm: LiteSVM,
-  swigAddress: PublicKey,
+  swigAccountAddress: PublicKey,
 ): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
-  if (!swigAccount) throw new Error('swig account not created');
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
+
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
 }
 
 console.log('starting...');
@@ -77,9 +90,9 @@ console.log('starting...');
 
   // Create Swig root account
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
-  console.log('swig address:', swigAddress.toBase58());
+  console.log('swig address:', swigAccountAddress.toBase58());
 
   const rootActions = Actions.set().all().get();
   const ix = await getCreateSwigInstruction({
@@ -92,7 +105,7 @@ console.log('starting...');
   sendSVMTransaction(svm, [ix], rootKeypair);
 
   // Fetch root role
-  let swig = fetchSwig(svm, swigAddress);
+  let swig = fetchSwig(svm, swigAccountAddress);
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
@@ -119,29 +132,31 @@ console.log('starting...');
   sendSVMTransaction(svm, addIx, rootKeypair);
 
   // Refresh swig to get the newly added role
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
 
-  // Fund the swig account so it can make transfers
-  svm.airdrop(swigAddress, BigInt(2 * LAMPORTS_PER_SOL));
+  // Fund the swig wallet address so it can make transfers
+  svm.airdrop(swigWalletAddress, BigInt(2 * LAMPORTS_PER_SOL));
 
   // Fund the role keypair for transaction fees
   svm.airdrop(roleKeypair.publicKey, BigInt(0.1 * LAMPORTS_PER_SOL));
 
   // Check balance to ensure funding was successful
-  const swigBalance = svm.getBalance(swigAddress);
+  const swigBalance = svm.getBalance(swigWalletAddress);
   console.log(
-    `Swig account balance: ${Number(swigBalance) / LAMPORTS_PER_SOL} SOL`,
+    `Swig wallet balance: ${Number(swigBalance) / LAMPORTS_PER_SOL} SOL`,
   );
 
   if (swigBalance === BigInt(0)) {
-    throw new Error('Failed to fund Swig account');
+    throw new Error('Failed to fund Swig wallet');
   }
 
-  console.log('balance before transfer:', svm.getBalance(swigAddress));
+  console.log('balance before transfer:', svm.getBalance(swigWalletAddress));
 
   // Build the transfer
   const transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
+    fromPubkey: swigWalletAddress,
     toPubkey: recipient.publicKey,
     lamports: 1 * LAMPORTS_PER_SOL,
   });
@@ -161,12 +176,12 @@ console.log('starting...');
 
   console.log(
     'balance after authorized transfer:',
-    svm.getBalance(swigAddress),
+    svm.getBalance(swigWalletAddress),
   );
   console.log('Swig role successfully sent 1 SOL to authorized recipient!');
 
   // Refresh swig after transfer
-  swig = fetchSwig(svm, swigAddress);
+  swig = fetchSwig(svm, swigAccountAddress);
 
   // Test unauthorized transfer to a different destination
   const unauthorizedRecipient = Keypair.generate();
@@ -177,7 +192,7 @@ console.log('starting...');
 
   try {
     const unauthorizedTransferIx = SystemProgram.transfer({
-      fromPubkey: swigAddress,
+      fromPubkey: swigWalletAddress,
       toPubkey: unauthorizedRecipient.publicKey,
       lamports: 1 * LAMPORTS_PER_SOL,
     });

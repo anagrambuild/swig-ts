@@ -8,13 +8,18 @@ import {
 } from '@solana/web3.js';
 import {
   Actions,
-  getAddAuthorityInstructions,
   createEd25519AuthorityInfo,
   findSwigPda,
+  getAddAuthorityInstructions,
+  getCreateSwigInstruction,
   getSignInstructions,
+  getSwigCodec,
+  getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
-  getCreateSwigInstruction,
+  toPublicKey,
+  type SwigAccount,
+  type SwigFetchFn,
 } from '@swig-wallet/classic';
 import chalk from 'chalk';
 import {
@@ -24,228 +29,199 @@ import {
 } from 'litesvm';
 import { readFileSync } from 'node:fs';
 
-function fetchSwig(
-  svm: LiteSVM,
-  swigAddress: PublicKey,
-): ReturnType<typeof Swig.fromRawAccountData> {
-  const swigAccount = svm.getAccount(swigAddress);
+//
+// Helpers
+//
+function fetchSwigAccount(svm: LiteSVM, swigAccountAddress: PublicKey): SwigAccount {
+  const swigAccount = svm.getAccount(swigAccountAddress);
   if (!swigAccount) throw new Error('swig account not created');
-  // Ensure we have a proper Uint8Array for the account data
-  const accountData = Uint8Array.from(swigAccount.data);
-  return Swig.fromRawAccountData(swigAddress, accountData);
+  return getSwigCodec().decode(swigAccount.data);
 }
 
-// Helper to send transactions through LiteSVM
+function fetchSwig(
+  svm: LiteSVM,
+  swigAccountAddress: PublicKey,
+): ReturnType<typeof Swig.fromRawAccountData> {
+  const swigAccount = fetchSwigAccount(svm, swigAccountAddress);
+
+  const swigFetchFn: SwigFetchFn = async (swigAccountAddress) =>
+    fetchSwigAccount(svm, toPublicKey(swigAccountAddress));
+
+  return new Swig(swigAccountAddress, swigAccount, swigFetchFn);
+}
+
 function sendSVMTransaction(
   svm: LiteSVM,
   instructions: TransactionInstruction[],
   payer: Keypair,
 ): TransactionMetadata | FailedTransactionMetadata {
   svm.expireBlockhash();
-  const transaction = new Transaction();
-  transaction.instructions = instructions;
-  transaction.feePayer = payer.publicKey;
-  transaction.recentBlockhash = svm.latestBlockhash();
-  transaction.sign(payer);
-  const tx = svm.sendTransaction(transaction);
-  return tx;
+  const tx = new Transaction();
+  tx.instructions = instructions;
+  tx.feePayer = payer.publicKey;
+  tx.recentBlockhash = svm.latestBlockhash();
+  tx.sign(payer);
+  return svm.sendTransaction(tx);
 }
 
 function printSection(title: string) {
   console.log('\n' + chalk.blue.bold('🔹 ' + title));
 }
-
-function printSuccess(message: string) {
-  console.log(chalk.green('✓ ' + message));
+function printSuccess(msg: string) {
+  console.log(chalk.green('✓ ' + msg));
+}
+function printInfo(msg: string) {
+  console.log(chalk.cyan('ℹ ' + msg));
 }
 
-function printInfo(message: string) {
-  console.log(chalk.cyan('ℹ ' + message));
-}
-
+//
+// Main
+//
 async function main() {
   console.log(chalk.bold.blue('\n🎯 SWIG Subscription Example'));
   console.log(
     chalk.gray(
-      'This example demonstrates how to implement a subscription service using SWIG\n',
+      'This example shows how to enforce recurring spend limits (subscriptions) with Swig.\n',
     ),
   );
 
-  printSection('Setting up the environment');
-
-  // Initialize LiteSVM with SWIG program
+  // Initialize LiteSVM
+  printSection('Environment setup');
   const swigProgram = Uint8Array.from(readFileSync('../../../swig.so'));
   const svm = new LiteSVM();
   svm.addProgram(new PublicKey(SWIG_PROGRAM_ADDRESS), swigProgram);
-  printSuccess('SWIG program loaded');
+  printSuccess('Swig program loaded');
 
-  // Create keypairs for different roles
-  const rootKeypair = Keypair.generate();
-  const subscriptionServiceKeypair = Keypair.generate();
-  printSuccess('Generated keypairs for swig root and subscription service');
+  // Participants
+  const rootUser = Keypair.generate();
+  const subscriptionService = Keypair.generate();
+  printSuccess('Generated root + subscription service keypairs');
 
-  // Airdrop SOL to all participants
+  // Fund participants
   printSection('Funding accounts');
-  svm.airdrop(rootKeypair.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+  svm.airdrop(rootUser.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+  svm.airdrop(subscriptionService.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+  printSuccess('Airdropped 10 SOL each');
 
-  svm.airdrop(
-    subscriptionServiceKeypair.publicKey,
-    BigInt(10 * LAMPORTS_PER_SOL),
-  );
-  printSuccess('Airdropped 10 SOL to all participants');
-
-  printSection('Creating SWIG wallet');
-  // Create SWIG wallet
+  // Create Swig PDA
+  printSection('Creating Swig');
   const swigId = Uint8Array.from(Array(32).fill(3));
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
+  printInfo(`Swig PDA: ${chalk.yellow(swigAccountAddress.toBase58())}`);
 
-  printInfo(`SWIG wallet address: ${chalk.yellow(swigAddress.toBase58())}`);
-
-  printSection('Configuring SWIG wallet');
-  // Create SWIG with root authority
   const rootActions = Actions.set().all().get();
-  const createSwigInstruction = await getCreateSwigInstruction({
-    authorityInfo: createEd25519AuthorityInfo(rootKeypair.publicKey),
+  const createIx = await getCreateSwigInstruction({
+    authorityInfo: createEd25519AuthorityInfo(rootUser.publicKey),
     id: swigId,
-    payer: rootKeypair.publicKey,
+    payer: rootUser.publicKey,
     actions: rootActions,
   });
 
-  let result = sendSVMTransaction(svm, [createSwigInstruction], rootKeypair);
+  let result = sendSVMTransaction(svm, [createIx], rootUser);
   if (result instanceof FailedTransactionMetadata) {
-    throw new Error(`Failed to create SWIG wallet: ${result.err}`);
+    throw new Error('❌ Failed to create Swig wallet');
   }
-  printSuccess('Created SWIG wallet with root authority');
-  svm.airdrop(swigAddress, BigInt(10 * LAMPORTS_PER_SOL));
-  // Add subscription service authority with SOL limit
-  let swig = await fetchSwig(svm, swigAddress);
-  const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
+  printSuccess('Created Swig with root authority');
+
+  // Add subscription service authority with recurring limit
+  printSection('Configuring subscription limit');
+  let swig = await fetchSwig(svm, swigAccountAddress);
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
+
+  svm.airdrop(swigWalletAddress, BigInt(10 * LAMPORTS_PER_SOL));
+  await swig.refetch();
+
+  const rootRoles = swig.findRolesByEd25519SignerPk(rootUser.publicKey);
+  if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
 
-  printSection('Setting up subscription limits');
-  // Set subscription service authority with 0.1 SOL monthly limit
-  // 400ms per block, so ~216000 blocks per month
   const subscriptionActions = Actions.set()
     .solRecurringLimit({
-      recurringAmount: BigInt(0.1 * LAMPORTS_PER_SOL), // 0.1 SOL
-      window: BigInt(216000),
+      recurringAmount: BigInt(0.1 * LAMPORTS_PER_SOL),
+      window: BigInt(216_000), // ~1 month in slots
     })
     .get();
 
-  const addSubscriptionAuthorityIx = await getAddAuthorityInstructions(
+  const addIx = await getAddAuthorityInstructions(
     swig,
     rootRole.id,
-    createEd25519AuthorityInfo(subscriptionServiceKeypair.publicKey),
+    createEd25519AuthorityInfo(subscriptionService.publicKey),
     subscriptionActions,
-    { payer: rootKeypair.publicKey },
+    { payer: rootUser.publicKey },
   );
 
-  result = sendSVMTransaction(svm, addSubscriptionAuthorityIx, rootKeypair);
+  result = sendSVMTransaction(svm, addIx, rootUser);
   if (result instanceof FailedTransactionMetadata) {
-    throw new Error(`Failed to add subscription authority: ${result.err}`);
+    throw new Error('❌ Failed to add subscription authority');
   }
-  printSuccess(
-    'Added subscription service authority with 0.1 SOL monthly limit',
-  );
+  printSuccess('Added subscription authority with 0.1 SOL monthly limit');
 
+  // Test subscription flow
   printSection('Testing subscription payments');
-  // First subscription payment should succeed
-  printInfo('Attempting first 0.1 SOL subscription payment...');
-  swig = await fetchSwig(svm, swigAddress);
+  swig = await fetchSwig(svm, swigAccountAddress);
+  await swig.refetch();
+
+  const subRoles = swig.findRolesByEd25519SignerPk(
+    subscriptionService.publicKey,
+  );
+  if (!subRoles.length) throw new Error('Subscription role not found');
+  const subRole = subRoles[0];
+
+  // First payment (should succeed)
+  printInfo('Attempting first 0.1 SOL payment...');
   let transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
-    toPubkey: subscriptionServiceKeypair.publicKey,
+    fromPubkey: swigWalletAddress,
+    toPubkey: subscriptionService.publicKey,
     lamports: BigInt(0.1 * LAMPORTS_PER_SOL),
   });
-
-  const subscriptionRoles = swig.findRolesByEd25519SignerPk(
-    subscriptionServiceKeypair.publicKey,
-  );
-  const subscriptionRole = subscriptionRoles[0];
-
-  let signTransferIx = await getSignInstructions(
-    swig,
-    subscriptionRole.id,
-    [transferIx],
-  );
-
-  result = sendSVMTransaction(svm, signTransferIx, subscriptionServiceKeypair);
+  let signIx = await getSignInstructions(swig, subRole.id, [transferIx]);
+  result = sendSVMTransaction(svm, signIx, subscriptionService);
   if (result instanceof FailedTransactionMetadata) {
-    throw new Error(`First payment failed: ${result}`);
+    throw new Error('❌ First payment failed unexpectedly');
   }
   printSuccess('First payment succeeded');
 
-  // Second payment should fail (within same period)
-  printInfo('\nAttempting second 0.1 SOL subscription payment immediately...');
+  // Second payment (should fail)
+  printInfo('Attempting second 0.1 SOL payment (same period)...');
   svm.warpToSlot(svm.getClock().slot + BigInt(1));
   transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
-    toPubkey: subscriptionServiceKeypair.publicKey,
+    fromPubkey: swigWalletAddress,
+    toPubkey: subscriptionService.publicKey,
     lamports: BigInt(0.1 * LAMPORTS_PER_SOL),
   });
-
-  signTransferIx = await getSignInstructions(
-    swig,
-    subscriptionRole.id,
-    [transferIx],
-  );
-
-  result = sendSVMTransaction(svm, signTransferIx, subscriptionServiceKeypair);
+  signIx = await getSignInstructions(swig, subRole.id, [transferIx]);
+  result = sendSVMTransaction(svm, signIx, subscriptionService);
   if (result instanceof FailedTransactionMetadata) {
-    if (
-      result
-        .meta()
-        .logs()
-        .join('')
-        .includes('insufficient funds for instruction')
-    ) {
-      printSuccess('Second payment failed as expected (monthly limit reached)');
-    } else {
-      throw new Error(`Unexpected error in second payment: ${result}`);
-    }
+    printSuccess('Second payment failed as expected (limit reached)');
   } else {
-    throw new Error(
-      'Second payment unexpectedly succeeded when it should have failed',
-    );
+    throw new Error('❌ Second payment unexpectedly succeeded');
   }
 
-  printSection('Testing limit reset');
-  // Fast forward one month (216000 blocks)
-  printInfo('Fast forwarding one month (216000 blocks)...');
-  svm.warpToSlot(svm.getClock().slot + BigInt(216001));
-  printSuccess('Time warped forward one month');
+  // Advance one month
+  printSection('Testing reset after one month');
+  printInfo('Fast forwarding 216000 slots...');
+  svm.warpToSlot(svm.getClock().slot + BigInt(216_001));
+  printSuccess('Time warp complete');
 
-  // Third payment should succeed (new period)
-  printInfo(
-    '\nAttempting third 0.1 SOL subscription payment after one month...',
-  );
+  // Third payment (should succeed)
+  printInfo('Attempting third payment after reset...');
   transferIx = SystemProgram.transfer({
-    fromPubkey: swigAddress,
-    toPubkey: subscriptionServiceKeypair.publicKey,
+    fromPubkey: swigWalletAddress,
+    toPubkey: subscriptionService.publicKey,
     lamports: BigInt(0.1 * LAMPORTS_PER_SOL),
   });
-
-  signTransferIx = await getSignInstructions(
-    swig,
-    subscriptionRole.id,
-    [transferIx],
-  );
-
-  result = sendSVMTransaction(svm, signTransferIx, subscriptionServiceKeypair);
+  signIx = await getSignInstructions(swig, subRole.id, [transferIx]);
+  result = sendSVMTransaction(svm, signIx, subscriptionService);
   if (result instanceof FailedTransactionMetadata) {
-    throw new Error(`Third payment failed: ${result.err()}`);
+    throw new Error('❌ Third payment failed after reset');
   }
-  printSuccess('Third payment succeeded after limit reset');
+  printSuccess('Third payment succeeded after reset');
 
-  console.log(chalk.bold.green('\n✨ Example completed successfully!'));
-  console.log(
-    chalk.gray(
-      'This demonstrates how SWIG can be used to implement subscription-based services',
-    ),
-  );
+  console.log(chalk.bold.green('\n✨ Subscription example completed!'));
 }
 
-main().catch((error) => {
+main().catch((err) => {
   console.error(chalk.red('\n❌ Error running example:'));
-  console.error(chalk.red(error));
+  console.error(err);
 });

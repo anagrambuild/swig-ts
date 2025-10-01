@@ -22,6 +22,7 @@ import {
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 
 function sleep(s: number): Promise<void> {
@@ -82,7 +83,7 @@ async function sendTransaction(
 
   // Create Swig root account
   const swigId = randomBytes(32);
-  const swigAddress = findSwigPda(swigId);
+  const swigAccountAddress = findSwigPda(swigId);
 
   const rootActions = Actions.set().all().get();
   const ix = await getCreateSwigInstruction({
@@ -96,11 +97,14 @@ async function sendTransaction(
   await sendTransaction(connection, tx, rootKeypair);
   await sleep(2);
 
-  // Fetch root role
-  const swig = await fetchSwig(connection, swigAddress);
+  // Fetch root role + Swig wallet PDA
+  const swig = await fetchSwig(connection, swigAccountAddress);
   const rootRoles = swig.findRolesByEd25519SignerPk(rootKeypair.publicKey);
   if (!rootRoles.length) throw new Error('Root role not found');
   const rootRole = rootRoles[0];
+
+  const swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log('swig wallet address:', swigWalletAddress.toBase58());
 
   // Create SPL token mint
   const mintKeypair = Keypair.generate();
@@ -135,17 +139,17 @@ async function sendTransaction(
 
   console.log('🪙 Token mint created:', mintKeypair.publicKey.toBase58());
 
-  // Create Swig ATA
+  // Create Swig ATA (owner = Swig Wallet PDA)
   const swigAta = getAssociatedTokenAddressSync(
     mintKeypair.publicKey,
-    swigAddress,
+    swigWalletAddress,
     true,
   );
 
   const createSwigAtaIx = createAssociatedTokenAccountInstruction(
     rootKeypair.publicKey,
     swigAta,
-    swigAddress,
+    swigWalletAddress,
     mintKeypair.publicKey,
   );
 
@@ -166,7 +170,7 @@ async function sendTransaction(
     `💧 Minted ${Number(mintAmount) / 10 ** decimals} tokens to Swig ATA`,
   );
 
-  // Create recipient and their ATA
+  // Create recipient + ATA
   const recipient = Keypair.generate();
   console.log('💳 Recipient:', recipient.publicKey.toBase58());
 
@@ -183,10 +187,9 @@ async function sendTransaction(
   );
 
   await sendTransaction(connection, [createRecipientAtaIx], rootKeypair);
-
   console.log('🏦 Recipient ATA:', recipientAta.toBase58());
 
-  // Create role that can only send up to 200 tokens to specific recipient
+  // Create role that can only send up to 200 tokens to specific recipient ATA
   const roleKeypair = Keypair.generate();
   const tokenLimitAmount = BigInt(200 * 10 ** decimals);
   const tokenTransferAmount = BigInt(100 * 10 ** decimals);
@@ -195,7 +198,7 @@ async function sendTransaction(
     .tokenDestinationLimit({
       mint: mintKeypair.publicKey,
       amount: tokenLimitAmount,
-      destination: recipientAta,
+      destination: recipientAta, // limit is enforced on the ATA
     })
     .get();
 
@@ -214,7 +217,7 @@ async function sendTransaction(
   // Refresh swig to get the newly added role
   await swig.refetch();
 
-  // Fund the role keypair for transaction fees
+  // Fund the role keypair for fees
   await connection.requestAirdrop(
     roleKeypair.publicKey,
     0.1 * LAMPORTS_PER_SOL,
@@ -231,7 +234,7 @@ async function sendTransaction(
   const transferIx = createTransferInstruction(
     swigAta,
     recipientAta,
-    swigAddress,
+    swigWalletAddress, // ✅ OWNER MUST BE SWIG WALLET PDA
     tokenTransferAmount,
   );
 
@@ -266,7 +269,7 @@ async function sendTransaction(
   // Refresh swig after transfer
   await swig.refetch();
 
-  // Test unauthorized transfer to a different destination
+  // Test unauthorized transfer to a different destination (should fail via Swig, not SPL owner check)
   const unauthorizedRecipient = Keypair.generate();
   console.log(
     '🚫 Unauthorized recipient:',
@@ -291,7 +294,7 @@ async function sendTransaction(
     const unauthorizedTransferIx = createTransferInstruction(
       swigAta,
       unauthorizedAta,
-      swigAddress,
+      swigWalletAddress,
       tokenTransferAmount,
     );
 
@@ -309,13 +312,13 @@ async function sendTransaction(
     throw new Error(
       'Unauthorized transfer succeeded - this should not happen!',
     );
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof Error && error.message.includes('should not happen')) {
       throw error;
     }
     console.log(
       '✅ Unauthorized transfer correctly rejected:',
-      error instanceof Error ? error.message : 'Unknown error',
+      error?.message ?? error,
     );
   }
 })();

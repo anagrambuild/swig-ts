@@ -1,6 +1,6 @@
 import { type Commitment } from '@solana/kit';
 import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
-import { Actions } from '../actions';
+import { Actions, ensureProgramAction } from '../actions';
 import {
   AddMultipleAuthoritiesInstructionContextBuilder,
   getMockAuthorityFromCreateAuthorityInfo,
@@ -18,45 +18,17 @@ import {
   SwigInstructionContext,
   type SolPublicKeyData,
 } from '../solana';
-import { findSwigSubAccountPdaRaw, getUnprefixedSecpBytes } from '../utils';
-
-/**
- * Helper function to ensure ProgramAll action is added if no program-related actions exist
- * This is only used when adding new authorities, not when creating the initial swig.
- * Root authorities should only have All or ManageAuthority permissions.
- * @param actions - The actions to check and potentially modify
- * @returns Actions with ProgramAll added if no program actions were present
- */
-function ensureProgramAction(actions: Actions): Actions {
-  // Check if actions already have root permission (All) - if so, no need to add program actions
-  if (actions.isRoot()) {
-    return actions;
-  }
-
-  // Check if actions already have any program-related permissions
-  const hasExistingProgramAction = actions.hasProgramAction();
-
-  if (!hasExistingProgramAction) {
-    // No program permissions exist, so we need to add ProgramAll
-    // Create a new Actions object by combining the existing actions buffer with ProgramAll
-    const programAllAction = Actions.set().programAll().get();
-
-    // Combine the existing actions buffer with the ProgramAll action buffer
-    const combinedBuffer = new Uint8Array(
-      actions.bytes().length + programAllAction.bytes().length,
-    );
-    combinedBuffer.set(actions.bytes(), 0);
-    combinedBuffer.set(programAllAction.bytes(), actions.bytes().length);
-
-    // Create new Actions object with combined buffer and updated count
-    return Actions.from(combinedBuffer, actions.count + programAllAction.count);
-  }
-
-  // Actions already have program permissions, return as-is
-  return actions;
-}
+import {
+  findSwigSubAccountPdaRaw,
+  findSwigSystemAddressPdaRaw,
+  getUnprefixedSecpBytes,
+} from '../utils';
 
 export class Swig {
+  /**
+   * Swig Account Address.
+   * @deprecated use `Swig.accountAddress()` instead
+   */
   readonly address: SolPublicKey;
   #fetchFn: SwigFetchFn;
 
@@ -74,6 +46,26 @@ export class Swig {
    */
   get id() {
     return this.account.id;
+  }
+
+  accountVersion(): AccountVersion {
+    // when a v1 account is created, the rent exempt lamport is stored
+    // which is quaranteed to be greater than max bump value of 255.
+    // hence we are able to use this condition to deduce the version of
+    // the swig account.
+    if (this.account.reserved_lamports_or_bump > 255n) {
+      return 'v1';
+    }
+    return 'v2';
+  }
+
+  /**
+   * The Address of the Swig PDA Account that holds all details of the Swig.
+   * The address is the wallet address of the swig for legacy account
+   * @returns the swig account address
+   */
+  accountAddress() {
+    return this.address;
   }
 
   /**
@@ -197,7 +189,6 @@ export const getCreateSwigInstructionContext = (args: {
       actions: args.actions.bytes(),
       authorityData: args.authorityInfo.data,
       authorityType: args.authorityInfo.type,
-      noOfActions: args.actions.count,
     },
   );
 };
@@ -218,7 +209,6 @@ export const getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder =
         actions: args.actions.bytes(),
         authorityData: args.authorityInfo.data,
         authorityType: args.authorityInfo.type,
-        noOfActions: args.actions.count,
       },
     );
     return new AddMultipleAuthoritiesInstructionContextBuilder(
@@ -314,22 +304,38 @@ export const getSignInstructionContext = async (
     options,
   );
 
-  return withSubAccount
-    ? role.authority.subAccountSign({
-        swigAddress: role.swigAddress,
-        subAccount: (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
-        payer,
-        innerInstructions,
-        roleId: role.id,
-        options,
-      })
-    : role.authority.sign({
-        roleId: role.id,
-        innerInstructions,
-        payer,
-        swigAddress: swig.address,
-        options,
-      });
+  if (withSubAccount) {
+    const subAccount = (
+      await findSwigSubAccountPdaRaw(role.swigId, role.id)
+    )[0];
+
+    return role.authority.subAccountSign({
+      swigAddress: role.swigAddress,
+      subAccount,
+      payer,
+      innerInstructions,
+      roleId: role.id,
+      options,
+    });
+  }
+
+  if (swig.accountVersion() === 'v2') {
+    return role.authority.signV2({
+      roleId: role.id,
+      innerInstructions,
+      swigAddress: swig.address,
+      swigSystemAddress: await getSwigSystemAddressRaw(swig),
+      options,
+    });
+  }
+
+  return role.authority.sign({
+    roleId: role.id,
+    innerInstructions,
+    payer,
+    swigAddress: swig.address,
+    options,
+  });
 };
 
 export const getCreateSessionInstructionContext = async (
@@ -387,6 +393,7 @@ export const getToggleSubAccountInstructionContext = async (
   swig: Swig,
   roleId: number,
   enabled: boolean,
+  subAccountRoleId?: number,
   options?: SwigOptions,
 ) => {
   const { payer, role } = await assertInstructionOptions(
@@ -400,7 +407,8 @@ export const getToggleSubAccountInstructionContext = async (
     swigAddress: role.swigAddress,
     subAccount: (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
     payer,
-    roleId: role.id,
+    actingRoleId: role.id,
+    subAccountRoleId: subAccountRoleId ?? roleId,
     options,
     enabled,
   });
@@ -482,6 +490,27 @@ export const getWithdrawFromSubAccountCheckedInstructionContext = async <
   );
 };
 
+export const getTransferAssetsInstructionContext = async (
+  swig: Swig,
+  roleId: number,
+  options?: SwigOptions,
+) => {
+  const { payer, role } = await assertInstructionOptions(
+    swig,
+    roleId,
+    false,
+    options,
+  );
+
+  return role.authority.transferAssets({
+    roleId: role.id,
+    payer,
+    swigAddress: swig.address,
+    swigSystemAddress: await getSwigSystemAddressRaw(swig),
+    options,
+  });
+};
+
 async function assertInstructionOptions(
   swig: Swig,
   roleId: number,
@@ -519,6 +548,34 @@ async function assertInstructionOptions(
   const payer = new SolPublicKey(payerBytes);
 
   return { payer, role };
+}
+
+/**
+ * The Address of the Swig PDA Account that holds all details of the Swig.
+ * The address is the wallet address of the swig for legacy account
+ * @returns the swig account address
+ */
+export function getSwigAccountAddressRaw(swig: Swig) {
+  return swig.accountAddress();
+}
+
+/**
+ * The Address of the System account associated with the new Swig account.
+ * The Address is the wallet address of the swig for Swig Account v2
+ * @returns the swig wallet address
+ */
+export async function getSwigSystemAddressRaw(swig: Swig) {
+  return (await findSwigSystemAddressPdaRaw(swig.accountAddress()))[0];
+}
+
+/**
+ * Returns the wallet address of the swig based on the account version.
+ * @param swig Swig Account
+ * @returns account address in v1, or system address in v2
+ */
+export async function getSwigWalletAddressRaw(swig: Swig) {
+  if (swig.accountVersion() === 'v1') return getSwigAccountAddressRaw(swig);
+  return getSwigSystemAddressRaw(swig);
 }
 
 export type SwigOptions = {
@@ -566,3 +623,5 @@ export type SwigFetchFn<
 const defaultSwigFetchFn: SwigFetchFn = (_) => {
   throw new Error('Swig fetch fn not set!');
 };
+
+export type AccountVersion = 'v1' | 'v2';

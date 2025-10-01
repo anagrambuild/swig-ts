@@ -56,6 +56,26 @@ export class Ed25519Authority
     );
   }
 
+  signV2(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    payer: SolPublicKeyData;
+    roleId: number;
+    innerInstructions: SolInstruction[];
+  }) {
+    return Ed25519Instruction.signV2Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+      },
+      {
+        authorityData: this.data,
+        innerInstructions: args.innerInstructions,
+        roleId: args.roleId,
+      },
+    );
+  }
+
   addAuthority(args: {
     swigAddress: SolPublicKeyData;
     payer: SolPublicKeyData;
@@ -131,7 +151,6 @@ export class Ed25519Authority
   }) {
     return Ed25519Instruction.subAccountSignV1Instruction(
       {
-        payer: args.payer,
         swig: args.swigAddress,
         subAccount: args.subAccount,
       },
@@ -147,7 +166,8 @@ export class Ed25519Authority
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
-    roleId: number;
+    subAccountRoleId: number;
+    actingRoleId: number;
     enabled: boolean;
   }) {
     return Ed25519Instruction.subAccountToggleV1Instruction(
@@ -157,7 +177,8 @@ export class Ed25519Authority
         subAccount: args.subAccount,
       },
       {
-        roleId: args.roleId,
+        subAccountRoleId: args.subAccountRoleId,
+        actingRoleId: args.actingRoleId,
         authorityData: this.data,
         enabled: args.enabled,
       },
@@ -224,6 +245,25 @@ export class Ed25519Authority
         roleId: args.roleId,
         authorityData: this.data,
         amount: args.amount,
+      },
+    );
+  }
+
+  transferAssets(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    roleId: number;
+  }) {
+    return Ed25519Instruction.transferAssetsV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
       },
     );
   }
