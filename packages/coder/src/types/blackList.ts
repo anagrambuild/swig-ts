@@ -8,6 +8,8 @@ import {
   getEnumEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU8Decoder,
+  getU8Encoder,
   transformEncoder,
   type Codec,
   type Decoder,
@@ -31,12 +33,12 @@ export type BlackListData = {
   entityType: BlackListEntityType;
 };
 
-export function getBlackListEntityTypeEncoder() {
-  return getEnumEncoder(BlackListEntityType);
+export function getBlackListEntityTypeEncoder(): Encoder<BlackListEntityType> {
+  return getEnumEncoder(BlackListEntityType, { size: getU8Encoder() });
 }
 
-export function getBlackListEntityTypeDecoder() {
-  return getEnumDecoder(BlackListEntityType);
+export function getBlackListEntityTypeDecoder(): Decoder<BlackListEntityType> {
+  return getEnumDecoder(BlackListEntityType, { size: getU8Decoder() });
 }
 
 export function getBlackListEncoder(): Encoder<BlackListData> {
@@ -61,9 +63,6 @@ export function getBlackListDecoder(): Decoder<BlackListData> {
   ]);
 }
 
-export function getBlackListCodec(): Codec<
-  BlackListData,
-  BlackListData
-> {
+export function getBlackListCodec(): Codec<BlackListData, BlackListData> {
   return combineCodec(getBlackListEncoder(), getBlackListDecoder());
 }
