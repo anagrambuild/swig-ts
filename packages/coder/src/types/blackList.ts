@@ -61,7 +61,7 @@ export function getBlackListDecoder(): Decoder<BlackListData> {
   ]);
 }
 
-export function getTokenDestinationLimitCodec(): Codec<
+export function getBlackListCodec(): Codec<
   BlackListData,
   BlackListData
 > {

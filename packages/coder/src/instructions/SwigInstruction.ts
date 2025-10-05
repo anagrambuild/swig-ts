@@ -11,6 +11,7 @@ export enum SwigInstructionDiscriminator {
   CreateV1,
   AddAuthorityV1,
   RemoveAuthorityV1,
+  UpdateAuthorityV1,
   SignV1 = 4,
   CreateSessionV1,
   SubAccountCreateV1,
@@ -43,6 +44,9 @@ export function identifySwigInstruction(
   }
   if (containsBytes(data, discriminatorEncoder.encode(2), 0)) {
     return SwigInstructionDiscriminator.RemoveAuthorityV1;
+  }
+  if (containsBytes(data, discriminatorEncoder.encode(3), 0)) {
+    return SwigInstructionDiscriminator.UpdateAuthorityV1;
   }
   if (containsBytes(data, discriminatorEncoder.encode(4), 0)) {
     return SwigInstructionDiscriminator.SignV1;
