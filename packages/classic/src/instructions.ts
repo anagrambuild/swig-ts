@@ -12,6 +12,7 @@ import {
   getSignInstructionContext,
   getToggleSubAccountInstructionContext,
   getTransferAssetsInstructionContext,
+  getUpdateAuthorityInstructionContext,
   getWithdrawFromSubAccountCheckedInstructionContext,
   getWithdrawFromSubAccountInstructionContext,
   SolInstruction,
@@ -20,6 +21,7 @@ import {
   type CreateAuthorityInfo,
   type SigningFn,
   type SwigOptions,
+  type UpdateAuthorityActionsInfo,
   type Web3Instruction,
   type WithdrawSubAccountArgs,
   type WithdrawSubAccountCheckedArgs,
@@ -63,6 +65,24 @@ export async function getRemoveAuthorityInstructions(
     swig,
     roleId,
     roleToRemoveId,
+    options,
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getUpdateAuthorityInstructions(
+  swig: Swig,
+  roleId: number,
+  roleToUpdateId: number,
+  updateActionsInfo: UpdateAuthorityActionsInfo,
+  options?: SwigOptions,
+): Promise<TransactionInstruction[]> {
+  const context = await getUpdateAuthorityInstructionContext(
+    swig,
+    roleId,
+    roleToUpdateId,
+    updateActionsInfo,
     options,
   );
 

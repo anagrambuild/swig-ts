@@ -123,7 +123,7 @@ export function decodeActionPayload(
   if (permission === Permission.All) {
     return { permission };
   }
-  
+
   if (permission === Permission.BlackList) {
     return { permission, data: getBlackListCodec().decode(data) };
   }

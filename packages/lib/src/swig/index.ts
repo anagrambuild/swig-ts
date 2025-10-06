@@ -9,6 +9,7 @@ import {
   type CreateAuthorityInfo,
   type SigningFn,
 } from '../authority';
+import type { UpdateAuthorityActionsInfo } from '../authority/updateAuthorityAction';
 import { SUB_ACCOUNT_RENT_EXEMPT } from '../consts';
 import { createV1SwigInstruction } from '../instructions';
 import { deserializeRoles } from '../role';
@@ -284,6 +285,30 @@ export const getRemoveAuthorityInstructionContext = async (
   return role.authority.removeAuthority({
     roleId: role.id,
     roleIdToRemove,
+    payer,
+    swigAddress: swig.address,
+    options,
+  });
+};
+
+export const getUpdateAuthorityInstructionContext = async (
+  swig: Swig,
+  roleId: number,
+  roleIdToUpdate: number,
+  updateActionsInfo: UpdateAuthorityActionsInfo,
+  options?: SwigOptions,
+) => {
+  const { payer, role } = await assertInstructionOptions(
+    swig,
+    roleId,
+    false,
+    options,
+  );
+
+  return role.authority.updateAuthority({
+    roleId: role.id,
+    roleIdToUpdate,
+    updateActionsInfo,
     payer,
     swigAddress: swig.address,
     options,

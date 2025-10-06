@@ -13,6 +13,7 @@ import {
   getSubAccountWithdrawV1SolAccountMetasWithAuthority,
   getSubAccountWithdrawV1TokenAccountMetasWithAuthority,
   getTransferAssetsV1BaseAccountMetasWithAuthority,
+  getUpdateAuthorityV1BaseAccountMetasWithAuthority,
 } from '../../instructions';
 import { SolPublicKey } from '../../solana';
 import type { AuthorityInstruction } from './interface';
@@ -40,6 +41,18 @@ export const Ed25519Instruction: AuthorityInstruction = {
       getRemoveV1BaseAccountMetasWithAuthority(accounts, authority);
 
     return SwigInstructionV1.removeAuthority(removeIxAccountMetas, {
+      ...data,
+      authorityPayload: Uint8Array.from([authorityPayload]),
+    });
+  },
+
+  async updateAuthorityV1Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [metas, authorityPayload] =
+      getUpdateAuthorityV1BaseAccountMetasWithAuthority(accounts, authority);
+
+    return SwigInstructionV1.updateAuthority(metas, {
       ...data,
       authorityPayload: Uint8Array.from([authorityPayload]),
     });

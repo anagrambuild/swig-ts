@@ -12,6 +12,7 @@ import {
   getSignInstructionContext,
   getToggleSubAccountInstructionContext,
   getTransferAssetsInstructionContext,
+  getUpdateAuthorityInstructionContext,
   getWithdrawFromSubAccountCheckedInstructionContext,
   getWithdrawFromSubAccountInstructionContext,
   SolInstruction,
@@ -21,6 +22,7 @@ import {
   type KitInstruction,
   type SigningFn,
   type SwigOptions,
+  type UpdateAuthorityActionsInfo,
   type WithdrawSubAccountArgs,
   type WithdrawSubAccountCheckedArgs,
 } from '@swig-wallet/lib';
@@ -63,6 +65,24 @@ export async function getRemoveAuthorityInstructions(
     swig,
     roleId,
     roleToRemoveId,
+    options,
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getUpdateAuthorityInstructions(
+  swig: Swig,
+  roleId: number,
+  roleToUpdateId: number,
+  updateActionsInfo: UpdateAuthorityActionsInfo,
+  options?: SwigOptions,
+): Promise<KitInstruction[]> {
+  const context = await getUpdateAuthorityInstructionContext(
+    swig,
+    roleId,
+    roleToUpdateId,
+    updateActionsInfo,
     options,
   );
 

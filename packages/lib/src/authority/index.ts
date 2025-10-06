@@ -6,3 +6,4 @@ export * from './instructions';
 export * from './instructions/interface';
 export * from './ixs-builder';
 export * from './secp256k1';
+export * from './updateAuthorityAction';

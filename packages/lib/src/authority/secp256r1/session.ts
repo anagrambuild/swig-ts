@@ -18,6 +18,7 @@ import { SessionBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
 import { Ed25519Instruction, Secp256r1Instruction } from '../instructions';
 import type { InstructionDataOptions } from '../instructions/interface';
+import type { UpdateAuthorityActionsInfo } from '../updateAuthorityAction';
 import type { Secp256r1BasedAuthority } from './based';
 
 export class Secp256r1SessionAuthority
@@ -153,6 +154,29 @@ export class Secp256r1SessionAuthority
         actingRoleId: args.roleId,
         authorityData: this.data,
         authorityToRemoveId: args.roleIdToRemove,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
+  updateAuthority(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    roleId: number;
+    roleIdToUpdate: number;
+    updateActionsInfo: UpdateAuthorityActionsInfo;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256r1Instruction.updateAuthorityV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+      },
+      {
+        actingRoleId: args.roleId,
+        authorityData: this.data,
+        authorityToUpdateId: args.roleIdToUpdate,
+        updateActionsPayload: args.updateActionsInfo.data,
       },
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );

@@ -11,6 +11,7 @@ import {
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
   getTransferAssetsV1InstructionDataCodec,
+  getUpdateAuthorityV1AuthorityPayloadEncoder,
 } from '@swig-wallet/coder';
 import {
   SwigInstructionV1,
@@ -27,6 +28,7 @@ import {
   getSubAccountWithdrawV1SolAccountMetas,
   getSubAccountWithdrawV1TokenAccountMetas,
   getTransferAssetsV1BaseAccountMetas,
+  getUpdateAuthorityV1BaseAccountMetasWithSystemProgram,
 } from '../../instructions';
 import { SolAccountMeta, SolInstruction, SolPublicKey } from '../../solana';
 import type { AuthorityInstruction, SigningFn } from './interface';
@@ -107,6 +109,48 @@ export const Secp256r1Instruction: AuthorityInstruction = {
 
     return SwigInstructionV1.removeAuthority(
       removeIxAccountMetas,
+      {
+        ...data,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
+  },
+
+  async updateAuthorityV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'instruction data options not provided for Secp256r1 based authority',
+      );
+
+    const instructionsSysvar = SolAccountMeta.from({
+      pubkey: new SolPublicKey('Sysvar1nstructions1111111111111111111111111'),
+      isSigner: false,
+      isWritable: false,
+    });
+
+    const metas = getUpdateAuthorityV1BaseAccountMetasWithSystemProgram(
+      accounts,
+      [instructionsSysvar],
+    );
+
+    const authorityPayloadCodec = getUpdateAuthorityV1AuthorityPayloadEncoder();
+
+    const message = authorityPayloadCodec.encode(data);
+
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
+      Uint8Array.from(message),
+      metas,
+      new Uint8Array(data.authorityData),
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.updateAuthority(
+      metas,
       {
         ...data,
         authorityPayload,

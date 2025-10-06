@@ -9,6 +9,7 @@ import type {
 import { uint8ArraysEqual } from '../utils';
 import type { CreateAuthorityInfo } from './createAuthority';
 import type { InstructionDataOptions } from './instructions/interface';
+import type { UpdateAuthorityActionsInfo } from './updateAuthorityAction';
 
 export abstract class Authority {
   /**
@@ -118,6 +119,26 @@ export abstract class Authority {
     swigAddress: SolPublicKeyData;
     roleId: number;
     roleIdToRemove: number;
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
+  /**
+   * Creates an `UpdateAuthority` Instructon
+   *
+   * @param args The parameters required for `RemoveAuthority` instruction.
+   * @param args.swigAddress The public key of the swig account
+   * @param args.payer The public key of the swig payer.
+   * @param args.roleId The ID of the role signing the instruction.
+   * @param args.roleIdToUpdate ID of the role to remove
+   * @param args.options {@link InstructionDataOptions}
+   * @returns `RemoveAuthority` Instruction.
+   */
+  abstract updateAuthority(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    roleId: number;
+    roleIdToUpdate: number;
+    updateActionsInfo: UpdateAuthorityActionsInfo;
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;
 

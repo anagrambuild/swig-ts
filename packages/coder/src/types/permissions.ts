@@ -4,6 +4,7 @@ import {
   getEnumEncoder,
   getU16Decoder,
   getU16Encoder,
+  getU8Encoder,
   type Codec,
   type Decoder,
   type Encoder,
@@ -132,3 +133,24 @@ export function getPermissionDecoder(): Decoder<Permission> {
 export function getPermissionCodec(): Codec<Permission, Permission> {
   return combineCodec(getPermissionEncoder(), getPermissionDecoder());
 }
+
+/**
+ * Returns an encoder for the `Permission` enum using a 16-bit unsigned integer.
+ */
+export function getPermissionU8Encoder(): Encoder<Permission> {
+  return getEnumEncoder(Permission, { size: getU8Encoder() });
+}
+
+// /**
+//  * Returns a decoder for the `Permission` enum using a 16-bit unsigned integer.
+//  */
+// export function getActionTypeDecoder(): Decoder<Permission> {
+//   return getEnumDecoder(Permission, { size: getU16Decoder() });
+// }
+
+// /**
+//  * Returns a codec that can encode and decode `Permission` values.
+//  */
+// export function getActionTypeCodec(): Codec<Permission, Permission> {
+//   return combineCodec(getActionTypeEncoder(), getActionTypeDecoder());
+// }

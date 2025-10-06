@@ -18,6 +18,7 @@ import { TokenBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
 import { Secp256k1Instruction } from '../instructions';
 import type { InstructionDataOptions } from '../instructions/interface';
+import type { UpdateAuthorityActionsInfo } from '../updateAuthorityAction';
 import type { Secp256k1BasedAuthority } from './based';
 
 export class Secp256k1Authority
@@ -155,6 +156,29 @@ export class Secp256k1Authority
         actingRoleId: args.roleId,
         authorityData: this.publicKeyBytes,
         authorityToRemoveId: args.roleIdToRemove,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
+  updateAuthority(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    roleId: number;
+    roleIdToUpdate: number;
+    updateActionsInfo: UpdateAuthorityActionsInfo;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256k1Instruction.updateAuthorityV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+      },
+      {
+        actingRoleId: args.roleId,
+        authorityData: this.publicKeyBytes,
+        authorityToUpdateId: args.roleIdToUpdate,
+        updateActionsPayload: args.updateActionsInfo.data,
       },
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );

@@ -1,11 +1,15 @@
 import {
   fixEncoderSize,
   getBytesEncoder,
+  getEnumDecoder,
+  getEnumEncoder,
   getStructEncoder,
   getU16Encoder,
   getU32Encoder,
+  getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type Decoder,
   type Encoder,
   type ReadonlyUint8Array,
 } from '@solana/kit';
@@ -32,6 +36,12 @@ export type UpdateAuthorityV1InstructionDataArgs = {
   authorityPayload: ReadonlyUint8Array;
 };
 
+export type UpdateAuthorityV1AuthorityPayloadArgs = {
+  actingRoleId: number;
+  authorityToUpdateId: number;
+  updateActionsPayload: ReadonlyUint8Array;
+};
+
 export type UpdateAuthorityV1InstructionDecodeDataArgs = {
   discriminator: number;
   updateActionsPayloadLen: number;
@@ -45,7 +55,32 @@ export type UpdateAuthorityV1InstructionDecodeDataArgs = {
 export function getUpdateAuthorityV1InstructionCodec(): {
   encoder: Encoder<UpdateAuthorityV1InstructionDataArgs>;
 } {
-  let encoder: Encoder<UpdateAuthorityV1InstructionDataArgs> = transformEncoder(
+  const encoder: Encoder<UpdateAuthorityV1InstructionDataArgs> =
+    transformEncoder(
+      getStructEncoder([
+        ['discriminator', getSwigInstructionDiscriminatorEncoder()],
+        ['updateActionsPayloadLen', getU16Encoder()],
+        ['numActions', getU8Encoder()],
+        ['_padding', fixEncoderSize(getBytesEncoder(), 3)],
+        ['actingRoleId', getU32Encoder()],
+        ['authorityToUpdateId', getU32Encoder()],
+        ['updateActionsPayload', getBytesEncoder()],
+        ['authorityPayload', getBytesEncoder()],
+      ]),
+      (value) => ({
+        ...value,
+        discriminator: Discriminator.UpdateAuthorityV1,
+        _padding: Uint8Array.from(Array(3)),
+        updateActionsPayloadLen: value.updateActionsPayload.length,
+        numActions: 0,
+      }),
+    );
+
+  return { encoder };
+}
+
+export function getUpdateAuthorityV1AuthorityPayloadEncoder(): Encoder<UpdateAuthorityV1AuthorityPayloadArgs> {
+  return transformEncoder(
     getStructEncoder([
       ['discriminator', getSwigInstructionDiscriminatorEncoder()],
       ['updateActionsPayloadLen', getU16Encoder()],
@@ -54,7 +89,6 @@ export function getUpdateAuthorityV1InstructionCodec(): {
       ['actingRoleId', getU32Encoder()],
       ['authorityToUpdateId', getU32Encoder()],
       ['updateActionsPayload', getBytesEncoder()],
-      ['authorityPayload', getBytesEncoder()],
     ]),
     (value) => ({
       ...value,
@@ -64,6 +98,19 @@ export function getUpdateAuthorityV1InstructionCodec(): {
       numActions: 0,
     }),
   );
+}
 
-  return { encoder };
+export enum UpdateAuthorityKind {
+  ReplaceAll,
+  AddActions,
+  RemoveActionsByType,
+  RemoveActionsByIndex,
+}
+
+export function getUpdateAuthorityKindEncoder(): Encoder<UpdateAuthorityKind> {
+  return getEnumEncoder(UpdateAuthorityKind, { size: getU8Encoder() });
+}
+
+export function getUpdateAuthorityKindDecoder(): Decoder<UpdateAuthorityKind> {
+  return getEnumDecoder(UpdateAuthorityKind, { size: getU8Decoder() });
 }

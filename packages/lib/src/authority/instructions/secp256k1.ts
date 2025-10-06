@@ -11,6 +11,7 @@ import {
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
   getTransferAssetsV1InstructionDataCodec,
+  getUpdateAuthorityV1AuthorityPayloadEncoder,
 } from '@swig-wallet/coder';
 import {
   SwigInstructionV1,
@@ -27,6 +28,7 @@ import {
   getSubAccountWithdrawV1SolAccountMetas,
   getSubAccountWithdrawV1TokenAccountMetas,
   getTransferAssetsV1BaseAccountMetas,
+  getUpdateAuthorityV1BaseAccountMetas,
 } from '../../instructions';
 import { SolAccountMeta } from '../../solana';
 import type { AuthorityInstruction, SigningFn } from './interface';
@@ -89,6 +91,34 @@ export const Secp256k1Instruction: AuthorityInstruction = {
     );
 
     return SwigInstructionV1.removeAuthority(removeIxAccountMetas, {
+      ...data,
+      authorityPayload,
+    });
+  },
+
+  async updateAuthorityV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const metas = getUpdateAuthorityV1BaseAccountMetas(accounts);
+
+    const authorityPayloadCodec = getUpdateAuthorityV1AuthorityPayloadEncoder();
+
+    const message = authorityPayloadCodec.encode(data);
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(message),
+      metas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.updateAuthority(metas, {
       ...data,
       authorityPayload,
     });

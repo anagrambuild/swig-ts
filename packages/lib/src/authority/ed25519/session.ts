@@ -13,6 +13,7 @@ import { findSwigSubAccountPdaRaw } from '../../utils';
 import { Authority, SessionBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
 import { Ed25519Instruction } from '../instructions';
+import type { UpdateAuthorityActionsInfo } from '../updateAuthorityAction';
 import type { Ed25519BasedAuthority } from './based';
 
 export class Ed25519SessionAuthority
@@ -146,6 +147,27 @@ export class Ed25519SessionAuthority
         actingRoleId: args.roleId,
         authorityData: this.data,
         authorityToRemoveId: args.roleIdToRemove,
+      },
+    );
+  }
+
+  updateAuthority(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    roleId: number;
+    roleIdToUpdate: number;
+    updateActionsInfo: UpdateAuthorityActionsInfo;
+  }) {
+    return Ed25519Instruction.updateAuthorityV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+      },
+      {
+        actingRoleId: args.roleId,
+        authorityData: this.data,
+        authorityToUpdateId: args.roleIdToUpdate,
+        updateActionsPayload: args.updateActionsInfo.data,
       },
     );
   }

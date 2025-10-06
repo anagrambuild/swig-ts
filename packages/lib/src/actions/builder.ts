@@ -121,7 +121,7 @@ export class ActionsBuilder {
     this._actionConfigs.push(
       new BlackListConfig({
         entityId: new SolPublicKey(payload.entityId).toBytes(),
-        entityType: payload.entityType
+        entityType: payload.entityType,
       }),
     );
     return this;
