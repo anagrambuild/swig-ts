@@ -4,8 +4,6 @@ import {
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
-  sendAndConfirmTransaction,
-  SystemProgram,
   Transaction,
   TransactionInstruction,
   TransactionMessage,
@@ -19,6 +17,7 @@ import {
   findSwigPda,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
   Swig,
 } from '@swig-wallet/classic';
 
@@ -31,7 +30,6 @@ import {
 import { createJupiterApiClient } from '@jup-ag/api';
 import chalk from 'chalk';
 import * as fs from 'fs';
-import { getSignV1InstructionCodec } from '@swig-wallet/coder';
 
 function formatNumber(n: number) {
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -113,16 +111,17 @@ async function main() {
     ),
   );
 
-  let swigAddress: PublicKey;
+  let swigAccountAddress: PublicKey;
+  let swigWalletAddress: PublicKey;
   let swig: Swig;
 
   if (process.argv[3]) {
-    swigAddress = new PublicKey(process.argv[3]);
+    swigAccountAddress = new PublicKey(process.argv[3]);
     console.log(
       chalk.yellow('📝 Using existing Swig account:'),
-      chalk.cyan(swigAddress.toBase58()),
+      chalk.cyan(swigAccountAddress.toBase58()),
     );
-    swig = await fetchSwig(connection, swigAddress);
+    swig = await fetchSwig(connection, swigAccountAddress);
 
     const rootRole = swig.findRolesByEd25519SignerPk(rootUser.publicKey)[0];
     if (!rootRole) {
@@ -135,7 +134,7 @@ async function main() {
     }
   } else {
     const id = randomBytes(32);
-    swigAddress = findSwigPda(id);
+    swigAccountAddress = findSwigPda(id);
     const rootActions = Actions.set().all().get();
 
     const createIx = await getCreateSwigInstruction({
@@ -146,12 +145,18 @@ async function main() {
     });
 
     await sendTransaction(connection, [createIx], rootUser);
-    swig = await fetchSwig(connection, swigAddress);
+    swig = await fetchSwig(connection, swigAccountAddress);
     console.log(
       chalk.green('✓ Swig account created at:'),
-      chalk.cyan(swigAddress.toBase58()),
+      chalk.cyan(swigAccountAddress.toBase58()),
     );
   }
+
+  swigWalletAddress = await getSwigWalletAddress(swig);
+  console.log(
+    chalk.green('✓ Swig wallet address::'),
+    chalk.cyan(swigWalletAddress.toBase58()),
+  );
 
   const usdcMint = new PublicKey(
     'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
@@ -162,7 +167,7 @@ async function main() {
 
   const swigUsdcAta = await getAssociatedTokenAddress(
     usdcMint,
-    swigAddress,
+    swigWalletAddress,
     true,
   );
   try {
@@ -175,7 +180,7 @@ async function main() {
     const createAtaIx = createAssociatedTokenAccountInstruction(
       rootUser.publicKey,
       swigUsdcAta,
-      swigAddress,
+      swigWalletAddress,
       usdcMint,
     );
     await sendTransaction(connection, [createAtaIx], rootUser);
@@ -187,7 +192,7 @@ async function main() {
 
   const swigWrappedSolAta = await getAssociatedTokenAddress(
     wrappedSolMint,
-    swigAddress,
+    swigWalletAddress,
     true,
   );
   try {
@@ -200,7 +205,7 @@ async function main() {
     const createAtaIx = createAssociatedTokenAccountInstruction(
       rootUser.publicKey,
       swigWrappedSolAta,
-      swigAddress,
+      swigWalletAddress,
       wrappedSolMint,
     );
     await sendTransaction(connection, [createAtaIx], rootUser);
@@ -214,7 +219,7 @@ async function main() {
   // const transferTx = new Transaction().add(
   //   SystemProgram.transfer({
   //     fromPubkey: rootUser.publicKey,
-  //     toPubkey: swigAddress,
+  //     toPubkey: swigWalletAddress,
   //     lamports: transferAmount,
   //   }),
   // );
@@ -242,7 +247,7 @@ async function main() {
   const swapInstructionsRes = await jupiter.swapInstructionsPost({
     swapRequest: {
       quoteResponse: quote,
-      userPublicKey: swigAddress.toBase58(),
+      userPublicKey: swigWalletAddress.toBase58(),
       wrapAndUnwrapSol: true,
       useSharedAccounts: true,
     },
@@ -261,8 +266,6 @@ async function main() {
     rootRole.id,
     swapInstructions,
   );
-
-
 
   const lookupTables = await Promise.all(
     swapInstructionsRes.addressLookupTableAddresses.map(async (addr) => {
@@ -286,7 +289,6 @@ async function main() {
 
   const tx = new VersionedTransaction(messageV0);
   tx.sign([rootUser]);
-
 
   const signature = await connection.sendTransaction(tx, {
     skipPreflight: true,
