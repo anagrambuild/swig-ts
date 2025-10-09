@@ -17,35 +17,35 @@ import {
   type ReadonlyUint8Array,
 } from '@solana/kit';
 
-export enum BlackListEntityType {
+export enum BlackListEntityKind {
   Program,
   Wallet,
 }
 
 export type BlackList = {
   entityId: ReadonlyUint8Array;
-  entityType: BlackListEntityType;
+  entityKind: BlackListEntityKind;
   _paddding: ReadonlyUint8Array;
 };
 
 export type BlackListData = {
   entityId: ReadonlyUint8Array;
-  entityType: BlackListEntityType;
+  entityKind: BlackListEntityKind;
 };
 
-export function getBlackListEntityTypeEncoder(): Encoder<BlackListEntityType> {
-  return getEnumEncoder(BlackListEntityType, { size: getU8Encoder() });
+export function getBlackListEntityTypeEncoder(): Encoder<BlackListEntityKind> {
+  return getEnumEncoder(BlackListEntityKind, { size: getU8Encoder() });
 }
 
-export function getBlackListEntityTypeDecoder(): Decoder<BlackListEntityType> {
-  return getEnumDecoder(BlackListEntityType, { size: getU8Decoder() });
+export function getBlackListEntityTypeDecoder(): Decoder<BlackListEntityKind> {
+  return getEnumDecoder(BlackListEntityKind, { size: getU8Decoder() });
 }
 
 export function getBlackListEncoder(): Encoder<BlackListData> {
   return transformEncoder(
     getStructEncoder([
       ['entityId', fixEncoderSize(getBytesEncoder(), 32)],
-      ['entityType', getBlackListEntityTypeEncoder()],
+      ['entityKind', getBlackListEntityTypeEncoder()],
       ['_padding', fixEncoderSize(getBytesEncoder(), 7)],
     ]),
     (value) => ({
@@ -58,11 +58,22 @@ export function getBlackListEncoder(): Encoder<BlackListData> {
 export function getBlackListDecoder(): Decoder<BlackListData> {
   return getStructDecoder([
     ['entityId', fixDecoderSize(getBytesDecoder(), 32)],
-    ['entityType', getBlackListEntityTypeDecoder()],
+    ['entityKind', getBlackListEntityTypeDecoder()],
     ['_padding', fixDecoderSize(getBytesDecoder(), 7)],
   ]);
 }
 
 export function getBlackListCodec(): Codec<BlackListData, BlackListData> {
   return combineCodec(getBlackListEncoder(), getBlackListDecoder());
+}
+
+export type BlackListEntity = 'program' | 'wallet';
+
+export function toBlackListEntityKind(
+  entity: BlackListEntity,
+): BlackListEntityKind {
+  if (entity === 'program') {
+    return BlackListEntityKind.Program;
+  }
+  return BlackListEntityKind.Wallet;
 }

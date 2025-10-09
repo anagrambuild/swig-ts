@@ -8,7 +8,6 @@ import {
 } from '@solana/web3.js';
 import {
   Actions,
-  BlackListEntityType,
   createEd25519AuthorityInfo,
   findSwigPda,
   getCreateSwigInstructionBuilder,
@@ -139,7 +138,7 @@ const updateAuthorityIxs = await getUpdateAuthorityInstructions(
     Actions.set()
       .blackList({
         entityId: recipient,
-        entityType: BlackListEntityType.Wallet,
+        entityType: "wallet",
       })
       .get(),
   ),

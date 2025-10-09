@@ -1,6 +1,5 @@
 import {
   ACTION_HEADER_LENGTH,
-  BlackListEntityType,
   getActionHeaderEncoder,
   getBlackListCodec,
   getProgramCuratedEncoder,
@@ -20,8 +19,10 @@ import {
   NumericType,
   Permission,
   ProgramScopeType,
+  toBlackListEntityKind,
   type ActionHeader,
   type BlackListData,
+  type BlackListEntity,
   type ProgramLimit,
   type ProgramScope,
   type SolDestinationLimit,
@@ -112,16 +113,17 @@ export class ActionsBuilder {
 
   /**
    * Blackist a Solana account
-   * @param payload.entityId ID of the program to enable
+   * @param payload.entityId ID of the program/wallet to blacklist
+   * @param payload.entity entity type: Program/Wallet
    */
   blackList(payload: {
     entityId: SolPublicKeyData;
-    entityType: BlackListEntityType;
+    entityType: BlackListEntity;
   }): this {
     this._actionConfigs.push(
       new BlackListConfig({
         entityId: new SolPublicKey(payload.entityId).toBytes(),
-        entityType: payload.entityType,
+        entityKind: toBlackListEntityKind(payload.entityType),
       }),
     );
     return this;
