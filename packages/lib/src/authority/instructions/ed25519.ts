@@ -10,6 +10,7 @@ import {
   getSubAccountCreateV1BaseAccountMetasWithAuthority,
   getSubAccountSignV1BaseAccountMetasWithAuthority,
   getSubAccountToggleV1BaseAccountMetasWithAuthority,
+  getSubAccountWithdrawV1AccountMetasWithSystemProgram,
   getSubAccountWithdrawV1SolAccountMetasWithAuthority,
   getSubAccountWithdrawV1TokenAccountMetasWithAuthority,
   getTransferAssetsV1BaseAccountMetasWithAuthority,
@@ -124,8 +125,13 @@ export const Ed25519Instruction: AuthorityInstruction = {
   async subAccountWithdrawV1SolInstruction(accounts, data) {
     const authority = new SolPublicKey(new Uint8Array(data.authorityData));
 
-    const [metas, authorityPayload] =
+    const [metasWithAuthority, authorityPayload] =
       getSubAccountWithdrawV1SolAccountMetasWithAuthority(accounts, authority);
+
+    const metas = getSubAccountWithdrawV1AccountMetasWithSystemProgram(
+      metasWithAuthority,
+      authorityPayload + 2,
+    );
 
     return SwigInstructionV1.subAccountWithdraw(metas, {
       ...data,
@@ -136,11 +142,16 @@ export const Ed25519Instruction: AuthorityInstruction = {
   async subAccountWithdrawV1TokenInstruction(accounts, data) {
     const authority = new SolPublicKey(new Uint8Array(data.authorityData));
 
-    const [metas, authorityPayload] =
+    const [metasWithAuthority, authorityPayload] =
       getSubAccountWithdrawV1TokenAccountMetasWithAuthority(
         accounts,
         authority,
       );
+
+    const metas = getSubAccountWithdrawV1AccountMetasWithSystemProgram(
+      metasWithAuthority,
+      authorityPayload + 2,
+    );
 
     return SwigInstructionV1.subAccountWithdraw(metas, {
       ...data,

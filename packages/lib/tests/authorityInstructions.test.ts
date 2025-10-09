@@ -117,6 +117,7 @@ describe('Ed25519Instruction', () => {
     const accounts = {
       swig: dummyAddress('swig'),
       payer: dummyAddress('payer'),
+      swigSystemAddress: dummyAddress('sys'),
       subAccount: dummyAddress('sub'),
     };
     const data = {
@@ -136,6 +137,7 @@ describe('Ed25519Instruction', () => {
     const accounts = {
       swig: dummyAddress('swig'),
       payer: dummyAddress('payer'),
+      swigSystemAddress: dummyAddress('sys'),
       subAccount: dummyAddress('sub'),
       subAccountToken: dummyAddress('tok'),
       swigToken: dummyAddress('stok'),
@@ -293,6 +295,7 @@ describe('Secp256k1Instruction', () => {
     const accounts = {
       swig: dummyAddress('swig'),
       payer: dummyAddress('payer'),
+      swigSystemAddress: dummyAddress('sys'),
       subAccount: dummyAddress('sub'),
     };
     const data = {
@@ -312,6 +315,7 @@ describe('Secp256k1Instruction', () => {
     const accounts = {
       swig: dummyAddress('swig'),
       payer: dummyAddress('payer'),
+      swigSystemAddress: dummyAddress('sys'),
       subAccount: dummyAddress('sub'),
       subAccountToken: dummyAddress('tok'),
       swigToken: dummyAddress('stok'),

@@ -60,25 +60,16 @@ export function getTransferAssetsV1BaseAccountMetasWithAuthority(
   return [metas, authorityIndex];
 }
 
-// export type TransferAssetsV1BaseAccountMetasWithSystemProgram = [
-//   ...TransferAssetsV1BaseAccountMetas,
-//   SolAccountMeta,
-//   ...SolAccountMeta[],
-// ];
+export type TransferAssetsV1BaseAccountMetasWithSystemProgram = [
+  ...TransferAssetsV1BaseAccountMetas,
+  ...SolAccountMeta[],
+];
 
-// export function getTransferAssetsV1BaseAccountMetasWithSystemProgram(
-//   accounts: TransferAssetsV1InstructionAccounts,
-//   otherMetas: SolAccountMeta[] = [],
-// ): TransferAssetsV1BaseAccountMetasWithSystemProgram {
-//   const accountMetas = getTransferAssetsV1BaseAccountMetas(accounts);
+export function getTransferAssetsV1BaseAccountMetasWithSystemProgram(
+  accounts: TransferAssetsV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
+): TransferAssetsV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getTransferAssetsV1BaseAccountMetas(accounts);
 
-//   return [
-//     ...accountMetas,
-//     SolAccountMeta.from({
-//       pubkey: new SolPublicKey(SYSTEM_PROGRAM_ADDRESS_STRING),
-//       isSigner: false,
-//       isWritable: false,
-//     }),
-//     ...otherMetas,
-//   ];
-// }
+  return [...accountMetas, ...otherMetas];
+}

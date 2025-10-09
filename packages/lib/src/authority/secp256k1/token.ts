@@ -260,6 +260,7 @@ export class Secp256k1Authority
   subAccountWithdrawSol(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     amount: bigint;
@@ -269,6 +270,7 @@ export class Secp256k1Authority
       {
         payer: args.payer,
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         subAccount: args.subAccount,
       },
       {
@@ -283,6 +285,7 @@ export class Secp256k1Authority
   async subAccountWithdrawToken(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     mint: SolPublicKeyData;
@@ -291,14 +294,16 @@ export class Secp256k1Authority
     options: InstructionDataOptions;
   }) {
     const mint = new SolPublicKey(args.mint).toAddress();
-    const swigAddress = new SolPublicKey(args.swigAddress).toAddress();
+    const swigSystemAddress = new SolPublicKey(
+      args.swigSystemAddress,
+    ).toAddress();
     const subAccount = new SolPublicKey(args.subAccount).toAddress();
     const tokenProgram =
       new SolPublicKey(args.subAccount).toAddress() ?? TOKEN_PROGRAM_ADDRESS;
 
     const [swigToken] = await findAssociatedTokenPda({
       mint,
-      owner: swigAddress,
+      owner: swigSystemAddress,
       tokenProgram,
     });
 
@@ -312,6 +317,7 @@ export class Secp256k1Authority
       {
         payer: args.payer,
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         subAccount: args.subAccount,
         subAccountToken,
         swigToken,

@@ -55,3 +55,18 @@ export function getRemoveV1BaseAccountMetasWithAuthority(
   ];
   return [metas, authorityIndex];
 }
+
+export type RemoveAuthorityV1BaseAccountMetasWithSystemProgram = [
+  ...RemoveAuthorityV1BaseAccountMetas,
+  // SolAccountMeta,
+  ...SolAccountMeta[],
+];
+
+export function getRemoveAuthorityV1BaseAccountMetasWithSystemProgram(
+  accounts: RemoveAuthorityV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
+): RemoveAuthorityV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getRemoveAuthorityV1BaseAccountMetas(accounts);
+
+  return [...accountMetas, ...otherMetas];
+}

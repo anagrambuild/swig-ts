@@ -172,6 +172,7 @@ export abstract class Authority {
   abstract subAccountWithdrawSol(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     amount: bigint;
@@ -181,6 +182,7 @@ export abstract class Authority {
   abstract subAccountWithdrawToken(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     mint: SolPublicKeyData;

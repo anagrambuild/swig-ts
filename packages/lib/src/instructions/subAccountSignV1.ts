@@ -62,22 +62,17 @@ export function getSubAccountSignV1BaseAccountMetasWithAuthority(
   return [metas, authorityIndex];
 }
 
-// export type SubAccountSignV1BaseAccountMetasWithSystemProgram = [
-//   ...SubAccountSignV1BaseAccountMetas,
-//   AccountMeta,
-// ];
+export type SubAccountSignV1BaseAccountMetasWithSystemProgram = [
+  ...SubAccountSignV1BaseAccountMetas,
+  // SolAccountMeta,
+  ...SolAccountMeta[],
+];
 
-// export function getSubAccountSignV1BaseAccountMetasWithSystemProgram(
-//   accounts: SubAccountSignV1InstructionAccounts,
-// ): SubAccountSignV1BaseAccountMetasWithSystemProgram {
-//   const accountMetas = getSubAccountSignV1BaseAccountMetas(accounts);
+export function getSubAccountSignV1BaseAccountMetasWithSystemProgram(
+  accounts: SubAccountSignV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
+): SubAccountSignV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getSubAccountSignV1BaseAccountMetas(accounts);
 
-//   return [
-//     ...accountMetas,
-//     {
-//       pubkey: SystemProgram.programId,
-//       isSigner: false,
-//       isWritable: false,
-//     },
-//   ];
-// }
+  return [...accountMetas, ...otherMetas];
+}

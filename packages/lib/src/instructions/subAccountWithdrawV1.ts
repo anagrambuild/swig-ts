@@ -1,10 +1,12 @@
-import { AccountRole } from '@solana/kit';
+import { AccountRole, address } from '@solana/kit';
+import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
 import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 
 export type SubAccountWithdrawV1BaseInstructionAccounts = {
   swig: SolPublicKeyData;
   payer: SolPublicKeyData;
   subAccount: SolPublicKeyData;
+  swigSystemAddress: SolPublicKeyData;
 };
 
 export type SubAccountWithdrawV1SolInstructionAccounts =
@@ -18,6 +20,7 @@ export type SubAccountWithdrawV1TokenInstructionAccounts =
   };
 
 export type SubAccountWithdrawV1BaseAccountMetas = [
+  SolAccountMeta,
   SolAccountMeta,
   SolAccountMeta,
   SolAccountMeta,
@@ -55,6 +58,12 @@ export function getSubAccountWithdrawV1SolAccountMetas(
       // isSigner: false,
       // isWritable: true,
     }),
+    SolAccountMeta.fromKitAccountMeta({
+      address: new SolPublicKey(accounts.swigSystemAddress).toAddress(),
+      role: AccountRole.WRITABLE,
+      // isSigner: false,
+      // isWritable: true,
+    }),
   ];
 }
 
@@ -76,6 +85,12 @@ export function getSubAccountWithdrawV1TokenAccountMetas(
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.subAccount).toAddress(),
+      role: AccountRole.WRITABLE,
+      // isSigner: false,
+      // isWritable: true,
+    }),
+    SolAccountMeta.fromKitAccountMeta({
+      address: new SolPublicKey(accounts.swigSystemAddress).toAddress(),
       role: AccountRole.WRITABLE,
       // isSigner: false,
       // isWritable: true,
@@ -111,17 +126,16 @@ export function getSubAccountWithdrawV1SolAccountMetasWithAuthority(
   authority: SolPublicKeyData,
 ): [SubAccountWithdrawV1SolAccountMetasWithAuthority, number] {
   const accountMetas = getSubAccountWithdrawV1SolAccountMetas(accounts);
-  const authorityIndex = accountMetas.length;
+  const authorityIndex = accountMetas.length - 1;
 
-  const metas: SubAccountWithdrawV1SolAccountMetasWithAuthority = [
-    ...accountMetas,
+  const metas = [
+    ...accountMetas.slice(0, authorityIndex),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(authority).toAddress(),
       role: AccountRole.READONLY_SIGNER,
-      // isSigner: true,
-      // isWritable: false,
     }),
-  ];
+    ...accountMetas.slice(authorityIndex),
+  ] as SubAccountWithdrawV1SolAccountMetasWithAuthority;
   return [metas, authorityIndex];
 }
 
@@ -133,6 +147,7 @@ export type SubAccountWithdrawV1TokenAccountMetasWithAuthority = [
   SubAccountWithdrawV1TokenAccountMetas[3],
   SubAccountWithdrawV1TokenAccountMetas[4],
   SubAccountWithdrawV1TokenAccountMetas[5],
+  SubAccountWithdrawV1TokenAccountMetas[6],
 ];
 
 export function getSubAccountWithdrawV1TokenAccountMetasWithAuthority(
@@ -140,7 +155,7 @@ export function getSubAccountWithdrawV1TokenAccountMetasWithAuthority(
   authority: SolPublicKeyData,
 ): [SubAccountWithdrawV1TokenAccountMetasWithAuthority, number] {
   const accountMetas = getSubAccountWithdrawV1TokenAccountMetas(accounts);
-  const authorityIndex = accountMetas.length;
+  const authorityIndex = accountMetas.length - 1;
 
   const metas: SubAccountWithdrawV1TokenAccountMetasWithAuthority = [
     accountMetas[0], // swig
@@ -152,9 +167,33 @@ export function getSubAccountWithdrawV1TokenAccountMetasWithAuthority(
       // isSigner: true,
       // isWritable: false,
     }),
-    accountMetas[3], // swig sub-account token
-    accountMetas[4], // swig token
-    accountMetas[5], // token program
+    accountMetas[3], // swig system address
+    accountMetas[4], // swig sub-account token
+    accountMetas[5], // swig token
+    accountMetas[6], // token program
   ];
   return [metas, authorityIndex];
+}
+
+export type SubAccountWithdrawV1AccountMetasWithSystemProgram = [
+  ...SubAccountWithdrawV1BaseAccountMetas,
+  ...SolAccountMeta[],
+];
+
+export function getSubAccountWithdrawV1AccountMetasWithSystemProgram(
+  accountMetas: SolAccountMeta[],
+  index: number,
+  otherMetas: SolAccountMeta[] = [],
+): SubAccountWithdrawV1AccountMetasWithSystemProgram {
+  const systemProgramMeta = SolAccountMeta.fromKitAccountMeta({
+    address: address(SYSTEM_PROGRAM_ADDRESS_STRING),
+    role: AccountRole.READONLY,
+  });
+
+  return [
+    ...accountMetas.slice(0, index),
+    systemProgramMeta,
+    ...accountMetas.slice(index),
+    ...otherMetas,
+  ] as SubAccountWithdrawV1AccountMetasWithSystemProgram;
 }

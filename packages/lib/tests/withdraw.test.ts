@@ -1,5 +1,5 @@
 import { getAddressDecoder } from '@solana/kit';
-import { SwigInstructionContext } from '../src';
+import { SolPublicKey, SwigInstructionContext } from '../src';
 import {
   getWithdrawFromSubAccountCheckedInstructionContext,
   Swig,
@@ -31,6 +31,7 @@ const createMockSwig = () => {
       swigAddress: dummyAddress('swig'),
       authority: mockAuthority,
     }),
+    accountAddress: () => new SolPublicKey(dummyAddress('swig')),
   } as unknown as Swig;
 
   return mockSwig;

@@ -49,10 +49,12 @@ export function getCreateSessionV1BaseAccountMetasWithAuthority(
 export type CreateSessionV1BaseAccountMetasWithSystemProgram = [
   ...CreateSessionV1BaseAccountMetas,
   SolAccountMeta,
+  ...SolAccountMeta[],
 ];
 
 export function getCreateSessionV1BaseAccountMetasWithSystemProgram(
   accounts: CreateSessionV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
 ): CreateSessionV1BaseAccountMetasWithSystemProgram {
   const accountMetas = getCreateSessionV1BaseAccountMetas(accounts);
 
@@ -62,5 +64,6 @@ export function getCreateSessionV1BaseAccountMetasWithSystemProgram(
       address: address(SYSTEM_PROGRAM_ADDRESS_STRING),
       role: AccountRole.READONLY,
     }),
+    ...otherMetas,
   ];
 }
