@@ -117,11 +117,7 @@ let transfer = SystemProgram.transfer({
   lamports: Math.floor(0.1 * LAMPORTS_PER_SOL),
 });
 
-let signIx = await getSignInstructions(
-  swig,
-  spendAuthorityRole.id,
-  [transfer],
-);
+let signIx = await getSignInstructions(swig, spendAuthorityRole.id, [transfer]);
 sendSVMTransaction(svm, signIx, spendAuthority);
 
 console.log('new wallet balance balance:', svm.getBalance(swigWalletAddress));
@@ -136,9 +132,9 @@ const updateAuthorityIxs = await getUpdateAuthorityInstructions(
   spendAuthorityRole.id,
   updateAuthorityAddActions(
     Actions.set()
-      .blackList({
+      .blacklist({
         entityId: recipient,
-        entityType: "wallet",
+        entityType: 'wallet',
       })
       .get(),
   ),
@@ -152,11 +148,7 @@ transfer = SystemProgram.transfer({
   lamports: Math.floor(0.1 * LAMPORTS_PER_SOL),
 });
 
-signIx = await getSignInstructions(
-  swig,
-  spendAuthorityRole.id,
-  [transfer],
-);
+signIx = await getSignInstructions(swig, spendAuthorityRole.id, [transfer]);
 sendSVMTransaction(svm, signIx, spendAuthority);
 
 console.log('new wallet balance balance:', svm.getBalance(swigWalletAddress));

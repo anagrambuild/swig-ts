@@ -110,7 +110,7 @@ export enum Permission {
   /**
    * Blacklists specific wallets and program interactions with the Swig
    */
-  BlackList,
+  Blacklist,
 }
 
 /**

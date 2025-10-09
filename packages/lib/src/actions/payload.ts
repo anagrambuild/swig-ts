@@ -1,5 +1,5 @@
 import type {
-  BlackListData,
+  BlacklistData,
   ProgramCurated,
   ProgramLimit,
   ProgramScope,
@@ -16,7 +16,7 @@ import type {
   TokenRecurringLimit,
 } from '@swig-wallet/coder';
 import {
-  getBlackListCodec,
+  getBlacklistCodec,
   getProgramCuratedDecoder,
   getProgramLimitDecoder,
   getProgramScopeDecoder,
@@ -40,8 +40,8 @@ export type ActionPayload =
       permission: Permission.AllButManageAuthority;
     }
   | {
-      permission: Permission.BlackList;
-      data: BlackListData;
+      permission: Permission.Blacklist;
+      data: BlacklistData;
     }
   | {
       permission: Permission.ManageAuthority;
@@ -124,8 +124,8 @@ export function decodeActionPayload(
     return { permission };
   }
 
-  if (permission === Permission.BlackList) {
-    return { permission, data: getBlackListCodec().decode(data) };
+  if (permission === Permission.Blacklist) {
+    return { permission, data: getBlacklistCodec().decode(data) };
   }
 
   if (permission === Permission.ManageAuthority) {

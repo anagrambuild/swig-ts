@@ -130,9 +130,9 @@ export class Actions {
    * @param account SolPublicKeyData
    * @returns boolean
    */
-  isAccountBlackListed(account: SolPublicKeyData): boolean {
+  isAccountBlacklisted(account: SolPublicKeyData): boolean {
     return !!this.actions.find((action) =>
-      action.isAccountBlackListed(account),
+      action.isAccountBlacklisted(account),
     );
   }
 
@@ -422,8 +422,8 @@ class Action {
    * @param account SolPublicKeyData
    * @returns boolean
    */
-  isAccountBlackListed(account: SolPublicKeyData): boolean {
-    if (isActionPayload(Permission.BlackList, this.payload)) {
+  isAccountBlacklisted(account: SolPublicKeyData): boolean {
+    if (isActionPayload(Permission.Blacklist, this.payload)) {
       if (
         new SolPublicKey(
           new Uint8Array(this.payload.data.entityId),

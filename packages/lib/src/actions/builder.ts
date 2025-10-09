@@ -1,7 +1,7 @@
 import {
   ACTION_HEADER_LENGTH,
   getActionHeaderEncoder,
-  getBlackListCodec,
+  getBlacklistCodec,
   getProgramCuratedEncoder,
   getProgramLimitEncoder,
   getProgramScopeEncoder,
@@ -19,10 +19,10 @@ import {
   NumericType,
   Permission,
   ProgramScopeType,
-  toBlackListEntityKind,
+  toBlacklistEntityKind,
   type ActionHeader,
-  type BlackListData,
-  type BlackListEntity,
+  type BlacklistData,
+  type BlacklistEntity,
   type ProgramLimit,
   type ProgramScope,
   type SolDestinationLimit,
@@ -116,14 +116,14 @@ export class ActionsBuilder {
    * @param payload.entityId ID of the program/wallet to blacklist
    * @param payload.entity entity type: Program/Wallet
    */
-  blackList(payload: {
+  blacklist(payload: {
     entityId: SolPublicKeyData;
-    entityType: BlackListEntity;
+    entityType: BlacklistEntity;
   }): this {
     this._actionConfigs.push(
-      new BlackListConfig({
+      new BlacklistConfig({
         entityId: new SolPublicKey(payload.entityId).toBytes(),
-        entityKind: toBlackListEntityKind(payload.entityType),
+        entityKind: toBlacklistEntityKind(payload.entityType),
       }),
     );
     return this;
@@ -541,8 +541,8 @@ class AllButManageAuthorityConfig extends ActionConfig {
   }
 }
 
-class BlackListConfig extends ActionConfig {
-  constructor(private payload: BlackListData) {
+class BlacklistConfig extends ActionConfig {
+  constructor(private payload: BlacklistData) {
     super();
   }
 
@@ -551,11 +551,11 @@ class BlackListConfig extends ActionConfig {
   }
 
   get permission() {
-    return Permission.BlackList;
+    return Permission.Blacklist;
   }
 
   encode(): Uint8Array {
-    return Uint8Array.from(getBlackListCodec().encode(this.payload));
+    return Uint8Array.from(getBlacklistCodec().encode(this.payload));
   }
 }
 
