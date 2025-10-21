@@ -56,7 +56,7 @@ async function main() {
   }
 
   // keypair should be the config authority on the squads
-  const squadsConfigAuthorityKeypair = Keypair.fromSecretKey(
+  const squadsMemberKeypair = Keypair.fromSecretKey(
     new Uint8Array(JSON.parse(fs.readFileSync(keypairPath, 'utf-8'))),
   );
 
@@ -70,7 +70,7 @@ async function main() {
   console.log(chalk.cyan(`🌐 Connected to Solana RPC: ${rpcUrl}`));
   console.log(
     chalk.green('👤 Squads config authority public key:'),
-    chalk.cyan(squadsConfigAuthorityKeypair.publicKey.toBase58()),
+    chalk.cyan(squadsMemberKeypair.publicKey.toBase58()),
   );
 
   // Squad multisig publickey
@@ -79,7 +79,9 @@ async function main() {
   try {
     squadAddress = new PublicKey(process.argv[3]);
   } catch {
-    throw new Error(`Invalid base58 encoded publickey provided as Squads multisig publickey`)
+    throw new Error(
+      `Invalid base58 encoded publickey provided as Squads multisig publickey`,
+    );
   }
 
   const squadsRawAccountInfo = await connection.getAccountInfo(squadAddress);
@@ -94,27 +96,30 @@ async function main() {
   // we use the same seeds for creating the squads mulitsig to create the swig
   const swigId = squads.createKey.toBytes();
 
-  // we check if the config authority on the squads multisig matches the keypair provided
+  // we check if the keypair is a member on the squads multisig
   if (
-    squads.configAuthority.toBase58() !==
-    squadsConfigAuthorityKeypair.publicKey.toBase58()
+    !squads.members.find(
+      (member) =>
+        member.key.toBase58() === squadsMemberKeypair.publicKey.toBase58(),
+    )
   ) {
     throw new Error(
-      `The provided squads config authority ${squadsConfigAuthorityKeypair.publicKey.toBase58()} 
-      provided does not match the config authority on the multisig ${squads.configAuthority.toBase58()}`,
+      `The provided keypair ${squadsMemberKeypair.publicKey.toBase58()} is not a member on the multisig.`,
     );
   }
 
   // we make sure we the config authority excluded from the members' list to eliminate duplicate when adding authorities
-  const authorities = squads.members
+  const otherMembers = squads.members
     .map((s) => s.key)
-    .filter((key) => key.toBase58() !== squads.configAuthority.toBase58());
+    .filter(
+      (key) => key.toBase58() !== squadsMemberKeypair.publicKey.toBase58(),
+    );
 
   const swigAddress = findSwigPda(swigId);
 
   const createIxBuilder = getCreateSwigInstructionBuilder({
-    payer: squadsConfigAuthorityKeypair.publicKey,
-    // we set the action of the config authority on swig to `All` 
+    payer: squadsMemberKeypair.publicKey,
+    // we set the action of the config authority on swig to `All`
     // to grant it root access as it has on the multisig
     actions: Actions.set().all().get(),
     authorityInfo: createEd25519AuthorityInfo(squads.configAuthority),
@@ -124,10 +129,10 @@ async function main() {
   });
 
   // we include instructions for adding the other members as authorites on the swig
-  authorities.forEach((authority) =>
+  otherMembers.forEach((authority) =>
     createIxBuilder.addAuthority(
       createEd25519AuthorityInfo(authority),
-      // we limit the actions on these authorites, 
+      // we limit the actions on these authorites,
       // these authorities can be updated as needed the config authority (root authority)
       Actions.set().programCurated().get(),
     ),
@@ -135,11 +140,7 @@ async function main() {
 
   const createIxs = await createIxBuilder.getInstructions();
 
-  const sig = await sendTransaction(
-    connection,
-    createIxs,
-    squadsConfigAuthorityKeypair,
-  );
+  const sig = await sendTransaction(connection, createIxs, squadsMemberKeypair);
 
   console.log(chalk.green('🎉 Swig creation successful!'));
   console.log(chalk.gray(`Signature: ${sig}`));
