@@ -1,0 +1,17 @@
+{
+  "name": "swig-migrate-from-squads-example",
+  "version": "1.0.0",
+  "description": "Example of migrating from Squads multisig to Swig",
+  "private": true,
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run index.ts"
+  },
+  "dependencies": {
+    "@sqds/multisig": "^2.1.4",
+    "@swig-wallet/classic": "^1.4.0",
+    "@solana/web3.js": "^1.87.0",
+    "chalk": "^5.3.0"
+  }
+}
