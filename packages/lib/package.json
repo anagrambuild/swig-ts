@@ -35,7 +35,7 @@
     "typescript": "^5.5.3"
   },
   "dependencies": {
-    "@noble/curves": "^1.8.2",
+    "@noble/curves": "1.8.2",
     "@solana/kit": "^2.1.0",
     "@solana-program/token": "^0.5.1",
     "@swig-wallet/coder": "workspace:*",

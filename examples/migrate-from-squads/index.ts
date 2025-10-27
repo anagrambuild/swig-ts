@@ -43,7 +43,7 @@ async function main() {
     );
     console.error(
       chalk.yellow(
-        'Usage: bun run index.ts <path-to-squads-config-authority-keypair> <squads-address>',
+        'Usage: bun run index.ts <path-to-squads-member-keypair> <squads-address>',
       ),
     );
     process.exit(1);
@@ -129,14 +129,14 @@ async function main() {
   });
 
   // we include instructions for adding the other members as authorites on the swig
-  otherMembers.forEach((authority) =>
+  otherMembers.forEach((authority) => {
     createIxBuilder.addAuthority(
       createEd25519AuthorityInfo(authority),
       // we limit the actions on these authorites,
       // these authorities can be updated as needed the config authority (root authority)
       Actions.set().programCurated().get(),
-    ),
-  );
+    );
+  });
 
   const createIxs = await createIxBuilder.getInstructions();
 
