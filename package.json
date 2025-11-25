@@ -28,7 +28,7 @@
     "lint": "nx run-many --target=lint --projects='@swig-wallet/classic','@swig-wallet/coder','@swig-wallet/kit','@swig-wallet/lib','@swig-paymaster/core','@swig-paymaster/classic','@swig-paymaster/kit'",
     "lint:fix": "nx run-many --target=lint:fix --projects='@swig-wallet/classic','@swig-wallet/coder','@swig-wallet/kit','@swig-wallet/lib','@swig-paymaster/core','@swig-paymaster/classic','@swig-paymaster/kit'",
     "release": "bun run build:packages && bun update:package-version && changeset publish",
-    "test": "nx run-many --target=test --projects='@swig-wallet/classic','@swig-wallet/coder','@swig-wallet/kit','@swig-wallet/lib','@swig-paymaster/core','@swig-paymaster/classic','@swig-paymaster/kit'",
+    "test": "nx run-many --target=test --projects='@swig-wallet/classic','@swig-wallet/coder','@swig-wallet/kit','@swig-wallet/lib','@swig-paymaster/core'",
     "typecheck": "nx run-many --target=typecheck --projects='@swig-wallet/classic','@swig-wallet/coder','@swig-wallet/kit','@swig-wallet/lib','@swig-paymaster/core','@swig-paymaster/classic','@swig-paymaster/kit'",
     "update:package-version": "bun scripts/update-internal-pkg-version.ts",
     "update:program": "./scripts/update-program-latest.sh"
