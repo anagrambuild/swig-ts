@@ -1,0 +1,24 @@
+{
+  "name": "workshop-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@solana/kit": "^2.1.1",
+    "@solana-program/system": "^0.7.0",
+    "@swig-wallet/kit": "workspace:*",
+    "fastify": "^5.1.0",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.19.3",
+    "typescript": "^5.5.3"
+  }
+}
