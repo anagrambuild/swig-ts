@@ -272,9 +272,6 @@ for (const signed of fullSigned) {
   sendSVMTransaction(svm, signed.transaction);
 }
 
-// Expire blockhash after sending transactions
-svm.expireBlockhash();
-
 console.log(
   'balance after batch full transfers:',
   svm.getBalance(swigWalletAddress),
