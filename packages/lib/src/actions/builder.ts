@@ -284,6 +284,15 @@ export class ActionsBuilder {
   }
 
   /**
+   * Enables a Spend-once SOL Spend
+   * @param payload.amount amount allowed to spend
+   */
+  solLimit(payload: { amount: bigint }): this {
+    this._actionConfigs.push(new SolLimitConfig(payload));
+    return this;
+  }
+
+  /**
    * Enables a Spend-recurring SOL Spend
    * @param payload.recurringAmount recurring amount per window
    * @param payload.window period in slots until amount reset.
