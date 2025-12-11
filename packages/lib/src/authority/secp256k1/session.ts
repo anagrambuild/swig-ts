@@ -16,7 +16,7 @@ import {
 } from '../../solana';
 import {
   compressedPubkeyToAddress,
-  findSwigSubAccountPdaRaw,
+  findSwigSubAccountPdaRawWithIndex,
 } from '../../utils';
 import { SessionBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
@@ -206,11 +206,14 @@ export class Secp256k1SessionAuthority
     swigAddress: SolPublicKeyData;
     swigId: Uint8Array;
     roleId: number;
+    subAccountIndex?: number;
     options: InstructionDataOptions;
   }) {
-    const [subAccount, bump] = await findSwigSubAccountPdaRaw(
+    const subAccountIndex = args.subAccountIndex ?? 0;
+    const [subAccount, bump] = await findSwigSubAccountPdaRawWithIndex(
       args.swigId,
       args.roleId,
+      subAccountIndex,
     );
     return Secp256k1Instruction.subAccountCreateV1Instruction(
       {
@@ -222,6 +225,7 @@ export class Secp256k1SessionAuthority
         roleId: args.roleId,
         authorityData: this.data,
         bump,
+        subAccountIndex,
       },
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );

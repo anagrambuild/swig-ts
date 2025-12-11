@@ -23,7 +23,8 @@ export type SubAccount = {
   subAccount: ReadonlyUint8Array;
   bump: number;
   enabled: boolean;
-  _padding: ReadonlyUint8Array;
+  subAccountIndex: number;
+  _padding: number;
   roleId: number;
   swigId: ReadonlyUint8Array;
 };
@@ -32,7 +33,8 @@ export type SubAccountData = {
   subAccount: ReadonlyUint8Array;
   bump: number;
   enabled: boolean;
-  _padding: ReadonlyUint8Array;
+  subAccountIndex: number;
+  _padding: number;
   roleId: number;
   swigId: ReadonlyUint8Array;
 };
@@ -43,13 +45,14 @@ export function getSubAccountEncoder(): Encoder<SubAccountData> {
       ['subAccount', fixEncoderSize(getBytesEncoder(), 32)],
       ['bump', getU8Encoder()],
       ['enabled', getBooleanEncoder()],
-      ['_padding', fixEncoderSize(getBytesEncoder(), 2)],
+      ['subAccountIndex', getU8Encoder()],
+      ['_padding', getU8Encoder()],
       ['roleId', getU32Encoder()],
       ['swigId', fixEncoderSize(getBytesEncoder(), 32)],
     ]),
     (value) => ({
       ...value,
-      _padding: new Uint8Array(2),
+      _padding: 0,
     }),
   );
 }
@@ -59,7 +62,8 @@ export function getSubAccountDecoder(): Decoder<SubAccountData> {
     ['subAccount', fixDecoderSize(getBytesDecoder(), 32)],
     ['bump', getU8Decoder()],
     ['enabled', getBooleanDecoder()],
-    ['_padding', fixDecoderSize(getBytesDecoder(), 2)],
+    ['subAccountIndex', getU8Decoder()],
+    ['_padding', getU8Decoder()],
     ['roleId', getU32Decoder()],
     ['swigId', fixDecoderSize(getBytesDecoder(), 32)],
   ]);

@@ -61,6 +61,7 @@ export async function findSwigSystemAddressPdaRaw(
 
 /**
  * Utility for deriving a Swig SubAccount PDA (async)
+ * Uses legacy 3-seed derivation for backwards compatibility (index 0)
  * @param swigId Swig ID
  * @param roleId number
  * @returns Promise<[Address, number]> (address, bump)
@@ -82,7 +83,55 @@ async function findSwigSubAccountPda(swigId: Uint8Array, roleId: number) {
 }
 
 /**
+ * Utility for deriving a Swig SubAccount PDA with index (async)
+ * Index 0 uses legacy 3-seed derivation for backwards compatibility
+ * Indices 1-254 use new 4-seed derivation with index
+ * @param swigId Swig ID
+ * @param roleId number
+ * @param subAccountIndex Sub-account index (0-254)
+ * @returns Promise<[Address, number]> (address, bump)
+ */
+async function findSwigSubAccountPdaWithIndex(
+  swigId: Uint8Array,
+  roleId: number,
+  subAccountIndex: number,
+) {
+  if (subAccountIndex < 0 || subAccountIndex > 254) {
+    throw new Error('Sub-account index must be between 0 and 254');
+  }
+
+  const roleIdU32 = new Uint8Array(4);
+  const view = new DataView(roleIdU32.buffer);
+  view.setUint32(0, roleId, true);
+
+  if (subAccountIndex === 0) {
+    // Legacy derivation for index 0 (backwards compatible)
+    return await getProgramDerivedAddress({
+      programAddress: address(SWIG_PROGRAM_ADDRESS_STRING),
+      seeds: [
+        getUtf8Encoder().encode('sub-account'),
+        getBytesEncoder().encode(swigId),
+        getBytesEncoder().encode(roleIdU32),
+      ],
+    });
+  } else {
+    // New derivation for index 1-254 with index in seeds
+    const indexU8 = new Uint8Array([subAccountIndex]);
+    return await getProgramDerivedAddress({
+      programAddress: address(SWIG_PROGRAM_ADDRESS_STRING),
+      seeds: [
+        getUtf8Encoder().encode('sub-account'),
+        getBytesEncoder().encode(swigId),
+        getBytesEncoder().encode(roleIdU32),
+        getBytesEncoder().encode(indexU8),
+      ],
+    });
+  }
+}
+
+/**
  * Utility for deriving a Swig SubAccount PDA (async)
+ * Uses legacy derivation (index 0) for backwards compatibility
  * @param swigId Swig ID
  * @param roleId number
  * @returns Promise<[Address, number]> (address, bump)
@@ -92,6 +141,28 @@ export async function findSwigSubAccountPdaRaw(
   roleId: number,
 ): Promise<[SolPublicKey, number]> {
   const [address, bump] = await findSwigSubAccountPda(swigId, roleId);
+  return [new SolPublicKey(address), bump];
+}
+
+/**
+ * Utility for deriving a Swig SubAccount PDA with index (async)
+ * Index 0 uses legacy 3-seed derivation for backwards compatibility
+ * Indices 1-254 use new 4-seed derivation with index
+ * @param swigId Swig ID
+ * @param roleId number
+ * @param subAccountIndex Sub-account index (0-254, defaults to 0)
+ * @returns Promise<[Address, number]> (address, bump)
+ */
+export async function findSwigSubAccountPdaRawWithIndex(
+  swigId: Uint8Array,
+  roleId: number,
+  subAccountIndex: number = 0,
+): Promise<[SolPublicKey, number]> {
+  const [address, bump] = await findSwigSubAccountPdaWithIndex(
+    swigId,
+    roleId,
+    subAccountIndex,
+  );
   return [new SolPublicKey(address), bump];
 }
 

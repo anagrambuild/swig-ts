@@ -20,6 +20,7 @@ import {
 } from '../solana';
 import {
   findSwigSubAccountPdaRaw,
+  findSwigSubAccountPdaRawWithIndex,
   findSwigSystemAddressPdaRaw,
   getUnprefixedSecpBytes,
 } from '../utils';
@@ -305,8 +306,13 @@ export const getSignInstructionContext = async (
   );
 
   if (withSubAccount) {
+    const subAccountIndex = options?.subAccountIndex ?? 0;
     const subAccount = (
-      await findSwigSubAccountPdaRaw(role.swigId, role.id)
+      await findSwigSubAccountPdaRawWithIndex(
+        role.swigId,
+        role.id,
+        subAccountIndex,
+      )
     )[0];
 
     return role.authority.subAccountSign({
@@ -385,6 +391,7 @@ export const getCreateSubAccountInstructionContext = async (
     swigId: role.swigId,
     payer,
     roleId: role.id,
+    subAccountIndex: options?.subAccountIndex,
     options,
   });
 };
@@ -583,6 +590,7 @@ export type SwigOptions = {
   signingFn?: SigningFn;
   currentSlot?: bigint;
   payer?: SolPublicKeyData;
+  subAccountIndex?: number;
 };
 
 export type WithdrawSubAccountArgs<

@@ -9,7 +9,7 @@ import {
   SolPublicKey,
   type SolPublicKeyData,
 } from '../../solana';
-import { findSwigSubAccountPdaRaw } from '../../utils';
+import { findSwigSubAccountPdaRawWithIndex } from '../../utils';
 import { Authority, TokenBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
 import { Ed25519Instruction } from '../instructions';
@@ -123,10 +123,13 @@ export class Ed25519Authority
     swigAddress: SolPublicKeyData;
     swigId: Uint8Array;
     roleId: number;
+    subAccountIndex?: number;
   }) {
-    const [subAccount, bump] = await findSwigSubAccountPdaRaw(
+    const subAccountIndex = args.subAccountIndex ?? 0;
+    const [subAccount, bump] = await findSwigSubAccountPdaRawWithIndex(
       args.swigId,
       args.roleId,
+      subAccountIndex,
     );
     return Ed25519Instruction.subAccountCreateV1Instruction(
       {
@@ -138,6 +141,7 @@ export class Ed25519Authority
         roleId: args.roleId,
         authorityData: this.data,
         bump,
+        subAccountIndex,
       },
     );
   }

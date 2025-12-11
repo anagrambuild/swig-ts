@@ -27,6 +27,7 @@ export type SubAccountCreateV1InstructionData = {
   _padding1: ReadonlyUint8Array;
   roleId: number;
   bump: number;
+  subAccountIndex: number;
   _padding2: ReadonlyUint8Array;
   authorityPayload: ReadonlyUint8Array;
 };
@@ -34,6 +35,7 @@ export type SubAccountCreateV1InstructionData = {
 export type SubAccountCreateV1InstructionDataArgs = {
   roleId: number;
   bump: number;
+  subAccountIndex: number;
   authorityPayload: ReadonlyUint8Array;
 };
 
@@ -45,14 +47,15 @@ export function getSubAccountCreateV1InstructionDataCodec() {
         ['_padding1', fixEncoderSize(getBytesEncoder(), 2)],
         ['roleId', getU32Encoder()],
         ['bump', getU8Encoder()],
-        ['_padding2', fixEncoderSize(getBytesEncoder(), 7)],
+        ['subAccountIndex', getU8Encoder()],
+        ['_padding2', fixEncoderSize(getBytesEncoder(), 6)],
         ['authorityPayload', getBytesEncoder()],
       ]),
       (value) => ({
         ...value,
         discriminator: Discriminator.SubAccountCreateV1,
         _padding1: new Uint8Array(2),
-        _padding2: new Uint8Array(7),
+        _padding2: new Uint8Array(6),
       }),
     );
 
@@ -64,13 +67,14 @@ export function getSubAccountCreateV1InstructionDataCodec() {
       ['_padding1', fixEncoderSize(getBytesEncoder(), 2)],
       ['roleId', getU32Encoder()],
       ['bump', getU8Encoder()],
-      ['_padding2', fixEncoderSize(getBytesEncoder(), 7)],
+      ['subAccountIndex', getU8Encoder()],
+      ['_padding2', fixEncoderSize(getBytesEncoder(), 6)],
     ]),
     (value) => ({
       ...value,
       discriminator: Discriminator.SubAccountCreateV1,
       _padding1: new Uint8Array(2),
-      _padding2: new Uint8Array(7),
+      _padding2: new Uint8Array(6),
     }),
   );
 
@@ -79,7 +83,8 @@ export function getSubAccountCreateV1InstructionDataCodec() {
     ['_padding1', fixDecoderSize(getBytesDecoder(), 2)],
     ['roleId', getU32Decoder()],
     ['bump', getU8Decoder()],
-    ['_padding2', fixDecoderSize(getBytesDecoder(), 7)],
+    ['subAccountIndex', getU8Decoder()],
+    ['_padding2', fixDecoderSize(getBytesDecoder(), 6)],
     ['authorityPayload', getBytesDecoder()],
   ]);
 

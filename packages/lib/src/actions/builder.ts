@@ -228,13 +228,16 @@ export class ActionsBuilder {
   }
 
   /**
+   * Grants permission for an authority to access the wallet, useful when it
    * controls a subaccount
+   * @param subAccountIndex - Optional sub-account index (0-254, defaults to 0)
    */
-  subAccount(): this {
+  subAccount(subAccountIndex: number = 0): this {
     this._actionConfigs.push(
       new SubAccountConfig({
         subAccount: new Uint8Array(32),
-        _padding: new Uint8Array(2),
+        subAccountIndex,
+        _padding: 0,
         bump: 0,
         enabled: false,
         roleId: 0,
@@ -277,15 +280,6 @@ export class ActionsBuilder {
         lastReset: 0n,
       }),
     );
-    return this;
-  }
-
-  /**
-   * Enables a Spend-once SOL Spend
-   * @param payload.amount ID of the program to enable
-   */
-  solLimit(payload: { amount: bigint }): this {
-    this._actionConfigs.push(new SolLimitConfig(payload));
     return this;
   }
 

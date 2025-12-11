@@ -13,7 +13,7 @@ import {
   SolPublicKey,
   type SolPublicKeyData,
 } from '../../solana';
-import { findSwigSubAccountPdaRaw } from '../../utils';
+import { findSwigSubAccountPdaRawWithIndex } from '../../utils';
 import { SessionBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
 import { Ed25519Instruction, Secp256r1Instruction } from '../instructions';
@@ -186,11 +186,14 @@ export class Secp256r1SessionAuthority
     swigAddress: SolPublicKeyData;
     swigId: Uint8Array;
     roleId: number;
+    subAccountIndex?: number;
     options: InstructionDataOptions;
   }) {
-    const [subAccount, bump] = await findSwigSubAccountPdaRaw(
+    const subAccountIndex = args.subAccountIndex ?? 0;
+    const [subAccount, bump] = await findSwigSubAccountPdaRawWithIndex(
       args.swigId,
       args.roleId,
+      subAccountIndex,
     );
     return Secp256r1Instruction.subAccountCreateV1Instruction(
       {
@@ -202,6 +205,7 @@ export class Secp256r1SessionAuthority
         roleId: args.roleId,
         authorityData: this.data,
         bump,
+        subAccountIndex,
       },
       { ...args.options, odometer: this.odometer() ?? args.options.odometer },
     );
