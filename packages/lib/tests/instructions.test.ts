@@ -142,9 +142,10 @@ describe('SwigInstructionV1', () => {
       SolAccountMeta.fromKitAccountMeta,
     ) as SubAccountCreateV1BaseAccountMetas;
     const data = {
-      roleId: 0,
+      roleId: 1,
       bump: 255,
       authorityPayload: new Uint8Array([]),
+      subAccountIndex: 0,
     };
     const ix = SwigInstructionV1.subAccountCreate(accounts, data);
     expect(ix).toBeInstanceOf(SwigInstructionContext);
