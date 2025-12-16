@@ -2,7 +2,15 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [["@swig-wallet/coder", "@swig-wallet/classic", "@swig-wallet/kit", "@swig-wallet/lib"]],
+  "fixed": [
+    [
+      "@swig-wallet/coder",
+      "@swig-wallet/classic",
+      "@swig-wallet/kit",
+      "@swig-wallet/lib"
+    ],
+    ["@swig-paymaster/core", "@swig-paymaster/classic", "@swig-paymaster/kit"]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
