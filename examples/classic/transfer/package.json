@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "bun test svm-examples.test.ts",
     "start-validator": "solana-test-validator --reset --bpf-program swigypWHEksbC64pWKwah1WTeh9JXwx8H1rJHLdbQMB ../../../swig.so",
     "tutorial-1": "bun run tutorial/tutorial-1.ts",
     "tutorial-2": "bun run tutorial/tutorial-2.ts",

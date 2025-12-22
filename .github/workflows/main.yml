@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - main
-      
+
 env:
   RUST_VERSION: 1.84.0
   SOLANA_VERSION: 2.2.17
@@ -41,8 +41,8 @@ jobs:
 
   docs:
     permissions:
-      id-token: "write"
-      pages: "write"
+      id-token: 'write'
+      pages: 'write'
     name: Docs
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -56,21 +56,21 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
-      - name: "Build repo"
+      - name: 'Build repo'
         run: bun run build:packages
 
-      - name: "Build documentation"
+      - name: 'Build documentation'
         run: bun build:docs
 
-      - name: "Upload Pages artifact"
-        uses: "actions/upload-pages-artifact@v3"
+      - name: 'Upload Pages artifact'
+        uses: 'actions/upload-pages-artifact@v3'
         with:
           name: github-pages
           path: docs/
 
-      - id: "deployment"
-        name: "Deploy documentation to GitHub Pages"
-        uses: "actions/deploy-pages@v4"
+      - id: 'deployment'
+        name: 'Deploy documentation to GitHub Pages'
+        uses: 'actions/deploy-pages@v4'
 
   lint:
     name: Lint
@@ -149,3 +149,7 @@ jobs:
 
       - name: Run Tests
         run: bun run test
+
+      - name: Run SVM Example Tests
+        run: bun test examples/classic/transfer/svm-examples.test.ts
+        working-directory: .
