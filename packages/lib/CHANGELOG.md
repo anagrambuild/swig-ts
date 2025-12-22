@@ -1,5 +1,11 @@
 # @swig-wallet/classic
 
+## 1.4.1
+
+### Patch Changes
+
+- @swig-wallet/coder@1.4.1
+
 ## 1.4.0
 
 ### Minor Changes

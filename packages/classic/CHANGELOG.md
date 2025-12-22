@@ -1,5 +1,13 @@
 # @swig-wallet/classic
 
+## 1.4.1
+
+### Patch Changes
+
+- f88a5c9: Fix getSwigAccountAddress recursion bug
+  - @swig-wallet/coder@1.4.1
+  - @swig-wallet/lib@1.4.1
+
 ## 1.4.0
 
 ### Minor Changes
