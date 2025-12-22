@@ -1,6 +1,10 @@
 import type { Blockhash } from '@solana/kit';
 import { SolInstruction, SolPublicKey, type SolPublicKeyData } from '../solana';
-import { getSignInstructionContext, type Swig, type SwigOptions } from './index';
+import {
+  getSignInstructionContext,
+  type Swig,
+  type SwigOptions,
+} from './index';
 
 /**
  * Configuration for a single transaction in a batch
@@ -10,7 +14,10 @@ export type BatchTransactionConfig = {
   roleId: number;
   innerInstructions: SolInstruction[];
   feePayer: SolPublicKeyData;
-  recentBlockhash: Blockhash | string | Readonly<{ blockhash: Blockhash; lastValidBlockHeight: bigint }>;
+  recentBlockhash:
+    | Blockhash
+    | string
+    | Readonly<{ blockhash: Blockhash; lastValidBlockHeight: bigint }>;
   signers?: Array<{ publicKey: SolPublicKeyData }>;
   withSubAccount?: boolean;
   options?: SwigOptions;
@@ -30,7 +37,10 @@ export type BatchSignOptions = {
 export type SignedBatchTransactionResult = {
   instructions: SolInstruction[];
   feePayer: SolPublicKey;
-  recentBlockhash: Blockhash | string | Readonly<{ blockhash: Blockhash; lastValidBlockHeight: bigint }>;
+  recentBlockhash:
+    | Blockhash
+    | string
+    | Readonly<{ blockhash: Blockhash; lastValidBlockHeight: bigint }>;
   isFullySigned: boolean;
   serialized?: Uint8Array;
   encoded?: {
@@ -53,9 +63,7 @@ export async function batchSignTransactions(
     | {
         swig: Swig;
         roleId: number;
-        transactions: Array<
-          Omit<BatchTransactionConfig, 'swig' | 'roleId'>
-        >;
+        transactions: Array<Omit<BatchTransactionConfig, 'swig' | 'roleId'>>;
       },
   options: BatchSignOptions,
 ): Promise<SignedBatchTransactionResult[]> {
@@ -116,4 +124,3 @@ export async function batchSignTransactions(
 
   return results;
 }
-
