@@ -1,5 +1,5 @@
 {
-  "name": "@swig-paymaster/classic",
+  "name": "@swig-wallet/paymaster-classic",
   "version": "0.2.0",
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@solana/kit": "^2.1.0",
-    "@swig-paymaster/core": "workspace:*",
+    "@swig-wallet/paymaster-core": "workspace:*",
     "bn.js": "^5.2.2"
   },
   "peerDependencies": {

@@ -8,9 +8,9 @@
     "kit": "bun run kit.ts"
   },
   "dependencies": {
-    "@swig-paymaster/classic": "workspace:*",
-    "@swig-paymaster/core": "workspace:*",
-    "@swig-paymaster/kit": "workspace:*"
+    "@swig-wallet/paymaster-classic": "workspace:*",
+    "@swig-wallet/paymaster-core": "workspace:*",
+    "@swig-wallet/paymaster-kit": "workspace:*"
   },
   "devDependencies": {
     "@solana/kit": "^5.0.0",

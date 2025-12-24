@@ -15,7 +15,7 @@ import {
   partiallySignTransaction,
   sendAndConfirmTransactionFactory,
 } from '@solana/kit';
-import { createPaymasterClient } from '@swig-paymaster/kit';
+import { createPaymasterClient } from '@swig-wallet/paymaster-kit';
 
 // ============================================================================
 // Configuration

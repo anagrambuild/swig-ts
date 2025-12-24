@@ -1,10 +1,10 @@
-# @swig-paymaster/kit
+# @swig-wallet/paymaster-kit
 
 ## 0.2.0
 
 ### Minor Changes
 
-- 822411f: Initial release of @swig-paymaster/kit - paymaster client for @solana/kit (web3.js 2.0).
+- 822411f: Initial release of @swig-wallet/paymaster-kit - paymaster client for @solana/kit (web3.js 2.0).
 
   Modern API with full TypeScript type safety for gasless Solana transactions:
   - `createTransaction`: Create transactions with automatic blockhash and fee payer setup
@@ -20,4 +20,4 @@
 - Updated dependencies [822411f]
 - Updated dependencies [822411f]
 - Updated dependencies [822411f]
-  - @swig-paymaster/core@0.2.0
+  - @swig-wallet/paymaster-core@0.2.0
