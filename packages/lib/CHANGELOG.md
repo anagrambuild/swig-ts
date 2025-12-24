@@ -1,5 +1,12 @@
 # @swig-wallet/classic
 
+## 1.4.2
+
+### Patch Changes
+
+- d320aa4: Fix: Writable flag not set properly when account defined multiple times and readonly in first instance
+  - @swig-wallet/coder@1.4.2
+
 ## 1.4.1
 
 ### Patch Changes
