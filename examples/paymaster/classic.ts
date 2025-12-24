@@ -6,7 +6,7 @@
  */
 
 import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
-import { createPaymasterClient } from '@swig-paymaster/classic';
+import { createPaymasterClient } from '@swig-wallet/paymaster-classic';
 
 // ============================================================================
 // Configuration

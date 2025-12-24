@@ -1,19 +1,19 @@
-# @swig-paymaster/core
+# @swig-wallet/paymaster-core
 
 Core paymaster client for Solana gasless transactions.
 
 ## Installation
 
 ```bash
-npm install @swig-paymaster/core
+npm install @swig-wallet/paymaster-core
 # or
-bun install @swig-paymaster/core
+bun install @swig-wallet/paymaster-core
 ```
 
 ## Usage
 
 ```typescript
-import { PaymasterClient } from '@swig-paymaster/core';
+import { PaymasterClient } from '@swig-wallet/paymaster-core';
 
 const client = new PaymasterClient({
   apiKey: 'your-api-key',

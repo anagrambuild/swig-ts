@@ -1,19 +1,19 @@
-# @swig-paymaster/kit
+# @swig-wallet/paymaster-kit
 
 Paymaster client for @solana/kit (web3.js 2.0).
 
 ## Installation
 
 ```bash
-npm install @swig-paymaster/kit
+npm install @swig-wallet/paymaster-kit
 # or
-bun install @swig-paymaster/kit
+bun install @swig-wallet/paymaster-kit
 ```
 
 ## Usage
 
 ```typescript
-import { createPaymasterClient } from '@swig-paymaster/kit';
+import { createPaymasterClient } from '@swig-wallet/paymaster-kit';
 import { address } from '@solana/kit';
 
 const paymaster = createPaymasterClient({

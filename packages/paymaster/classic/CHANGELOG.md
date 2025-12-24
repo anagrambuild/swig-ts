@@ -1,10 +1,10 @@
-# @swig-paymaster/classic
+# @swig-wallet/paymaster-classic
 
 ## 0.2.0
 
 ### Minor Changes
 
-- 822411f: Initial release of @swig-paymaster/classic - paymaster client for @solana/web3.js 1.x.
+- 822411f: Initial release of @swig-wallet/paymaster-classic - paymaster client for @solana/web3.js 1.x.
 
   High-level API for creating and signing transactions with paymaster fee payment:
   - `createLegacyTransaction`: Create traditional transactions without address lookup tables
@@ -19,4 +19,4 @@
 - Updated dependencies [822411f]
 - Updated dependencies [822411f]
 - Updated dependencies [822411f]
-  - @swig-paymaster/core@0.2.0
+  - @swig-wallet/paymaster-core@0.2.0

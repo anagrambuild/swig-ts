@@ -1,10 +1,10 @@
-# @swig-paymaster/core
+# @swig-wallet/paymaster-core
 
 ## 0.2.0
 
 ### Minor Changes
 
-- 822411f: Initial release of @swig-paymaster/classic - paymaster client for @solana/web3.js 1.x.
+- 822411f: Initial release of @swig-wallet/paymaster-classic - paymaster client for @solana/web3.js 1.x.
 
   High-level API for creating and signing transactions with paymaster fee payment:
   - `createLegacyTransaction`: Create traditional transactions without address lookup tables
@@ -14,14 +14,14 @@
 
   Supports both legacy and versioned transactions for maximum compatibility.
 
-- 822411f: Initial release of @swig-paymaster/core - the foundation package for Solana gasless transactions.
+- 822411f: Initial release of @swig-wallet/paymaster-core - the foundation package for Solana gasless transactions.
 
   Provides `PaymasterClient` with low-level methods to sign and send serialized transactions with paymaster fee payment:
   - `signSerializedTransaction`: Sign a serialized transaction with the paymaster
   - `signAndSendSerializedTransaction`: Sign and submit a transaction to the Solana network
   - `isPaymasterFeePayer`: Helper to verify if a transaction uses the paymaster as fee payer
 
-- 822411f: Initial release of @swig-paymaster/kit - paymaster client for @solana/kit (web3.js 2.0).
+- 822411f: Initial release of @swig-wallet/paymaster-kit - paymaster client for @solana/kit (web3.js 2.0).
 
   Modern API with full TypeScript type safety for gasless Solana transactions:
   - `createTransaction`: Create transactions with automatic blockhash and fee payer setup

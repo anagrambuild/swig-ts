@@ -25,9 +25,9 @@ import {
 import {
   PaymasterClient as PaymasterClientInternal,
   type PaymasterConfig,
-} from '@swig-paymaster/core';
+} from '@swig-wallet/paymaster-core';
 
-export { type PaymasterConfig } from '@swig-paymaster/core';
+export { type PaymasterConfig } from '@swig-wallet/paymaster-core';
 
 /**
  * Creates a new PaymasterClient instance for use with @solana/kit (web3.js 2.0).
@@ -40,7 +40,7 @@ export { type PaymasterConfig } from '@swig-paymaster/core';
  *
  * @example
  * ```ts
- * import { createPaymasterClient } from '@swig-paymaster/kit';
+ * import { createPaymasterClient } from '@swig-wallet/paymaster-kit';
  * import { address } from '@solana/kit';
  *
  * const paymaster = createPaymasterClient({
@@ -68,7 +68,7 @@ export function createPaymasterClient(config: PaymasterConfig) {
  *
  * @example
  * ```ts
- * import { createPaymasterClient } from '@swig-paymaster/kit';
+ * import { createPaymasterClient } from '@swig-wallet/paymaster-kit';
  * import { address } from '@solana/kit';
  *
  * const paymaster = createPaymasterClient({

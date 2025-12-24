@@ -9,7 +9,11 @@
       "@swig-wallet/kit",
       "@swig-wallet/lib"
     ],
-    ["@swig-paymaster/core", "@swig-paymaster/classic", "@swig-paymaster/kit"]
+    [
+      "@swig-wallet/paymaster-core",
+      "@swig-wallet/paymaster-classic",
+      "@swig-wallet/paymaster-kit"
+    ]
   ],
   "linked": [],
   "access": "public",

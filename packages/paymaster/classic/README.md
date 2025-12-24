@@ -1,19 +1,19 @@
-# @swig-paymaster/classic
+# @swig-wallet/paymaster-classic
 
 Paymaster client for @solana/web3.js 1.x.
 
 ## Installation
 
 ```bash
-npm install @swig-paymaster/classic
+npm install @swig-wallet/paymaster-classic
 # or
-bun install @swig-paymaster/classic
+bun install @swig-wallet/paymaster-classic
 ```
 
 ## Usage
 
 ```typescript
-import { createPaymasterClient } from '@swig-paymaster/classic';
+import { createPaymasterClient } from '@swig-wallet/paymaster-classic';
 
 const paymaster = createPaymasterClient({
   apiKey: 'your-api-key',
