@@ -178,7 +178,7 @@ export class SolAccountMeta {
   };
 
   setSigner = (isSigner: boolean) => {
-    this.writable = isSigner;
+    this.signer = isSigner;
   };
 
   toWeb3AccountMeta = (): Web3AccountMeta => {
