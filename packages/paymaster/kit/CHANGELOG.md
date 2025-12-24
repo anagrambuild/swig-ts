@@ -1,5 +1,16 @@
 # @swig-wallet/paymaster-kit
 
+## 1.0.0
+
+### Major Changes
+
+- 16e4be5: Initial release of `@swig-wallet/paymaster-*` packages.
+
+### Patch Changes
+
+- Updated dependencies [16e4be5]
+  - @swig-wallet/paymaster-core@1.0.0
+
 ## 0.2.0
 
 ### Minor Changes
