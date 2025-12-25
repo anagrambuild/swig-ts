@@ -99,12 +99,13 @@ describe('Ed25519Instruction', () => {
     const data = {
       authorityData,
       subAccountId: dummyUint8(),
-      authorityType: 0,
+      authorityType: 1,
       actions: dummyUint8(),
       noOfActions: 1,
       subAccountData: dummyUint8(),
       roleId: 1,
       bump: 1,
+      subAccountIndex: 0,
     };
     const ix = await Ed25519Instruction.subAccountCreateV1Instruction(
       accounts,
@@ -280,6 +281,7 @@ describe('Secp256k1Instruction', () => {
       authorityData: dummyUint8(32),
       roleId: 1,
       bump: 1,
+      subAccountIndex: 0,
     };
     const ix = await Secp256k1Instruction.subAccountCreateV1Instruction(
       accounts,

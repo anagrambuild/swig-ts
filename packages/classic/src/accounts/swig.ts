@@ -133,6 +133,49 @@ export function findSwigSubAccountPda(
   )[0];
 }
 
+/**
+ * Utility for deriving a Swig SubAccount PDA with index
+ * Index 0 uses legacy 3-seed derivation for backwards compatibility
+ * Indices 1-254 use new 4-seed derivation with index
+ * @param swigId Swig ID
+ * @param roleId Role ID
+ * @param subAccountIndex Sub-account index (0-254, defaults to 0)
+ * @returns PublicKey
+ */
+export function findSwigSubAccountPdaWithIndex(
+  swigId: Uint8Array,
+  roleId: number,
+  subAccountIndex: number = 0,
+): PublicKey {
+  if (subAccountIndex < 0 || subAccountIndex > 254) {
+    throw new Error('Sub-account index must be between 0 and 254');
+  }
+
+  const roleIdU32 = new Uint8Array(4);
+  const view = new DataView(roleIdU32.buffer);
+  view.setUint32(0, roleId, true);
+
+  if (subAccountIndex === 0) {
+    // Legacy derivation for index 0 (backwards compatible)
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from('sub-account'), Buffer.from(swigId), Buffer.from(roleIdU32)],
+      SWIG_PROGRAM_ADDRESS,
+    )[0];
+  } else {
+    // New derivation for index 1-254 with index in seeds
+    const indexU8 = new Uint8Array([subAccountIndex]);
+    return PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('sub-account'),
+        Buffer.from(swigId),
+        Buffer.from(roleIdU32),
+        Buffer.from(indexU8),
+      ],
+      SWIG_PROGRAM_ADDRESS,
+    )[0];
+  }
+}
+
 export function getSwigAccountAddress(swig: Swig): PublicKey {
   const publicKeyBytes = getSwigAccountAddressRaw(swig).toBytes();
   return new PublicKey(publicKeyBytes);

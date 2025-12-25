@@ -126,6 +126,7 @@ export abstract class Authority {
     swigAddress: SolPublicKeyData;
     swigId: Uint8Array;
     roleId: number;
+    subAccountIndex?: number;
     options?: InstructionDataOptions;
   }): Promise<SwigInstructionContext>;
 
