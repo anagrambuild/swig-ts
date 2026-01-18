@@ -1,0 +1,47 @@
+{
+  "name": "swig-basic-examples",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "classic:transfer": "bun run classic/transfer.ts",
+    "classic:transfer-session": "bun run classic/transfer-session.ts",
+    "classic:transfer-secp": "bun run classic/transfer-secp.ts",
+    "classic:transfer-r1": "bun run classic/transfer-r1.ts",
+    "classic:transfer-subaccount": "bun run classic/transfer-subaccount.ts",
+    "classic:transfer-secp-session": "bun run classic/transfer-secp-session.ts",
+    "classic:transfer-sol-destination": "bun run classic/transfer-sol-destination.ts",
+    "classic:subscription": "bun run classic/subscription.ts",
+    "classic:transfer-token": "bun run classic/transfer-token.ts",
+    "classic:transfer-sol-recurring": "bun run classic/transfer-sol-recurring.ts",
+    "classic:transfer-token-destination": "bun run classic/transfer-token-destination.ts",
+    "classic:transfer-token-recurring": "bun run classic/transfer-token-recurring.ts",
+    "classic:withdraw-subaccount": "bun run classic/withdraw-subaccount.ts",
+    "kit:transfer": "bun run kit/transfer.ts",
+    "kit:transfer-session": "bun run kit/transfer-session.ts",
+    "kit:transfer-secp": "bun run kit/transfer-secp.ts",
+    "kit:transfer-r1": "bun run kit/transfer-r1.ts",
+    "kit:transfer-subaccount": "bun run kit/transfer-subaccount.ts",
+    "kit:transfer-secp-session": "bun run kit/transfer-secp-session.ts",
+    "kit:transfer-sol-destination": "bun run kit/transfer-sol-destination.ts",
+    "kit:subscription": "bun run kit/subscription.ts",
+    "kit:transfer-token": "bun run kit/transfer-token.ts",
+    "kit:withdraw-subaccount": "bun run kit/withdraw-subaccount.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.5",
+    "@types/node": "^22.14.0",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "@ethereumjs/wallet": "^2.0.4",
+    "@noble/curves": "^1.9.4",
+    "@solana/kit": "^2.1.1",
+    "@solana/spl-token": "0.4.13",
+    "@solana/web3.js": "1.98.2",
+    "@solana-program/system": "^0.7.0",
+    "@swig-wallet/classic": "latest",
+    "@swig-wallet/kit": "latest"
+  }
+}

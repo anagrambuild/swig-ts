@@ -1,4 +1,4 @@
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { LiteSVM } from 'litesvm';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,13 +10,15 @@ import {
   type SwigAccount,
   type SwigFetchFn,
 } from '../src';
-import { toPublicKey } from './utils';
+import { generateTestKeypair, toPublicKey, type TestKeypair } from './helpers';
+
+export const LAMPORTS_PER_SOL = 1_000_000_000n;
 
 export function getSvm() {
-  let swigProgram = Uint8Array.from(
+  const swigProgram = Uint8Array.from(
     readFileSync(join(__dirname, '../../../swig.so')),
   );
-  let svm = new LiteSVM();
+  const svm = new LiteSVM();
   svm.addProgram(new PublicKey(SWIG_PROGRAM_ADDRESS_STRING), swigProgram);
   return svm;
 }
@@ -25,9 +27,9 @@ export function getFundedKeys(
   svm: LiteSVM,
   count = 5,
   amount = LAMPORTS_PER_SOL,
-) {
+): TestKeypair[] {
   return Array.from({ length: count }, () => {
-    let key = Keypair.generate();
+    const key = generateTestKeypair();
     svm.airdrop(key.publicKey, BigInt(amount));
     return key;
   });
