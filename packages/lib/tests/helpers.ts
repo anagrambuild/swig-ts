@@ -155,7 +155,6 @@ export function sendSVMTransaction(
 
   transaction.sign(payer._keypair, ...signers.map((s) => s._keypair));
 
-  // @ts-expect-error litesvm type mismatch
   const tx = svm.sendTransaction(transaction);
 
   if (tx instanceof FailedTransactionMetadata) {
