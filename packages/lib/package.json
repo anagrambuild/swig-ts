@@ -1,6 +1,6 @@
 {
   "name": "@swig-wallet/lib",
-  "version": "1.4.0",
+  "version": "1.4.2",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
@@ -21,6 +21,8 @@
     "dist"
   ],
   "devDependencies": {
+    "@solana-program/system": "^0.7.0",
+    "@solana/web3.js": "^1.98.0",
     "@types/bn.js": "^5.2.0",
     "@types/bun": "^1.2.5",
     "@types/jest": "^30.0.0",
@@ -36,6 +38,7 @@
   },
   "dependencies": {
     "@noble/curves": "^1.8.2",
+    "@noble/hashes": "^1.7.0",
     "@solana/kit": "^2.1.0",
     "@solana-program/token": "^0.5.1",
     "@swig-wallet/coder": "workspace:*",

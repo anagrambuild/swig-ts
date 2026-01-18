@@ -25,7 +25,7 @@
     "noPropertyAccessFromIndexSignature": false,
 
     // Add this for test globals
-    "types": ["jest", "node"]
+    "types": ["bun", "jest", "node"]
   },
   // Add this to include tests
   "include": ["src", "tests"]

@@ -1,5 +1,20 @@
 # @swig-wallet/classic
 
+## 1.4.2
+
+### Patch Changes
+
+- Updated dependencies [d320aa4]
+  - @swig-wallet/lib@1.4.2
+  - @swig-wallet/coder@1.4.2
+
+## 1.4.1
+
+### Patch Changes
+
+- @swig-wallet/coder@1.4.1
+- @swig-wallet/lib@1.4.1
+
 ## 1.4.0
 
 ### Minor Changes
