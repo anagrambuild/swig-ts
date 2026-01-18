@@ -1,15 +1,14 @@
 {
-  "name": "@swig-wallet/classic",
-  "version": "1.4.2",
+  "name": "@swig-wallet/paymaster-classic",
+  "version": "1.0.0",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "build-pkg": "tsup-node",
     "build": "tsup-node",
     "dev": "tsup-node --watch",
-    "gen-sanity": "cd tests/sanity && cargo run",
-    "lint": "eslint --config ../../eslint.config.mjs --ext js,ts,tsx src",
-    "lint:fix": "eslint --config ../../eslint.config.mjs --ext js,ts,tsx src --fix",
+    "lint": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src",
+    "lint:fix": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src --fix",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
@@ -34,11 +33,8 @@
     "typescript": "^5.5.3"
   },
   "dependencies": {
-    "@noble/curves": "^1.8.2",
     "@solana/kit": "^2.1.0",
-    "@solana-program/token": "^0.5.1",
-    "@swig-wallet/coder": "workspace:*",
-    "@swig-wallet/lib": "workspace:*",
+    "@swig-wallet/paymaster-core": "workspace:*",
     "bn.js": "^5.2.2"
   },
   "peerDependencies": {
