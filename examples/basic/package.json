@@ -18,6 +18,7 @@
     "classic:transfer-token-destination": "bun run classic/transfer-token-destination.ts",
     "classic:transfer-token-recurring": "bun run classic/transfer-token-recurring.ts",
     "classic:withdraw-subaccount": "bun run classic/withdraw-subaccount.ts",
+    "classic:get-swig-account-address": "bun run classic/get-swig-account-address.ts",
     "kit:transfer": "bun run kit/transfer.ts",
     "kit:transfer-session": "bun run kit/transfer-session.ts",
     "kit:transfer-secp": "bun run kit/transfer-secp.ts",
@@ -27,7 +28,8 @@
     "kit:transfer-sol-destination": "bun run kit/transfer-sol-destination.ts",
     "kit:subscription": "bun run kit/subscription.ts",
     "kit:transfer-token": "bun run kit/transfer-token.ts",
-    "kit:withdraw-subaccount": "bun run kit/withdraw-subaccount.ts"
+    "kit:withdraw-subaccount": "bun run kit/withdraw-subaccount.ts",
+    "kit:get-swig-account-address": "bun run kit/get-swig-account-address.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.2.5",
