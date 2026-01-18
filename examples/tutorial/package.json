@@ -1,0 +1,29 @@
+{
+  "name": "swig-tutorials",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "classic:1": "bun run classic/tutorial-1.ts",
+    "classic:2": "bun run classic/tutorial-2.ts",
+    "classic:3": "bun run classic/tutorial-3.ts",
+    "kit:1": "bun run kit/tutorial-1.ts",
+    "kit:2": "bun run kit/tutorial-2.ts",
+    "kit:3": "bun run kit/tutorial-3.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.5",
+    "@types/node": "^22.14.0",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.4.13",
+    "@solana/web3.js": "1.98.2",
+    "@solana/kit": "^2.1.1",
+    "@solana-program/system": "^0.7.0",
+    "@solana-program/token": "^0.5.1",
+    "@swig-wallet/classic": "latest",
+    "@swig-wallet/kit": "latest"
+  }
+}

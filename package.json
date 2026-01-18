@@ -19,7 +19,7 @@
     "build:docs": "typedoc",
     "build:packages": "nx run-many --target=build --projects='@swig-wallet/classic','@swig-wallet/coder','@swig-wallet/kit','@swig-wallet/lib','@swig-wallet/paymaster-core','@swig-wallet/paymaster-classic','@swig-wallet/paymaster-kit'",
     "changeset": "changeset",
-    "ci": "bun build:packages && bun lint && bun format && bun test",
+    "ci": "bun build:packages && bun lint && bun typecheck && bun format && bun test",
     "dev": "bun --filter '*' dev",
     "dev:classic": "bun --filter '@swig-wallet/classic' dev",
     "dev:coder": "bun --filter '@swig-wallet/coder' dev",
