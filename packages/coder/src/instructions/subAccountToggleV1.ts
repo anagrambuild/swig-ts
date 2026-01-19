@@ -43,8 +43,8 @@ export function getSubAccountToggleV1InstructionDataCodec() {
     transformEncoder(
       getStructEncoder([
         ['discriminator', getSwigInstructionDiscriminatorEncoder()],
-        ['_padding', fixEncoderSize(getBytesEncoder(), 1)],
         ['enabled', getBooleanEncoder()],
+        ['_padding', fixEncoderSize(getBytesEncoder(), 5)],
         ['subAccountRoleId', getU32Encoder()],
         ['actingRoleId', getU32Encoder()],
         ['authorityPayload', getBytesEncoder()],
@@ -61,8 +61,8 @@ export function getSubAccountToggleV1InstructionDataCodec() {
   > = transformEncoder(
     getStructEncoder([
       ['discriminator', getSwigInstructionDiscriminatorEncoder()],
-      ['_padding', fixEncoderSize(getBytesEncoder(), 1)],
       ['enabled', getBooleanEncoder()],
+      ['_padding', fixEncoderSize(getBytesEncoder(), 5)],
       ['subAccountRoleId', getU32Encoder()],
       ['actingRoleId', getU32Encoder()],
     ]),
@@ -75,8 +75,8 @@ export function getSubAccountToggleV1InstructionDataCodec() {
 
   const decoder: Decoder<SubAccountToggleV1InstructionData> = getStructDecoder([
     ['discriminator', getSwigInstructionDiscriminatorDecoder()],
-    ['_padding', fixDecoderSize(getBytesDecoder(), 1)],
     ['enabled', getBooleanDecoder()],
+    ['_padding', fixDecoderSize(getBytesDecoder(), 5)],
     ['subAccountRoleId', getU32Decoder()],
     ['actingRoleId', getU32Decoder()],
     ['authorityPayload', getBytesDecoder()],

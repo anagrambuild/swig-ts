@@ -19,21 +19,15 @@ export function getSubAccountSignV1BaseAccountMetas(
   return [
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.swig).toAddress(),
-      role: AccountRole.READONLY,
-      // isSigner: false,
-      // isWritable: false,
+      role: AccountRole.WRITABLE,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.subAccount).toAddress(),
       role: AccountRole.WRITABLE,
-      // isSigner: false,
-      // isWritable: true,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: address(SYSTEM_PROGRAM_ADDRESS_STRING),
       role: AccountRole.READONLY,
-      // isSigner: false,
-      // isWritable: false,
     }),
   ];
 }

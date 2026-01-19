@@ -126,17 +126,6 @@ export class Actions {
   }
 
   /**
-   * Checks if a Solana account is blacklisted
-   * @param account SolPublicKeyData
-   * @returns boolean
-   */
-  isAccountBlacklisted(account: SolPublicKeyData): boolean {
-    return !!this.actions.find((action) =>
-      action.isAccountBlacklisted(account),
-    );
-  }
-
-  /**
    * Check if Sol Spend is uncapped
    * @returns boolean
    */
@@ -415,24 +404,6 @@ class Action {
       this.permission === Permission.ProgramAll ||
       this.permission === Permission.ProgramCurated
     );
-  }
-
-  /**
-   * Checks if a Solana account is blacklisted
-   * @param account SolPublicKeyData
-   * @returns boolean
-   */
-  isAccountBlacklisted(account: SolPublicKeyData): boolean {
-    if (isActionPayload(Permission.Blacklist, this.payload)) {
-      if (
-        new SolPublicKey(
-          new Uint8Array(this.payload.data.entityId),
-        ).toBase58() === new SolPublicKey(account).toBase58()
-      ) {
-        return true;
-      }
-    }
-    return false;
   }
 
   // todo: ProgramScope

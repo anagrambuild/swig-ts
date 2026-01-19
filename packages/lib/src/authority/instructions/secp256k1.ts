@@ -492,4 +492,5 @@ export async function prepareSecpPayload(
   return authorityPayload;
 }
 
-const SECP_AUTHORITY_PAYLOAD_SIZE = 65;
+// For secp256k1, authority payload is 77 bytes: 8 (slot) + 4 (counter) + 65 (signature)
+const SECP_AUTHORITY_PAYLOAD_SIZE = 77;

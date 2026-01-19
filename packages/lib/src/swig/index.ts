@@ -430,7 +430,9 @@ export const getToggleSubAccountInstructionContext = async (
 
   return role.authority.subAccountToggle({
     swigAddress: role.swigAddress,
-    subAccount: (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
+    subAccount: (
+      await findSwigSubAccountPdaRaw(role.swigId, subAccountRoleId ?? roleId)
+    )[0],
     payer,
     actingRoleId: role.id,
     subAccountRoleId: subAccountRoleId ?? roleId,

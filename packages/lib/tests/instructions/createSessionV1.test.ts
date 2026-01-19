@@ -23,7 +23,10 @@ import {
   SolInstruction,
 } from '../../src';
 import { fetchSwig, getFundedKeys, getSvm } from '../context';
-import { createTestSecp256k1SessionAuthority } from '../fixtures/authorities';
+import {
+  createTestSecp256k1SessionAuthority,
+  createTestSecp256r1SessionAuthority,
+} from '../fixtures/authorities';
 import {
   getTransferSolInstruction,
   randomBytes,
@@ -301,17 +304,112 @@ describe('CreateSessionV1 Instruction', () => {
   // ============================================================================
   // Secp256r1 Session Tests
   // ============================================================================
-  // Note: Secp256r1 session authority needs investigation
-  // The secp256r1 instruction builder is missing the Instructions sysvar account
 
-  // describe('Secp256r1 session authority', () => {
-  //   test.skip('creates session with Secp256r1 session authority', async () => {
-  //     // TODO: Investigate secp256r1 instruction sysvar account for createSession
-  //   });
-  //   test.skip('secp256r1 session key can sign transactions', async () => {
-  //     // TODO: Investigate secp256r1 session key signing
-  //   });
-  // });
+  describe('Secp256r1 session authority', () => {
+    test('creates session with Secp256r1 session authority', async () => {
+      const svm = getSvm();
+      const [payer, sessionKeypair] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const secpRoot = createTestSecp256r1SessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with Secp256r1Session authority
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: secpRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+      const slot = svm.getClock().slot;
+
+      // Create session
+      const sessionIx = await getCreateSessionInstructionContext(
+        swig,
+        rootRole.id,
+        sessionKeypair.publicKey,
+        50n,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, sessionIx, payer);
+
+      // Verify session was created
+      swig = fetchSwig(svm, swigAddress);
+      const sessionRole = swig.findRoleBySessionKey(sessionKeypair.publicKey);
+      expect(sessionRole).toBeDefined();
+    });
+
+    test('secp256r1 session key can sign transactions', async () => {
+      const svm = getSvm();
+      const [payer, sessionKeypair] = getFundedKeys(svm, 2);
+      const recipient = Keypair.generate();
+      const swigId = randomBytes(32);
+      const secpRoot = createTestSecp256r1SessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with Secp256r1Session authority
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: secpRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const walletAddress = toPublicKey(await getSwigWalletAddressRaw(swig));
+      const rootRole = swig.roles[0];
+      const slot = svm.getClock().slot;
+
+      // Fund swig wallet
+      svm.airdrop(walletAddress, SOL);
+
+      // Create session
+      const sessionIx = await getCreateSessionInstructionContext(
+        swig,
+        rootRole.id,
+        sessionKeypair.publicKey,
+        50n,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, sessionIx, payer);
+
+      // Refresh swig
+      swig = fetchSwig(svm, swigAddress);
+      const sessionRole = swig.findRoleBySessionKey(sessionKeypair.publicKey)!;
+
+      // Session key (ed25519) signs transfer
+      const transfer = getTransferSolInstruction({
+        source: address(walletAddress.toBase58()),
+        destination: address(recipient.publicKey.toBase58()),
+        amount: SOL / 10n,
+      });
+
+      const signIx = await getSignInstructionContext(
+        swig,
+        sessionRole.id,
+        [transfer].map(SolInstruction.from),
+        false,
+        { payer: sessionKeypair.publicKey },
+      );
+      sendSwigSVMTransaction(svm, signIx, sessionKeypair);
+
+      expect(svm.getBalance(recipient.publicKey)).toBe(SOL / 10n);
+    });
+  });
 
   // ============================================================================
   // Error Cases

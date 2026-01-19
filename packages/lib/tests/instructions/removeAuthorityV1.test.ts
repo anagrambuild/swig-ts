@@ -181,24 +181,388 @@ describe('RemoveAuthorityV1 Instruction', () => {
   // ============================================================================
   // Secp256k1 Root Removing Authorities
   // ============================================================================
-  // Note: Secp256k1/Secp256r1 as acting authority for remove needs further investigation
-  // The signature verification is timing-sensitive and may need different handling
 
-  // describe('Secp256k1 root removing authorities', () => {
-  //   test.skip('removes Ed25519 authority', async () => {
-  //     // TODO: Investigate secp256k1 signature verification for remove
-  //   });
-  // });
+  describe('Secp256k1 root removing authorities', () => {
+    test('removes Ed25519 authority', async () => {
+      const svm = getSvm();
+      const [payer, toRemove] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const secpRoot = createTestSecp256k1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with secp256k1 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: secpRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+      let slot = svm.getClock().slot;
+
+      // Add ed25519 authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createEd25519AuthorityInfo(toRemove.publicKey),
+        Actions.set().solLimit({ amount: SOL }).get(),
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.findRolesByEd25519SignerPk(
+        toRemove.publicKey,
+      )[0];
+
+      // Remove authority
+      slot = svm.getClock().slot;
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      const removedRoles = swig.findRolesByEd25519SignerPk(toRemove.publicKey);
+      expect(removedRoles.length).toBe(0);
+    });
+
+    test('removes Secp256k1 authority', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const secpRoot = createTestSecp256k1Authority();
+      const secpToRemove = createTestSecp256k1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with secp256k1 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: secpRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+      let slot = svm.getClock().slot;
+
+      // Add another secp256k1 authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpToRemove.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.findRolesBySecp256k1SignerAddress(
+        secpToRemove.address,
+      )[0];
+
+      // Remove authority
+      slot = svm.getClock().slot;
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      const removedRoles = swig.findRolesBySecp256k1SignerAddress(
+        secpToRemove.address,
+      );
+      expect(removedRoles.length).toBe(0);
+    });
+
+    test('removes Secp256r1 authority', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const secpRoot = createTestSecp256k1Authority();
+      const secpToRemove = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with secp256k1 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: secpRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+      let slot = svm.getClock().slot;
+
+      // Add secp256r1 authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpToRemove.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.roles[1]; // secp256r1 is at index 1
+
+      // Remove authority
+      slot = svm.getClock().slot;
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(1);
+    });
+  });
 
   // ============================================================================
   // Secp256r1 Root Removing Authorities
   // ============================================================================
 
-  // describe('Secp256r1 root removing authorities', () => {
-  //   test.skip('removes Ed25519 authority', async () => {
-  //     // TODO: Investigate secp256r1 instruction sysvar account for remove
-  //   });
-  // });
+  describe('Secp256r1 root removing authorities', () => {
+    test('removes Ed25519 authority', async () => {
+      const svm = getSvm();
+      const [payer, toRemove] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const secpRoot = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with secp256r1 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: secpRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+      let slot = svm.getClock().slot;
+
+      // Add ed25519 authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createEd25519AuthorityInfo(toRemove.publicKey),
+        Actions.set().solLimit({ amount: SOL }).get(),
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.findRolesByEd25519SignerPk(
+        toRemove.publicKey,
+      )[0];
+
+      // Remove authority
+      slot = svm.getClock().slot;
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      const removedRoles = swig.findRolesByEd25519SignerPk(toRemove.publicKey);
+      expect(removedRoles.length).toBe(0);
+    });
+
+    test('removes Secp256k1 authority', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const secpRoot = createTestSecp256r1Authority();
+      const secpToRemove = createTestSecp256k1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with secp256r1 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: secpRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+      let slot = svm.getClock().slot;
+
+      // Add secp256k1 authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpToRemove.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.findRolesBySecp256k1SignerAddress(
+        secpToRemove.address,
+      )[0];
+
+      // Remove authority
+      slot = svm.getClock().slot;
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      const removedRoles = swig.findRolesBySecp256k1SignerAddress(
+        secpToRemove.address,
+      );
+      expect(removedRoles.length).toBe(0);
+    });
+
+    test('removes Secp256r1 authority', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const secpRoot = createTestSecp256r1Authority();
+      const secpToRemove = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with secp256r1 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: secpRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+      let slot = svm.getClock().slot;
+
+      // Add another secp256r1 authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpToRemove.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.roles[1]; // secp256r1 is at index 1
+
+      // Remove authority
+      slot = svm.getClock().slot;
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpRoot.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(1);
+    });
+  });
 
   // ============================================================================
   // Manager Removing Authorities

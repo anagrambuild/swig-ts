@@ -106,11 +106,6 @@ export enum Permission {
    * Allows recurring transfers of specific SPL tokens up to a limit within a time window to a specific destination.
    */
   TokenRecurringDestinationLimit,
-
-  /**
-   * Blacklists specific wallets and program interactions with the Swig
-   */
-  Blacklist,
 }
 
 /**

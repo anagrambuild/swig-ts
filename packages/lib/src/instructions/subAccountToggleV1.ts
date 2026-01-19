@@ -20,21 +20,15 @@ export function getSubAccountToggleV1BaseAccountMetas(
   return [
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.swig).toAddress(),
-      role: AccountRole.READONLY,
-      // isSigner: false,
-      // isWritable: false,
+      role: AccountRole.WRITABLE,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.payer).toAddress(),
-      role: AccountRole.READONLY_SIGNER,
-      // isSigner: true,
-      // isWritable: false,
+      role: AccountRole.WRITABLE_SIGNER,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.subAccount).toAddress(),
       role: AccountRole.WRITABLE,
-      // isSigner: false,
-      // isWritable: true,
     }),
   ];
 }

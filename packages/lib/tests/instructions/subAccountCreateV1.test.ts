@@ -21,7 +21,10 @@ import {
   getCreateSwigInstructionContext,
 } from '../../src';
 import { fetchSwig, getFundedKeys, getSvm } from '../context';
-import { createTestSecp256k1Authority } from '../fixtures/authorities';
+import {
+  createTestSecp256k1Authority,
+  createTestSecp256r1Authority,
+} from '../fixtures/authorities';
 import { randomBytes, sendSwigSVMTransaction, toPublicKey } from '../helpers';
 
 describe('SubAccountCreateV1 Instruction', () => {
@@ -198,14 +201,62 @@ describe('SubAccountCreateV1 Instruction', () => {
   // ============================================================================
   // Secp256r1 Authority Tests
   // ============================================================================
-  // Note: Secp256r1 authority needs investigation
-  // The secp256r1 instruction builder is missing the Instructions sysvar account
 
-  // describe('Secp256r1 authority with subAccount permission', () => {
-  //   test.skip('creates sub-account', async () => {
-  //     // TODO: Investigate secp256r1 instruction sysvar account for subAccountCreate
-  //   });
-  // });
+  describe('Secp256r1 authority with subAccount permission', () => {
+    test('creates sub-account', async () => {
+      const svm = getSvm();
+      const [payer, root] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const secpAuthority = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with ed25519 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Add secp256r1 authority with subAccount permission
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpAuthority.authorityInfo,
+        Actions.set().subAccount().get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      const subAccountRole = swig.roles[1]; // Secp256r1 role is at index 1
+      const slot = svm.getClock().slot;
+
+      // Create sub-account
+      const createSubAccountIx = await getCreateSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpAuthority.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, createSubAccountIx, payer);
+
+      // Verify sub-account was created
+      const [subAccountAddress] = await findSwigSubAccountPdaRaw(
+        subAccountRole.swigId,
+        subAccountRole.id,
+      );
+      const subAccountBalance = svm.getBalance(toPublicKey(subAccountAddress));
+      expect(subAccountBalance).toBeGreaterThan(0n);
+    });
+  });
 
   // ============================================================================
   // Root with SubAccount Permission

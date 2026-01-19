@@ -1,7 +1,6 @@
 export * from './accountsPayload';
 export * from './actionHeader';
 export * from './authorityType';
-export * from './blacklist';
 export * from './compactInstruction';
 export * from './ed25519Session';
 export * from './permissions';

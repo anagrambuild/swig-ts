@@ -1,7 +1,6 @@
 import {
   ACTION_HEADER_LENGTH,
   getActionHeaderEncoder,
-  getBlacklistCodec,
   getProgramCuratedEncoder,
   getProgramLimitEncoder,
   getProgramScopeEncoder,
@@ -19,10 +18,7 @@ import {
   NumericType,
   Permission,
   ProgramScopeType,
-  toBlacklistEntityKind,
   type ActionHeader,
-  type BlacklistData,
-  type BlacklistEntity,
   type ProgramLimit,
   type ProgramScope,
   type SolDestinationLimit,
@@ -108,24 +104,6 @@ export class ActionsBuilder {
    */
   allButManageAuthority(): this {
     this._actionConfigs.push(new AllButManageAuthorityConfig());
-    return this;
-  }
-
-  /**
-   * Blackist a Solana account
-   * @param payload.entityId ID of the program/wallet to blacklist
-   * @param payload.entity entity type: Program/Wallet
-   */
-  blacklist(payload: {
-    entityId: SolPublicKeyData;
-    entityType: BlacklistEntity;
-  }): this {
-    this._actionConfigs.push(
-      new BlacklistConfig({
-        entityId: new SolPublicKey(payload.entityId).toBytes(),
-        entityKind: toBlacklistEntityKind(payload.entityType),
-      }),
-    );
     return this;
   }
 
@@ -538,24 +516,6 @@ class AllButManageAuthorityConfig extends ActionConfig {
 
   encode(): Uint8Array {
     return new Uint8Array(0);
-  }
-}
-
-class BlacklistConfig extends ActionConfig {
-  constructor(private payload: BlacklistData) {
-    super();
-  }
-
-  get length() {
-    return 40;
-  }
-
-  get permission() {
-    return Permission.Blacklist;
-  }
-
-  encode(): Uint8Array {
-    return Uint8Array.from(getBlacklistCodec().encode(this.payload));
   }
 }
 
