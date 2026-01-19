@@ -9,6 +9,7 @@ import {
   type CreateAuthorityInfo,
   type SigningFn,
 } from '../authority';
+import type { UpdateAuthorityActionsInfo } from '../authority/updateAuthorityAction';
 import { SUB_ACCOUNT_RENT_EXEMPT } from '../consts';
 import { createV1SwigInstruction } from '../instructions';
 import { deserializeRoles } from '../role';
@@ -290,6 +291,30 @@ export const getRemoveAuthorityInstructionContext = async (
   });
 };
 
+export const getUpdateAuthorityInstructionContext = async (
+  swig: Swig,
+  roleId: number,
+  roleIdToUpdate: number,
+  updateActionsInfo: UpdateAuthorityActionsInfo,
+  options?: SwigOptions,
+) => {
+  const { payer, role } = await assertInstructionOptions(
+    swig,
+    roleId,
+    false,
+    options,
+  );
+
+  return role.authority.updateAuthority({
+    roleId: role.id,
+    roleIdToUpdate,
+    updateActionsInfo,
+    payer,
+    swigAddress: swig.address,
+    options,
+  });
+};
+
 export const getSignInstructionContext = async (
   swig: Swig,
   roleId: number,
@@ -405,7 +430,9 @@ export const getToggleSubAccountInstructionContext = async (
 
   return role.authority.subAccountToggle({
     swigAddress: role.swigAddress,
-    subAccount: (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
+    subAccount: (
+      await findSwigSubAccountPdaRaw(role.swigId, subAccountRoleId ?? roleId)
+    )[0],
     payer,
     actingRoleId: role.id,
     subAccountRoleId: subAccountRoleId ?? roleId,
@@ -432,9 +459,11 @@ export const getWithdrawFromSubAccountInstructionContext = async <
   const subAccount = new SolPublicKey(
     (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
   );
+  const swigSystemAddress = await getSwigSystemAddressRaw(swig);
   return 'mint' in args
     ? role.authority.subAccountWithdrawToken({
         swigAddress: role.swigAddress,
+        swigSystemAddress,
         subAccount,
         payer,
         roleId: role.id,
@@ -445,6 +474,7 @@ export const getWithdrawFromSubAccountInstructionContext = async <
       })
     : role.authority.subAccountWithdrawSol({
         swigAddress: role.swigAddress,
+        swigSystemAddress,
         subAccount,
         payer,
         roleId: role.id,

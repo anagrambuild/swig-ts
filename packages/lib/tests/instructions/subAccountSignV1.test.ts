@@ -24,6 +24,10 @@ import {
 } from '../../src';
 import { fetchSwig, getFundedKeys, getSvm } from '../context';
 import {
+  createTestSecp256k1Authority,
+  createTestSecp256r1Authority,
+} from '../fixtures/authorities';
+import {
   getTransferSolInstruction,
   randomBytes,
   sendSwigSVMTransaction,
@@ -188,14 +192,174 @@ describe('SubAccountSignV1 Instruction', () => {
   // ============================================================================
   // Secp256k1 Authority Tests
   // ============================================================================
-  // Note: Secp256k1 sub-account signing has issues with read-only data modification
-  // This needs investigation of the instruction builder account mutability
 
-  // describe('Secp256k1 authority with sub-account', () => {
-  //   test.skip('signs SOL transfer from sub-account', async () => {
-  //     // TODO: Investigate secp256k1 sub-account signing read-only data issue
-  //   });
-  // });
+  describe('Secp256k1 authority with sub-account', () => {
+    test('signs SOL transfer from sub-account', async () => {
+      const svm = getSvm();
+      const [payer, root] = getFundedKeys(svm, 2);
+      const recipient = Keypair.generate();
+      const swigId = randomBytes(32);
+      const secpAuthority = createTestSecp256k1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Add secp256k1 authority with subAccount permission
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpAuthority.authorityInfo,
+        Actions.set().subAccount().get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      const subAccountRole = swig.findRolesBySecp256k1SignerAddress(
+        secpAuthority.address,
+      )[0];
+      let slot = svm.getClock().slot;
+
+      // Create sub-account
+      const createSubAccountIx = await getCreateSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpAuthority.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, createSubAccountIx, payer);
+
+      // Fund sub-account
+      const [subAccountAddress] = await findSwigSubAccountPdaRaw(
+        subAccountRole.swigId,
+        subAccountRole.id,
+      );
+      svm.airdrop(toPublicKey(subAccountAddress), SOL);
+
+      // Sign transfer from sub-account
+      swig = fetchSwig(svm, swigAddress);
+      slot = svm.getClock().slot;
+      const transferAmount = SOL / 10n;
+      const transfer = getTransferSolInstruction({
+        source: address(toPublicKey(subAccountAddress).toBase58()),
+        destination: address(recipient.publicKey.toBase58()),
+        amount: transferAmount,
+      });
+
+      const signIx = await getSignInstructionContext(
+        swig,
+        subAccountRole.id,
+        [transfer].map(SolInstruction.from),
+        true, // withSubAccount = true
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpAuthority.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, signIx, payer);
+
+      expect(svm.getBalance(recipient.publicKey)).toBe(transferAmount);
+    });
+  });
+
+  // ============================================================================
+  // Secp256r1 Authority Tests
+  // ============================================================================
+
+  describe('Secp256r1 authority with sub-account', () => {
+    test('signs SOL transfer from sub-account', async () => {
+      const svm = getSvm();
+      const [payer, root] = getFundedKeys(svm, 2);
+      const recipient = Keypair.generate();
+      const swigId = randomBytes(32);
+      const secpAuthority = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Add secp256r1 authority with subAccount permission
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpAuthority.authorityInfo,
+        Actions.set().subAccount().get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      const subAccountRole = swig.roles[1]; // Secp256r1 role is at index 1
+      let slot = svm.getClock().slot;
+
+      // Create sub-account
+      const createSubAccountIx = await getCreateSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpAuthority.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, createSubAccountIx, payer);
+
+      // Fund sub-account
+      const [subAccountAddress] = await findSwigSubAccountPdaRaw(
+        subAccountRole.swigId,
+        subAccountRole.id,
+      );
+      svm.airdrop(toPublicKey(subAccountAddress), SOL);
+
+      // Sign transfer from sub-account
+      swig = fetchSwig(svm, swigAddress);
+      slot = svm.getClock().slot;
+      const transferAmount = SOL / 10n;
+      const transfer = getTransferSolInstruction({
+        source: address(toPublicKey(subAccountAddress).toBase58()),
+        destination: address(recipient.publicKey.toBase58()),
+        amount: transferAmount,
+      });
+
+      const signIx = await getSignInstructionContext(
+        swig,
+        subAccountRole.id,
+        [transfer].map(SolInstruction.from),
+        true, // withSubAccount = true
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: secpAuthority.signingFn!,
+        },
+      );
+      sendSwigSVMTransaction(svm, signIx, payer);
+
+      expect(svm.getBalance(recipient.publicKey)).toBe(transferAmount);
+    });
+  });
 
   // ============================================================================
   // Instruction Structure Tests

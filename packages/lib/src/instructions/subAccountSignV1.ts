@@ -19,21 +19,15 @@ export function getSubAccountSignV1BaseAccountMetas(
   return [
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.swig).toAddress(),
-      role: AccountRole.READONLY,
-      // isSigner: false,
-      // isWritable: false,
+      role: AccountRole.WRITABLE,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.subAccount).toAddress(),
       role: AccountRole.WRITABLE,
-      // isSigner: false,
-      // isWritable: true,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: address(SYSTEM_PROGRAM_ADDRESS_STRING),
       role: AccountRole.READONLY,
-      // isSigner: false,
-      // isWritable: false,
     }),
   ];
 }
@@ -62,22 +56,17 @@ export function getSubAccountSignV1BaseAccountMetasWithAuthority(
   return [metas, authorityIndex];
 }
 
-// export type SubAccountSignV1BaseAccountMetasWithSystemProgram = [
-//   ...SubAccountSignV1BaseAccountMetas,
-//   AccountMeta,
-// ];
+export type SubAccountSignV1BaseAccountMetasWithSystemProgram = [
+  ...SubAccountSignV1BaseAccountMetas,
+  // SolAccountMeta,
+  ...SolAccountMeta[],
+];
 
-// export function getSubAccountSignV1BaseAccountMetasWithSystemProgram(
-//   accounts: SubAccountSignV1InstructionAccounts,
-// ): SubAccountSignV1BaseAccountMetasWithSystemProgram {
-//   const accountMetas = getSubAccountSignV1BaseAccountMetas(accounts);
+export function getSubAccountSignV1BaseAccountMetasWithSystemProgram(
+  accounts: SubAccountSignV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
+): SubAccountSignV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getSubAccountSignV1BaseAccountMetas(accounts);
 
-//   return [
-//     ...accountMetas,
-//     {
-//       pubkey: SystemProgram.programId,
-//       isSigner: false,
-//       isWritable: false,
-//     },
-//   ];
-// }
+  return [...accountMetas, ...otherMetas];
+}

@@ -1,4 +1,5 @@
-import { AccountRole } from '@solana/kit';
+import { AccountRole, address } from '@solana/kit';
+import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
 import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 
 export type SubAccountToggleV1InstructionAccounts = {
@@ -19,21 +20,15 @@ export function getSubAccountToggleV1BaseAccountMetas(
   return [
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.swig).toAddress(),
-      role: AccountRole.READONLY,
-      // isSigner: false,
-      // isWritable: false,
+      role: AccountRole.WRITABLE,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.payer).toAddress(),
-      role: AccountRole.READONLY_SIGNER,
-      // isSigner: true,
-      // isWritable: false,
+      role: AccountRole.WRITABLE_SIGNER,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.subAccount).toAddress(),
       role: AccountRole.WRITABLE,
-      // isSigner: false,
-      // isWritable: true,
     }),
   ];
 }
@@ -62,22 +57,24 @@ export function getSubAccountToggleV1BaseAccountMetasWithAuthority(
   return [metas, authorityIndex];
 }
 
-// export type SubAccountToggleV1BaseAccountMetasWithSystemProgram = [
-//   ...SubAccountToggleV1BaseAccountMetas,
-//   ReadonlyAccount,
-// ];
+export type SubAccountToggleV1BaseAccountMetasWithSystemProgram = [
+  ...SubAccountToggleV1BaseAccountMetas,
+  SolAccountMeta,
+  ...SolAccountMeta[],
+];
 
-// export function getSubAccountToggleV1BaseAccountMetasWithSystemProgram(
-//   accounts: SubAccountToggleV1InstructionAccounts,
-// ): SubAccountToggleV1BaseAccountMetasWithSystemProgram {
-//   const accountMetas = getSubAccountToggleV1BaseAccountMetas(accounts);
+export function getSubAccountToggleV1BaseAccountMetasWithSystemProgram(
+  accounts: SubAccountToggleV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
+): SubAccountToggleV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getSubAccountToggleV1BaseAccountMetas(accounts);
 
-//   return [
-//     ...accountMetas,
-//     {
-//       pubkey: SystemProgram.programId,
-//       isSigner: false,
-//       isWritable: false,
-//     },
-//   ];
-// }
+  return [
+    ...accountMetas,
+    SolAccountMeta.fromKitAccountMeta({
+      address: address(SYSTEM_PROGRAM_ADDRESS_STRING),
+      role: AccountRole.READONLY,
+    }),
+    ...otherMetas,
+  ];
+}

@@ -59,7 +59,7 @@ export function getRemoveAuthorityV1InstructionCodec(payloadSize: number): {
       (value) => ({
         ...value,
         discriminator: Discriminator.RemoveAuthorityV1,
-        _padding: Uint8Array.from(Array(2)),
+        _padding: Uint8Array.from(Array(4)),
         authorityPayloadLen: payloadSize,
       }),
     );
@@ -97,7 +97,7 @@ export function getRemoveAuthorityV1AuthorityPayloadEncoder(
     (value) => ({
       ...value,
       discriminator: Discriminator.RemoveAuthorityV1,
-      _padding: Uint8Array.from(Array(2)),
+      _padding: Uint8Array.from(Array(4)),
       authorityPayloadLen: payloadSize,
     }),
   );

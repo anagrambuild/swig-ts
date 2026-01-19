@@ -11,6 +11,7 @@ import {
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
   getTransferAssetsV1InstructionDataCodec,
+  getUpdateAuthorityV1AuthorityPayloadEncoder,
 } from '@swig-wallet/coder';
 import {
   SwigInstructionV1,
@@ -24,9 +25,11 @@ import {
   getSubAccountCreateV1BaseAccountMetas,
   getSubAccountSignV1BaseAccountMetas,
   getSubAccountToggleV1BaseAccountMetas,
+  getSubAccountWithdrawV1AccountMetasWithSystemProgram,
   getSubAccountWithdrawV1SolAccountMetas,
   getSubAccountWithdrawV1TokenAccountMetas,
   getTransferAssetsV1BaseAccountMetas,
+  getUpdateAuthorityV1BaseAccountMetas,
 } from '../../instructions';
 import { SolAccountMeta } from '../../solana';
 import type { AuthorityInstruction, SigningFn } from './interface';
@@ -89,6 +92,34 @@ export const Secp256k1Instruction: AuthorityInstruction = {
     );
 
     return SwigInstructionV1.removeAuthority(removeIxAccountMetas, {
+      ...data,
+      authorityPayload,
+    });
+  },
+
+  async updateAuthorityV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const metas = getUpdateAuthorityV1BaseAccountMetas(accounts);
+
+    const authorityPayloadCodec = getUpdateAuthorityV1AuthorityPayloadEncoder();
+
+    const message = authorityPayloadCodec.encode(data);
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(message),
+      metas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.updateAuthority(metas, {
       ...data,
       authorityPayload,
     });
@@ -275,7 +306,11 @@ export const Secp256k1Instruction: AuthorityInstruction = {
         'Current slot or Signing function not provided for Secp256k1 based authority',
       );
 
-    const accountMetas = getSubAccountWithdrawV1SolAccountMetas(accounts);
+    const baseMetas = getSubAccountWithdrawV1SolAccountMetas(accounts);
+    const accountMetas = getSubAccountWithdrawV1AccountMetasWithSystemProgram(
+      baseMetas,
+      baseMetas.length,
+    );
 
     const { payloadEncoder } = getSubAccountWithdrawV1InstructionDataCodec();
 
@@ -303,7 +338,11 @@ export const Secp256k1Instruction: AuthorityInstruction = {
         'Current slot or Signing function not provided for Secp256k1 based authority',
       );
 
-    const accountMetas = getSubAccountWithdrawV1TokenAccountMetas(accounts);
+    const baseMetas = getSubAccountWithdrawV1TokenAccountMetas(accounts);
+    const accountMetas = getSubAccountWithdrawV1AccountMetasWithSystemProgram(
+      baseMetas,
+      baseMetas.length,
+    );
 
     const { payloadEncoder } = getSubAccountWithdrawV1InstructionDataCodec();
 
@@ -453,4 +492,5 @@ export async function prepareSecpPayload(
   return authorityPayload;
 }
 
-const SECP_AUTHORITY_PAYLOAD_SIZE = 65;
+// For secp256k1, authority payload is 77 bytes: 8 (slot) + 4 (counter) + 65 (signature)
+const SECP_AUTHORITY_PAYLOAD_SIZE = 77;

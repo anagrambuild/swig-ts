@@ -2,20 +2,20 @@ import { AccountRole, address } from '@solana/kit';
 import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
 import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 
-export type RemoveAuthorityV1InstructionAccounts = {
+export type UpdateAuthorityV1InstructionAccounts = {
   swig: SolPublicKeyData;
   payer: SolPublicKeyData;
 };
 
-export type RemoveAuthorityV1BaseAccountMetas = [
+export type UpdateAuthorityV1BaseAccountMetas = [
   SolAccountMeta,
   SolAccountMeta,
   SolAccountMeta,
 ];
 
-export function getRemoveAuthorityV1BaseAccountMetas(
-  accounts: RemoveAuthorityV1InstructionAccounts,
-): RemoveAuthorityV1BaseAccountMetas {
+export function getUpdateAuthorityV1BaseAccountMetas(
+  accounts: UpdateAuthorityV1InstructionAccounts,
+): UpdateAuthorityV1BaseAccountMetas {
   return [
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.swig).toAddress(),
@@ -32,19 +32,19 @@ export function getRemoveAuthorityV1BaseAccountMetas(
   ];
 }
 
-export type RemoveAuthorityV1BaseAccountMetasWithAuthority = [
-  ...RemoveAuthorityV1BaseAccountMetas,
+export type UpdateAuthorityV1BaseAccountMetasWithAuthority = [
+  ...UpdateAuthorityV1BaseAccountMetas,
   SolAccountMeta,
 ];
 
-export function getRemoveV1BaseAccountMetasWithAuthority(
-  accounts: RemoveAuthorityV1InstructionAccounts,
+export function getUpdateAuthorityV1BaseAccountMetasWithAuthority(
+  accounts: UpdateAuthorityV1InstructionAccounts,
   authority: SolPublicKeyData,
-): [RemoveAuthorityV1BaseAccountMetasWithAuthority, number] {
-  const accountMetas = getRemoveAuthorityV1BaseAccountMetas(accounts);
+): [UpdateAuthorityV1BaseAccountMetasWithAuthority, number] {
+  const accountMetas = getUpdateAuthorityV1BaseAccountMetas(accounts);
   const authorityIndex = accountMetas.length;
 
-  const metas: RemoveAuthorityV1BaseAccountMetasWithAuthority = [
+  const metas: UpdateAuthorityV1BaseAccountMetasWithAuthority = [
     ...accountMetas,
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(authority).toAddress(),
@@ -56,17 +56,16 @@ export function getRemoveV1BaseAccountMetasWithAuthority(
   return [metas, authorityIndex];
 }
 
-export type RemoveAuthorityV1BaseAccountMetasWithSystemProgram = [
-  ...RemoveAuthorityV1BaseAccountMetas,
-  // SolAccountMeta,
+export type UpdateAuthorityV1BaseAccountMetasWithSystemProgram = [
+  ...UpdateAuthorityV1BaseAccountMetas,
   ...SolAccountMeta[],
 ];
 
-export function getRemoveAuthorityV1BaseAccountMetasWithSystemProgram(
-  accounts: RemoveAuthorityV1InstructionAccounts,
+export function getUpdateAuthorityV1BaseAccountMetasWithSystemProgram(
+  accounts: UpdateAuthorityV1InstructionAccounts,
   otherMetas: SolAccountMeta[] = [],
-): RemoveAuthorityV1BaseAccountMetasWithSystemProgram {
-  const accountMetas = getRemoveAuthorityV1BaseAccountMetas(accounts);
+): UpdateAuthorityV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getUpdateAuthorityV1BaseAccountMetas(accounts);
 
   return [...accountMetas, ...otherMetas];
 }

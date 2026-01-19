@@ -18,6 +18,7 @@ import { SessionBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
 import { Ed25519Instruction, Secp256r1Instruction } from '../instructions';
 import type { InstructionDataOptions } from '../instructions/interface';
+import type { UpdateAuthorityActionsInfo } from '../updateAuthorityAction';
 import type { Secp256r1BasedAuthority } from './based';
 
 export class Secp256r1SessionAuthority
@@ -158,6 +159,29 @@ export class Secp256r1SessionAuthority
     );
   }
 
+  updateAuthority(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    roleId: number;
+    roleIdToUpdate: number;
+    updateActionsInfo: UpdateAuthorityActionsInfo;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256r1Instruction.updateAuthorityV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+      },
+      {
+        actingRoleId: args.roleId,
+        authorityData: this.data,
+        authorityToUpdateId: args.roleIdToUpdate,
+        updateActionsPayload: args.updateActionsInfo.data,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
   createSession(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
@@ -255,6 +279,7 @@ export class Secp256r1SessionAuthority
   subAccountWithdrawSol(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     amount: bigint;
@@ -264,6 +289,7 @@ export class Secp256r1SessionAuthority
       {
         payer: args.payer,
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         subAccount: args.subAccount,
       },
       {
@@ -278,6 +304,7 @@ export class Secp256r1SessionAuthority
   async subAccountWithdrawToken(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     mint: SolPublicKeyData;
@@ -286,14 +313,16 @@ export class Secp256r1SessionAuthority
     options: InstructionDataOptions;
   }) {
     const mint = new SolPublicKey(args.mint).toAddress();
-    const swigAddress = new SolPublicKey(args.swigAddress).toAddress();
+    const swigSystemAddress = new SolPublicKey(
+      args.swigSystemAddress,
+    ).toAddress();
     const subAccount = new SolPublicKey(args.subAccount).toAddress();
     const tokenProgram =
       new SolPublicKey(args.subAccount).toAddress() ?? TOKEN_PROGRAM_ADDRESS;
 
     const [swigToken] = await findAssociatedTokenPda({
       mint,
-      owner: swigAddress,
+      owner: swigSystemAddress,
       tokenProgram,
     });
 
@@ -307,6 +336,7 @@ export class Secp256r1SessionAuthority
       {
         payer: args.payer,
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         subAccount: args.subAccount,
         subAccountToken,
         swigToken,

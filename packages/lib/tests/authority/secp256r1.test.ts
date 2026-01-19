@@ -364,9 +364,7 @@ describe('Secp256r1 Authority', () => {
       }
     });
 
-    // Note: Secp256r1 session creation requires Instructions sysvar account setup
-    // which isn't fully supported in LiteSVM. These tests document expected behavior.
-    test.skip('sessionKey returns SolPublicKey after session created', async () => {
+    test('sessionKey returns SolPublicKey after session created', async () => {
       const svm = getSvm();
       const [payer] = getFundedKeys(svm, 1);
       const sessionKey = generateTestKeypair();
@@ -409,7 +407,7 @@ describe('Secp256r1 Authority', () => {
       }
     });
 
-    test.skip('expirySlot returns correct value after session created', async () => {
+    test('expirySlot returns correct value after session created', async () => {
       const svm = getSvm();
       const [payer] = getFundedKeys(svm, 1);
       const sessionKey = generateTestKeypair();
@@ -451,7 +449,7 @@ describe('Secp256r1 Authority', () => {
       }
     });
 
-    test.skip('matchesSigner returns true for session key after session created', async () => {
+    test('matchesSigner returns true for session key after session created', async () => {
       const svm = getSvm();
       const [payer] = getFundedKeys(svm, 1);
       const sessionKey = generateTestKeypair();

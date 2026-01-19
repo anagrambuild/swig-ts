@@ -70,22 +70,17 @@ export function getSubAccountCreateV1BaseAccountMetasWithAuthority(
   return [metas, authorityIndex];
 }
 
-// export type SubAccountCreateV1BaseAccountMetasWithSystemProgram = [
-//   ...SubAccountCreateV1BaseAccountMetas,
-//   ReadonlyAccount<>,
-// ];
+export type SubAccountCreateV1BaseAccountMetasWithSystemProgram = [
+  ...SubAccountCreateV1BaseAccountMetas,
+  // SolAccountMeta,
+  ...SolAccountMeta[],
+];
 
-// export function getSubAccountCreateV1BaseAccountMetasWithSystemProgram(
-//   accounts: SubAccountCreateV1InstructionAccounts,
-// ): SubAccountCreateV1BaseAccountMetasWithSystemProgram {
-//   const accountMetas = getSubAccountCreateV1BaseAccountMetas(accounts);
+export function getSubAccountCreateV1BaseAccountMetasWithSystemProgram(
+  accounts: SubAccountCreateV1InstructionAccounts,
+  otherMetas: SolAccountMeta[] = [],
+): SubAccountCreateV1BaseAccountMetasWithSystemProgram {
+  const accountMetas = getSubAccountCreateV1BaseAccountMetas(accounts);
 
-//   return [
-//     ...accountMetas,
-//     {
-//       pubkey: SystemProgram.programId,
-//       isSigner: false,
-//       isWritable: false,
-//     },
-//   ];
-// }
+  return [...accountMetas, ...otherMetas];
+}

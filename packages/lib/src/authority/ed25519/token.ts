@@ -13,6 +13,7 @@ import { findSwigSubAccountPdaRaw } from '../../utils';
 import { Authority, TokenBasedAuthority } from '../abstract';
 import type { CreateAuthorityInfo } from '../createAuthority';
 import { Ed25519Instruction } from '../instructions';
+import type { UpdateAuthorityActionsInfo } from '../updateAuthorityAction';
 import type { Ed25519BasedAuthority } from './based';
 
 export class Ed25519Authority
@@ -118,6 +119,27 @@ export class Ed25519Authority
     );
   }
 
+  updateAuthority(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    roleId: number;
+    roleIdToUpdate: number;
+    updateActionsInfo: UpdateAuthorityActionsInfo;
+  }) {
+    return Ed25519Instruction.updateAuthorityV1Instruction(
+      {
+        payer: args.payer,
+        swig: args.swigAddress,
+      },
+      {
+        actingRoleId: args.roleId,
+        authorityData: this.data,
+        authorityToUpdateId: args.roleIdToUpdate,
+        updateActionsPayload: args.updateActionsInfo.data,
+      },
+    );
+  }
+
   async subAccountCreate(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
@@ -188,6 +210,7 @@ export class Ed25519Authority
   subAccountWithdrawSol(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     amount: bigint;
@@ -196,6 +219,7 @@ export class Ed25519Authority
       {
         payer: args.payer,
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         subAccount: args.subAccount,
       },
       {
@@ -209,6 +233,7 @@ export class Ed25519Authority
   async subAccountWithdrawToken(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     subAccount: SolPublicKeyData;
     roleId: number;
     mint: SolPublicKeyData;
@@ -216,14 +241,16 @@ export class Ed25519Authority
     tokenProgram?: SolPublicKeyData;
   }) {
     const mint = new SolPublicKey(args.mint).toAddress();
-    const swigAddress = new SolPublicKey(args.swigAddress).toAddress();
+    const swigSystemAddress = new SolPublicKey(
+      args.swigSystemAddress,
+    ).toAddress();
     const subAccount = new SolPublicKey(args.subAccount).toAddress();
     const tokenProgram =
       new SolPublicKey(args.subAccount).toAddress() ?? TOKEN_PROGRAM_ADDRESS;
 
     const [swigToken] = await findAssociatedTokenPda({
       mint,
-      owner: swigAddress,
+      owner: swigSystemAddress,
       tokenProgram,
     });
 
@@ -236,6 +263,7 @@ export class Ed25519Authority
       {
         payer: args.payer,
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         subAccount: args.subAccount,
         subAccountToken,
         swigToken,
