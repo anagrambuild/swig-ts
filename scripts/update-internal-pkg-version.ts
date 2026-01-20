@@ -11,7 +11,7 @@ fs.readdirSync(PACKAGES_DIR).forEach((dir) => {
   const pkgPath = path.join(PACKAGES_DIR, dir, "package.json");
   if (fs.existsSync(pkgPath)) {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-    // @ts-ignore
+    // @ts-expect-error dynamic key access
     packageVersions[pkg.name] = pkg.version;
   }
 });
@@ -20,7 +20,7 @@ fs.readdirSync(PAYMASTER_DIR).forEach((dir) => {
   const pkgPath = path.join(PAYMASTER_DIR, dir, 'package.json');
   if (fs.existsSync(pkgPath)) {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-    // @ts-ignore
+    // @ts-expect-error dynamic key access
     packageVersions[pkg.name] = pkg.version;
   }
 });
@@ -39,9 +39,9 @@ fs.readdirSync(PACKAGES_DIR).forEach((dir) => {
     if (!deps) return;
 
     Object.entries(deps).forEach(([dep, version]) => {
-      // @ts-ignore
+      // @ts-expect-error dynamic key access
       if (version === "workspace:*" && packageVersions[dep]) {
-        // @ts-ignore
+        // @ts-expect-error dynamic key access
         deps[dep] = packageVersions[dep];
         updated = true;
       }
@@ -66,9 +66,9 @@ fs.readdirSync(PAYMASTER_DIR).forEach((dir) => {
     if (!deps) return;
 
     Object.entries(deps).forEach(([dep, version]) => {
-      // @ts-ignore
+      // @ts-expect-error dynamic key access
       if (version === "workspace:*" && packageVersions[dep]) {
-        // @ts-ignore
+        // @ts-expect-error dynamic key access
         deps[dep] = packageVersions[dep];
         updated = true;
       }

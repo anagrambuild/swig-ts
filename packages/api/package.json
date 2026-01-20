@@ -1,14 +1,15 @@
 {
-  "name": "@swig-wallet/paymaster-core",
+  "name": "@swig-wallet/api",
   "version": "1.0.0",
+  "description": "API clients for the Swig ecosystem (Portal and Paymaster services)",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "build-pkg": "tsup-node",
     "build": "tsup-node",
     "dev": "tsup-node --watch",
-    "lint": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src",
-    "lint:fix": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src --fix",
+    "lint": "eslint --config ../../eslint.config.mjs --ext js,ts,tsx src",
+    "lint:fix": "eslint --config ../../eslint.config.mjs --ext js,ts,tsx src --fix",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
@@ -20,22 +21,17 @@
     "dist"
   ],
   "devDependencies": {
-    "@types/bn.js": "^5.2.0",
     "@types/bun": "^1.2.5",
     "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^10.1.1",
-    "litesvm": "^0.2.0",
     "prettier": "^3.3.3",
     "prettier-plugin-organize-imports": "^4.0.0",
     "tsup": "^8.2.0",
     "typescript": "^5.5.3"
   },
-  "dependencies": {
-    "@solana/kit": "^2.1.0",
-    "@swig-wallet/api": "workspace:*"
-  },
+  "dependencies": {},
   "peerDependencies": {}
 }

@@ -18,10 +18,6 @@ export type {
   PaymasterConfig,
   RetryOptions,
   SerializedTransaction,
-  SignRequest,
-  SignResponse,
-  SponsorRequest,
-  SponsorResponse,
 } from './types.js';
 
 export { PaymasterError } from './types.js';

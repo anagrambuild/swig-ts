@@ -24,17 +24,19 @@ else
   git pull origin "$BRANCH" -q
 fi
 
-cd $PROGRAM_DIR
+PROGRAM_DEPLOY_DIR=$PROGRAM_DIR/target/deploy
+
+cd $PROGRAM_DIR/program
 
 echo "Program directory updated!"
 echo "building swig program..."
 cargo build-sbf --arch v1 -- -q > /dev/null 2>&1
 
 # Find and copy the built program file (remove the duplicate cp command)
-if [ -f target/deploy/swig.so ]; then
-    cp target/deploy/swig.so $WORKSPACE_DIR
-elif [ -f target/deploy/*.so ]; then
-    cp target/deploy/*.so $WORKSPACE_DIR/swig.so
+if [ -f $PROGRAM_DEPLOY_DIR/swig.so ]; then
+    cp $PROGRAM_DEPLOY_DIR/swig.so $WORKSPACE_DIR
+elif [ -f $PROGRAM_DEPLOY_DIR/*.so ]; then
+    cp $PROGRAM_DEPLOY_DIR/*.so $WORKSPACE_DIR/swig.so
 else
     echo "❌ Could not find built program file"
     find target -name "*.so" -type f | head -5
