@@ -164,6 +164,37 @@ async function executeUltraOrder(
   return response.json();
 }
 
+/**
+ * Decompile a VersionedTransaction's instructions back to TransactionInstruction[]
+ */
+function decompileInstructions(
+  tx: VersionedTransaction,
+  lookupTableAccounts: AddressLookupTableAccount[],
+): TransactionInstruction[] {
+  const message = tx.message;
+  const accountKeys = message.getAccountKeys({
+    addressLookupTableAccounts: lookupTableAccounts,
+  });
+
+  return message.compiledInstructions.map((compiledIx) => {
+    const programId = accountKeys.get(compiledIx.programIdIndex)!;
+    const keys = compiledIx.accountKeyIndexes.map((index) => {
+      const pubkey = accountKeys.get(index)!;
+      return {
+        pubkey,
+        isSigner: message.isAccountSigner(index),
+        isWritable: message.isAccountWritable(index),
+      };
+    });
+
+    return new TransactionInstruction({
+      programId,
+      keys,
+      data: Buffer.from(compiledIx.data),
+    });
+  });
+}
+
 async function main() {
   // Check for keypair file argument
   if (process.argv.length < 3) {
@@ -329,35 +360,19 @@ async function main() {
   );
   console.log(`   Request ID: ${orderResponse.requestId}`);
 
-  // Step 2: Decode the transaction from Jupiter to understand its structure
+  // Step 2: Decode the transaction from Jupiter
   const swapTxBuffer = Buffer.from(orderResponse.transaction, 'base64');
   const swapTx = VersionedTransaction.deserialize(swapTxBuffer);
 
-  // Step 3: Create the funding instruction from Swig to ephemeral keypair
-  // We need to fund the ephemeral keypair with SOL before the swap
-  const fundingInstruction = SystemProgram.transfer({
-    fromPubkey: swigWalletAddress,
-    toPubkey: ephemeralKeypair.publicKey,
-    lamports: Math.floor(swapAmount) + 10000, // Add extra for fees
-  });
-
-  // Get the sign instructions for funding from Swig
-  const rootRole = swig.findRolesByEd25519SignerPk(rootUser.publicKey)[0];
-  const fundingSignIxs = await getSignInstructions(swig, rootRole.id, [
-    fundingInstruction,
-  ]);
-
-  // Step 4: Build the complete transaction
-  // The transaction flow:
-  // 1. Swig signs and transfers SOL to ephemeral keypair
-  // 2. Ephemeral keypair executes the Jupiter swap (output goes to Swig wallet via receiver param)
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash();
-
-  // Get lookup tables from the Jupiter transaction if any
+  // Step 3: Get lookup tables from the Jupiter transaction
   const lookupTableAccounts: AddressLookupTableAccount[] = [];
 
   if (swapTx.message.addressTableLookups.length > 0) {
+    console.log(
+      chalk.blue(
+        `Fetching ${swapTx.message.addressTableLookups.length} address lookup tables...`,
+      ),
+    );
     const lookupTablePromises = swapTx.message.addressTableLookups.map(
       async (lookup) => {
         const res = await connection.getAddressLookupTable(lookup.accountKey);
@@ -372,78 +387,71 @@ async function main() {
     }
   }
 
-  // Combine the funding from Swig and the Jupiter swap transaction
-  // We need to create a new transaction that:
-  // 1. First executes the Swig sign instructions (funding)
-  // 2. Then executes the Jupiter swap
+  // Step 4: Decompile Jupiter transaction to get its instructions
+  const jupiterInstructions = decompileInstructions(
+    swapTx,
+    lookupTableAccounts,
+  );
+  console.log(
+    chalk.blue(`Decompiled ${jupiterInstructions.length} Jupiter instructions`),
+  );
+
+  // Step 5: Create the funding instruction from Swig to ephemeral keypair
+  // This transfers SOL from the Swig wallet to fund the ephemeral keypair for the swap
+  const fundingInstruction = SystemProgram.transfer({
+    fromPubkey: swigWalletAddress,
+    toPubkey: ephemeralKeypair.publicKey,
+    lamports: Math.floor(swapAmount) + 10000, // Add extra for fees
+  });
+
+  // Get the sign instructions for funding from Swig
+  const rootRole = swig.findRolesByEd25519SignerPk(rootUser.publicKey)[0];
+  const fundingSignIxs = await getSignInstructions(swig, rootRole.id, [
+    fundingInstruction,
+  ]);
+
+  // Step 6: Build the combined transaction
+  // Order: Swig funding instructions first, then Jupiter swap instructions
+  const { blockhash, lastValidBlockHeight } =
+    await connection.getLatestBlockhash();
+
+  const combinedInstructions = [...fundingSignIxs, ...jupiterInstructions];
+
+  console.log(
+    chalk.blue(
+      `Building combined transaction with ${combinedInstructions.length} instructions`,
+    ),
+  );
+  console.log(
+    chalk.gray(`   - ${fundingSignIxs.length} Swig funding instructions`),
+  );
+  console.log(
+    chalk.gray(`   - ${jupiterInstructions.length} Jupiter swap instructions`),
+  );
+
   const combinedMessageV0 = new TransactionMessage({
     payerKey: rootUser.publicKey,
     recentBlockhash: blockhash,
-    instructions: [...fundingSignIxs],
+    instructions: combinedInstructions,
   }).compileToV0Message(lookupTableAccounts);
 
-  const fundingTx = new VersionedTransaction(combinedMessageV0);
-  fundingTx.sign([rootUser]);
+  const combinedTx = new VersionedTransaction(combinedMessageV0);
 
-  // Send the funding transaction first
-  console.log(chalk.blue('\nSending funding transaction from Swig...'));
-  const fundingSig = await connection.sendTransaction(fundingTx, {
-    skipPreflight: true,
-    preflightCommitment: 'confirmed',
-  });
-  const fundingResult = await connection.confirmTransaction({
-    signature: fundingSig,
-    blockhash,
-    lastValidBlockHeight,
-  });
-
-  if (fundingResult.value.err) {
-    throw new Error(
-      `Funding transaction failed: ${JSON.stringify(fundingResult.value.err)}`,
-    );
-  }
-  console.log(chalk.green('Funding transaction confirmed:'), fundingSig);
-
-  // Step 5: Sign the Jupiter swap transaction with the ephemeral keypair
-  // Re-fetch a fresh order since the previous one might have expired
-  console.log(chalk.blue('\nGetting fresh Ultra order for execution...'));
-  const freshOrderResponse = await getUltraOrder(
-    wrappedSolMint.toBase58(),
-    usdcMint.toBase58(),
-    Math.floor(swapAmount).toString(),
-    ephemeralKeypair.publicKey.toBase58(),
-    swigWalletAddress.toBase58(),
-    jupiterApiKey,
-  );
-
-  if (freshOrderResponse.errorCode || !freshOrderResponse.transaction) {
-    console.error(
-      chalk.red(
-        `Failed to get fresh order: ${freshOrderResponse.errorMessage}`,
-      ),
-    );
-    process.exit(1);
-  }
-
-  const freshSwapTxBuffer = Buffer.from(
-    freshOrderResponse.transaction,
-    'base64',
-  );
-  const freshSwapTx = VersionedTransaction.deserialize(freshSwapTxBuffer);
-
-  // Sign with ephemeral keypair
-  freshSwapTx.sign([ephemeralKeypair]);
+  // Sign with both rootUser (for Swig instructions) and ephemeralKeypair (for Jupiter swap)
+  combinedTx.sign([rootUser, ephemeralKeypair]);
 
   // Serialize the signed transaction
-  const signedTransaction = Buffer.from(freshSwapTx.serialize()).toString(
+  const signedTransaction = Buffer.from(combinedTx.serialize()).toString(
     'base64',
   );
 
-  // Step 6: Execute via Jupiter Ultra API
-  console.log(chalk.blue('\nExecuting swap via Jupiter Ultra...'));
+  // Step 7: Execute via Jupiter Ultra API
+  console.log(
+    chalk.blue('\nExecuting combined transaction via Jupiter Ultra...'),
+  );
   const executeResponse = await executeUltraOrder(
     signedTransaction,
-    freshOrderResponse.requestId,
+    orderResponse.requestId,
     jupiterApiKey,
   );
 
@@ -464,7 +472,7 @@ async function main() {
     ),
   );
 
-  // Step 7: Transfer any remaining SOL from ephemeral keypair back to Swig
+  // Step 8: Transfer any remaining SOL from ephemeral keypair back to Swig
   // Wait a bit for the state to settle
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
