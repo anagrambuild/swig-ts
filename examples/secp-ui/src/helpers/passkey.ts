@@ -15,7 +15,7 @@ export class PasskeyManager {
   /**
    * Create a new passkey credential for authentication
    */
-  static createPasskey = async(
+  static createPasskey = async (
     username: string = 'swig-user',
   ): Promise<PasskeyCredential> => {
     if (!window.navigator.credentials) {
@@ -74,7 +74,7 @@ export class PasskeyManager {
     this.storeCredential(passkeyCredential);
 
     return passkeyCredential;
-  }
+  };
 
   private static spkiToCompressedPublicKey = (spkiPublicKey: ArrayBuffer) => {
     // Ensure the input is a Uint8Array for easier manipulation
@@ -111,12 +111,12 @@ export class PasskeyManager {
     compressedKey.set(x, 1); // Set the X-coordinate after the prefix
 
     return compressedKey;
-  }
+  };
 
   /**
    * Sign a message using the stored passkey
    */
-  static signWithPasskey = async(
+  static signWithPasskey = async (
     messageHash: Uint8Array,
   ): Promise<SigningResult> => {
     const credential = this.getStoredCredential();
@@ -125,7 +125,10 @@ export class PasskeyManager {
     }
 
     return signWithSecp256r1Webauthn({
-      challenge: messageHash,
+      challenge: messageHash.buffer.slice(
+        messageHash.byteOffset,
+        messageHash.byteOffset + messageHash.byteLength,
+      ) as ArrayBuffer,
       allowCredentials: [
         {
           id: credential.rawId,
@@ -135,7 +138,7 @@ export class PasskeyManager {
       timeout: 60000,
       userVerification: 'preferred',
     });
-  }
+  };
 
   /**
    * Get the stored passkey credential
@@ -155,12 +158,12 @@ export class PasskeyManager {
       console.error('Failed to parse stored credential:', error);
       return null;
     }
-  }
+  };
 
   /**
    * Store the passkey credential
    */
-  private static storeCredential = (credential: PasskeyCredential): void  => {
+  private static storeCredential = (credential: PasskeyCredential): void => {
     const toStore = {
       id: credential.id,
       publicKey: Array.from(credential.publicKey),
@@ -168,14 +171,14 @@ export class PasskeyManager {
     };
 
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(toStore));
-  }
+  };
 
   /**
    * Clear the stored passkey credential
    */
   static clearStoredCredential = (): void => {
     localStorage.removeItem(this.STORAGE_KEY);
-  }
+  };
 
   /**
    * Check if passkey is supported
@@ -188,7 +191,7 @@ export class PasskeyManager {
       'get' in window.navigator.credentials &&
       window.PublicKeyCredential
     );
-  }
+  };
 
   /**
    * Convert ArrayBuffer to base64 string
@@ -200,7 +203,7 @@ export class PasskeyManager {
       binary += String.fromCharCode(bytes[i]);
     }
     return window.btoa(binary);
-  }
+  };
 
   /**
    * Convert base64 string to ArrayBuffer
@@ -212,5 +215,5 @@ export class PasskeyManager {
       bytes[i] = binary.charCodeAt(i);
     }
     return bytes.buffer;
-  }
+  };
 }
