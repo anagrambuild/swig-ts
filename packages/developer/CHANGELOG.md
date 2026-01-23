@@ -1,6 +1,6 @@
 # @swig-wallet/developer
 
-## 2.0.0
+## 1.0.0
 
 ### Major Changes
 
@@ -11,5 +11,5 @@
 - Updated dependencies [3636769]
 - Updated dependencies [814aebd]
 - Updated dependencies [3636769]
-  - @swig-wallet/api@2.0.0
+  - @swig-wallet/api@1.0.0
   - @swig-wallet/lib@1.5.0
