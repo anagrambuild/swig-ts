@@ -162,6 +162,64 @@ export function createSecp256r1SessionAuthorityInfo(
   return { data, type };
 }
 
+/**
+ * Creates authority info for any authority type.
+ * Delegates to the appropriate create*AuthorityInfo function based on type.
+ *
+ * @param type The authority type
+ * @param id The authority identifier (public key bytes)
+ * @param maxDurationSlots Maximum session duration in slots (required for session types)
+ * @param sessionKey Optional session key for session authorities
+ * @returns CreateAuthorityInfo
+ */
+export function getCreateAuthorityInfo(
+  type: AuthorityType,
+  id: Uint8Array,
+  maxDurationSlots?: bigint,
+  sessionKey?: SolPublicKeyData,
+): CreateAuthorityInfo {
+  if (type === AuthorityType.Ed25519) {
+    return createEd25519AuthorityInfo(id);
+  }
+  if (type === AuthorityType.Ed25519Session) {
+    if (maxDurationSlots === undefined) {
+      throw new Error('Session authority requires maxDurationSlots');
+    }
+    return createEd25519SessionAuthorityInfo(
+      id,
+      maxDurationSlots,
+      sessionKey ? new SolPublicKey(sessionKey) : undefined,
+    );
+  }
+  if (type === AuthorityType.Secp256k1) {
+    return createSecp256k1AuthorityInfo(id);
+  }
+  if (type === AuthorityType.Secp256k1Session) {
+    if (maxDurationSlots === undefined) {
+      throw new Error('Session authority requires maxDurationSlots');
+    }
+    return createSecp256k1SessionAuthorityInfo(
+      id,
+      maxDurationSlots,
+      sessionKey,
+    );
+  }
+  if (type === AuthorityType.Secp256r1) {
+    return createSecp256r1AuthorityInfo(id);
+  }
+  if (type === AuthorityType.Secp256r1Session) {
+    if (maxDurationSlots === undefined) {
+      throw new Error('Session authority requires maxDurationSlots');
+    }
+    return createSecp256r1SessionAuthorityInfo(
+      id,
+      maxDurationSlots,
+      sessionKey,
+    );
+  }
+  throw new Error(`Unsupported authority type: ${type}`);
+}
+
 /////////////////////////
 /// Mock Authority
 /////////////////////////

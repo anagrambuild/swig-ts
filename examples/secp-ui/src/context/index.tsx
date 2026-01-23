@@ -3,7 +3,7 @@ import '@rainbow-me/rainbowkit/styles.css';
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { ConnectionProvider } from '@solana/wallet-adapter-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { createWalletClient } from 'viem';
 import { createConfig, http, WagmiProvider } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
