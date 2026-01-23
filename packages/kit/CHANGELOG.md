@@ -1,5 +1,19 @@
 # @swig-wallet/classic
 
+## 1.5.0
+
+### Minor Changes
+
+- 814aebd: - getUpdateAuthorityV1Instruction
+
+### Patch Changes
+
+- Updated dependencies [814aebd]
+- Updated dependencies [814aebd]
+- Updated dependencies [3636769]
+  - @swig-wallet/lib@1.5.0
+  - @swig-wallet/coder@1.5.0
+
 ## 1.4.2
 
 ### Patch Changes
