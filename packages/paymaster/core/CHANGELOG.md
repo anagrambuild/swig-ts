@@ -1,5 +1,13 @@
 # @swig-wallet/paymaster-core
 
+## 1.0.1
+
+### Patch Changes
+
+- 3636769: Refactor to use @swig-wallet/api internally
+- Updated dependencies [3636769]
+  - @swig-wallet/api@2.0.0
+
 ## 1.0.0
 
 ### Major Changes

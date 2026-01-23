@@ -1,5 +1,13 @@
 # @swig-wallet/coder
 
+## 1.5.0
+
+### Minor Changes
+
+- 814aebd: - UpdateAuthorityV1 Instruction data codec
+  - RemoveAuthorityV1 codec fix
+  - SubAccountToggleV1 codec fix
+
 ## 1.4.2
 
 ## 1.4.1

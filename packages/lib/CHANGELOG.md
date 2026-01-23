@@ -1,5 +1,20 @@
 # @swig-wallet/classic
 
+## 1.5.0
+
+### Minor Changes
+
+- 814aebd: - UpdateAuthorityV1InstructionContext
+  - WithdrawFromSubAccountV1 with AccountV2 changes
+  - R1 Instruction accounts patch
+  - SubAccountSignV1/ToggleV1 account role fixes for Secp256k1/Secp256r1
+- 3636769: Export AuthorityInfo class for SDK integration
+
+### Patch Changes
+
+- Updated dependencies [814aebd]
+  - @swig-wallet/coder@1.5.0
+
 ## 1.4.2
 
 ### Patch Changes
