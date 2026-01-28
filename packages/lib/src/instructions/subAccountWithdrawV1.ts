@@ -20,24 +20,24 @@ export type SubAccountWithdrawV1TokenInstructionAccounts =
   };
 
 export type SubAccountWithdrawV1BaseAccountMetas = [
-  SolAccountMeta, // swig
-  SolAccountMeta, // payer
-  SolAccountMeta, // subAccount
+  SolAccountMeta,
+  SolAccountMeta,
+  SolAccountMeta,
 ];
 
 export type SubAccountWithdrawV1SolAccountMetas = [
-  SolAccountMeta, // swig
-  SolAccountMeta, // payer
-  SolAccountMeta, // subAccount
-  SolAccountMeta, // swigSystemAddress
-  SolAccountMeta, // system_program
+  SolAccountMeta,
+  SolAccountMeta,
+  SolAccountMeta,
+  SolAccountMeta,
+  SolAccountMeta,
 ];
 
 export type SubAccountWithdrawV1TokenAccountMetas = [
   ...SubAccountWithdrawV1SolAccountMetas,
-  SolAccountMeta, // subAccountToken
-  SolAccountMeta, // swigToken
-  SolAccountMeta, // tokenProgram
+  SolAccountMeta,
+  SolAccountMeta,
+  SolAccountMeta,
 ];
 
 export function getSubAccountWithdrawV1SolAccountMetas(
