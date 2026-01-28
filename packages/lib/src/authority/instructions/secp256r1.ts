@@ -25,7 +25,7 @@ import {
   getSubAccountCreateV1BaseAccountMetasWithSystemProgram,
   getSubAccountSignV1BaseAccountMetasWithSystemProgram,
   getSubAccountToggleV1BaseAccountMetasWithSystemProgram,
-  getSubAccountWithdrawV1AccountMetasWithSystemProgram,
+  getSubAccountWithdrawV1AccountMetasWithAuthorityContext,
   getSubAccountWithdrawV1SolAccountMetas,
   getSubAccountWithdrawV1TokenAccountMetas,
   getTransferAssetsV1BaseAccountMetasWithSystemProgram,
@@ -466,11 +466,11 @@ export const Secp256r1Instruction: AuthorityInstruction = {
     });
 
     const baseMetas = getSubAccountWithdrawV1SolAccountMetas(accounts);
-    const accountMetas = getSubAccountWithdrawV1AccountMetasWithSystemProgram(
-      baseMetas,
-      baseMetas.length,
-      [instructionsSysvar],
-    );
+    const [accountMetas] =
+      getSubAccountWithdrawV1AccountMetasWithAuthorityContext(
+        baseMetas,
+        instructionsSysvar,
+      );
 
     const { payloadEncoder } = getSubAccountWithdrawV1InstructionDataCodec();
 
@@ -510,11 +510,11 @@ export const Secp256r1Instruction: AuthorityInstruction = {
     });
 
     const baseMetas = getSubAccountWithdrawV1TokenAccountMetas(accounts);
-    const accountMetas = getSubAccountWithdrawV1AccountMetasWithSystemProgram(
-      baseMetas,
-      baseMetas.length,
-      [instructionsSysvar],
-    );
+    const [accountMetas] =
+      getSubAccountWithdrawV1AccountMetasWithAuthorityContext(
+        baseMetas,
+        instructionsSysvar,
+      );
 
     const { payloadEncoder } = getSubAccountWithdrawV1InstructionDataCodec();
 

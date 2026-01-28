@@ -178,11 +178,9 @@ describe('SubAccountWithdrawV1 Instruction', () => {
   // ============================================================================
   // Secp256k1 Authority Tests
   // ============================================================================
-  // Note: Secp256k1 sub-account withdraw fails with "insufficient account keys"
-  // The instruction builder may be missing required accounts for secp256k1 signatures
 
   describe('Secp256k1 authority with sub-account', () => {
-    test.skip('withdraws SOL from sub-account', async () => {
+    test('withdraws SOL from sub-account', async () => {
       const svm = getSvm();
       const [payer, root] = getFundedKeys(svm, 2);
       const swigId = randomBytes(32);
@@ -274,11 +272,9 @@ describe('SubAccountWithdrawV1 Instruction', () => {
   // ============================================================================
   // Secp256r1 Authority Tests
   // ============================================================================
-  // Note: Secp256r1 sub-account withdraw fails with custom program error
-  // The instruction builder may be missing required accounts for secp256r1 signatures
 
   describe('Secp256r1 authority with sub-account', () => {
-    test.skip('withdraws SOL from sub-account', async () => {
+    test('withdraws SOL from sub-account', async () => {
       const svm = getSvm();
       const [payer, root] = getFundedKeys(svm, 2);
       const swigId = randomBytes(32);
