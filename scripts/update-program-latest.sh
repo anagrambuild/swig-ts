@@ -29,18 +29,28 @@ PROGRAM_DEPLOY_DIR=$PROGRAM_DIR/target/deploy
 cd $PROGRAM_DIR/program
 
 echo "Program directory updated!"
-echo "building swig program..."
+echo "Building swig program..."
 cargo build-sbf --arch v1 -- -q > /dev/null 2>&1
 
-# Find and copy the built program file (remove the duplicate cp command)
+echo "Building test-program-authority..."
+cargo build-sbf --arch v1 -p test-program-authority --features program_scope_test -- -q > /dev/null 2>&1
+
+# Copy the main swig program
 if [ -f $PROGRAM_DEPLOY_DIR/swig.so ]; then
     cp $PROGRAM_DEPLOY_DIR/swig.so $WORKSPACE_DIR
-elif [ -f $PROGRAM_DEPLOY_DIR/*.so ]; then
-    cp $PROGRAM_DEPLOY_DIR/*.so $WORKSPACE_DIR/swig.so
+    echo "✅ Main program copied: $WORKSPACE_DIR/swig.so"
 else
-    echo "❌ Could not find built program file"
+    echo "❌ Could not find swig.so"
     find target -name "*.so" -type f | head -5
     exit 1
-fi 
+fi
 
-echo "✅ Program updated: $WORKSPACE_DIR/swig.so"
+# Copy the test program authority (for ProgramExec testing)
+if [ -f $PROGRAM_DEPLOY_DIR/test_program_authority.so ]; then
+    cp $PROGRAM_DEPLOY_DIR/test_program_authority.so $WORKSPACE_DIR
+    echo "✅ Test program copied: $WORKSPACE_DIR/test_program_authority.so"
+else
+    echo "⚠️ Could not find test_program_authority.so (optional for testing)"
+fi
+
+echo "✅ Program update complete!"

@@ -8,6 +8,8 @@ import { p256 } from '@noble/curves/nist';
 import {
   createEd25519AuthorityInfo,
   createEd25519SessionAuthorityInfo,
+  createProgramExecAuthorityInfo,
+  createProgramExecSessionAuthorityInfo,
   createSecp256k1AuthorityInfo,
   createSecp256k1SessionAuthorityInfo,
   createSecp256r1AuthorityInfo,
@@ -17,7 +19,8 @@ import {
   type CreateAuthorityInfo,
   type SigningFn,
 } from '../../src';
-import { generateTestKeypair, type TestKeypair } from '../helpers';
+import { TEST_PROGRAM_ID, VALID_DISCRIMINATOR } from '../context';
+import { generateTestKeypair, toPublicKey, type TestKeypair } from '../helpers';
 
 // ============================================================================
 // Types
@@ -27,9 +30,11 @@ export type AuthorityType =
   | 'Ed25519'
   | 'Secp256k1'
   | 'Secp256r1'
+  | 'ProgramExec'
   | 'Ed25519Session'
   | 'Secp256k1Session'
-  | 'Secp256r1Session';
+  | 'Secp256r1Session'
+  | 'ProgramExecSession';
 
 export interface TestAuthority {
   name: AuthorityType;
@@ -192,6 +197,56 @@ export function createTestSecp256r1SessionAuthority(
 }
 
 // ============================================================================
+// ProgramExec Authority
+// ============================================================================
+
+export interface ProgramExecTestAuthority extends TestAuthority {
+  programId: Uint8Array;
+  instructionPrefix: Uint8Array;
+}
+
+export function createTestProgramExecAuthority(): ProgramExecTestAuthority {
+  const programId = toPublicKey(TEST_PROGRAM_ID).toBytes();
+  const instructionPrefix = VALID_DISCRIMINATOR;
+  const authorityInfo = createProgramExecAuthorityInfo(
+    programId,
+    instructionPrefix,
+  );
+
+  return {
+    name: 'ProgramExec',
+    authorityInfo,
+    signingFn: null, // ProgramExec uses instruction validation, not signatures
+    signer: null,
+    isSession: false,
+    programId,
+    instructionPrefix,
+  };
+}
+
+export function createTestProgramExecSessionAuthority(
+  maxSessionDuration = 1000n,
+): ProgramExecTestAuthority {
+  const programId = toPublicKey(TEST_PROGRAM_ID).toBytes();
+  const instructionPrefix = VALID_DISCRIMINATOR;
+  const authorityInfo = createProgramExecSessionAuthorityInfo(
+    programId,
+    instructionPrefix,
+    maxSessionDuration,
+  );
+
+  return {
+    name: 'ProgramExecSession',
+    authorityInfo,
+    signingFn: null,
+    signer: null,
+    isSession: true,
+    programId,
+    instructionPrefix,
+  };
+}
+
+// ============================================================================
 // Authority Factory Collections
 // ============================================================================
 
@@ -202,6 +257,11 @@ export const BASE_AUTHORITY_FACTORIES: TestAuthorityFactory[] = [
   { name: 'Ed25519', create: createTestEd25519Authority, isSession: false },
   { name: 'Secp256k1', create: createTestSecp256k1Authority, isSession: false },
   { name: 'Secp256r1', create: createTestSecp256r1Authority, isSession: false },
+  {
+    name: 'ProgramExec',
+    create: createTestProgramExecAuthority,
+    isSession: false,
+  },
 ];
 
 /**
@@ -221,6 +281,11 @@ export const SESSION_AUTHORITY_FACTORIES: TestAuthorityFactory[] = [
   {
     name: 'Secp256r1Session',
     create: createTestSecp256r1SessionAuthority,
+    isSession: true,
+  },
+  {
+    name: 'ProgramExecSession',
+    create: createTestProgramExecSessionAuthority,
     isSession: true,
   },
 ];

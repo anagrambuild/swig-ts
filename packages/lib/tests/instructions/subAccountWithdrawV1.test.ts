@@ -21,12 +21,23 @@ import {
   getSwigWalletAddressRaw,
   getWithdrawFromSubAccountInstructionContext,
 } from '../../src';
-import { fetchSwig, getFundedKeys, getSvm } from '../context';
 import {
+  fetchSwig,
+  getFundedKeys,
+  getSvm,
+  getSvmWithTestProgram,
+} from '../context';
+import {
+  createTestProgramExecAuthority,
   createTestSecp256k1Authority,
   createTestSecp256r1Authority,
 } from '../fixtures/authorities';
-import { randomBytes, sendSwigSVMTransaction, toPublicKey } from '../helpers';
+import {
+  createTestProgramPreInstruction,
+  randomBytes,
+  sendSwigSVMTransaction,
+  toPublicKey,
+} from '../helpers';
 
 const SOL = 1_000_000_000n;
 
@@ -353,6 +364,101 @@ describe('SubAccountWithdrawV1 Instruction', () => {
           currentSlot,
           signingFn: r1Authority.signingFn!,
         },
+      );
+      sendSwigSVMTransaction(svm, withdrawIx, payer);
+
+      // Verify balance changed
+      const finalSubAccountBalance = svm.getBalance(
+        toPublicKey(subAccountAddress),
+      )!;
+      const finalSwigBalance = svm.getBalance(toPublicKey(swigWalletAddress))!;
+
+      expect(initialBalance - finalSubAccountBalance).toBe(withdrawAmount);
+      expect(finalSwigBalance - initialSwigBalance).toBe(withdrawAmount);
+    });
+  });
+
+  // ============================================================================
+  // ProgramExec Authority Tests
+  // ============================================================================
+
+  describe('ProgramExec authority with sub-account', () => {
+    test.skip('withdraws SOL from sub-account', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer, root] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const programExecAuthority = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with Ed25519 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Add ProgramExec authority with subAccount permission
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        programExecAuthority.authorityInfo,
+        Actions.set().subAccount().get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      const subAccountRole = swig.roles[1];
+
+      // Create preceding instruction for ProgramExec validation
+      const precedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Create sub-account using ProgramExec authority
+      const createSubAccountIx = await getCreateSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+        { payer: payer.publicKey, preInstructions: [precedingIx] },
+      );
+      sendSwigSVMTransaction(svm, createSubAccountIx, payer);
+
+      // Fund sub-account
+      const [subAccountAddress] = await findSwigSubAccountPdaRaw(
+        subAccountRole.swigId,
+        subAccountRole.id,
+      );
+      svm.airdrop(toPublicKey(subAccountAddress), SOL);
+
+      const initialBalance = svm.getBalance(toPublicKey(subAccountAddress))!;
+      expect(initialBalance).toBeGreaterThanOrEqual(SOL);
+
+      // Withdraw SOL from sub-account using ProgramExec authority
+      swig = fetchSwig(svm, swigAddress);
+      const swigWalletAddress = await getSwigWalletAddressRaw(swig);
+      const initialSwigBalance = svm.getBalance(
+        toPublicKey(swigWalletAddress),
+      )!;
+
+      const withdrawAmount = SOL / 2n;
+
+      // Create preceding instruction for ProgramExec validation
+      const withdrawPrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      const withdrawIx = await getWithdrawFromSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+        { amount: withdrawAmount },
+        { payer: payer.publicKey, preInstructions: [withdrawPrecedingIx] },
       );
       sendSwigSVMTransaction(svm, withdrawIx, payer);
 

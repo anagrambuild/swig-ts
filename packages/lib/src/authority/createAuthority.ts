@@ -5,12 +5,18 @@ import {
   getCreateSecp256k1SessionEncoder,
   getCreateSecp256r1SessionEncoder,
   getEd25519SessionEncoder,
+  getProgramExecEncoder,
+  getProgramExecSessionEncoder,
   getSecp256k1SessionEncoder,
 } from '@swig-wallet/coder';
 import { SolPublicKey, type SolPublicKeyData } from '../solana';
 import { detectPubkeyFormat, getUnprefixedSecpBytes } from '../utils';
 import type { Authority } from './abstract';
 import { Ed25519Authority, Ed25519SessionAuthority } from './ed25519';
+import {
+  ProgramExecAuthority,
+  ProgramExecSessionAuthority,
+} from './programexec';
 import { Secp256k1Authority, Secp256k1SessionAuthority } from './secp256k1';
 import { Secp256r1Authority, Secp256r1SessionAuthority } from './secp256r1';
 
@@ -163,6 +169,70 @@ export function createSecp256r1SessionAuthorityInfo(
 }
 
 /**
+ * Creates authority info for a ProgramExec authority.
+ *
+ * @param programId The program ID that must execute the preceding instruction (32 bytes)
+ * @param instructionPrefix The instruction data prefix to match (up to 40 bytes)
+ * @returns CreateAuthorityInfo
+ */
+export function createProgramExecAuthorityInfo(
+  programId: Uint8Array,
+  instructionPrefix: Uint8Array,
+): CreateAuthorityInfo {
+  // Pad instruction prefix to 40 bytes
+  const paddedPrefix = new Uint8Array(40);
+  paddedPrefix.set(instructionPrefix.slice(0, 40));
+
+  const authorityData = getProgramExecEncoder().encode({
+    programId,
+    instructionPrefixLen: Math.min(instructionPrefix.length, 40),
+    instructionPrefix: paddedPrefix,
+  });
+
+  return {
+    data: Uint8Array.from(authorityData),
+    type: AuthorityType.ProgramExec,
+  };
+}
+
+/**
+ * Creates authority info for a ProgramExecSession authority.
+ *
+ * @param programId The program ID that must execute the preceding instruction (32 bytes)
+ * @param instructionPrefix The instruction data prefix to match (up to 40 bytes)
+ * @param maxSessionDuration Maximum session duration in slots
+ * @param sessionKey Optional session key (defaults to zeroed key)
+ * @returns CreateAuthorityInfo
+ */
+export function createProgramExecSessionAuthorityInfo(
+  programId: Uint8Array,
+  instructionPrefix: Uint8Array,
+  maxSessionDuration: bigint,
+  sessionKey?: SolPublicKeyData,
+): CreateAuthorityInfo {
+  // Pad instruction prefix to 40 bytes
+  const paddedPrefix = new Uint8Array(40);
+  paddedPrefix.set(instructionPrefix.slice(0, 40));
+
+  // Use the full session encoder which includes currentSessionExpiration
+  const sessionData = getProgramExecSessionEncoder().encode({
+    programId,
+    instructionPrefixLen: Math.min(instructionPrefix.length, 40),
+    instructionPrefix: paddedPrefix,
+    sessionKey: sessionKey
+      ? new SolPublicKey(sessionKey).toBytes()
+      : Uint8Array.from(Array(32)),
+    maxSessionLength: maxSessionDuration,
+    currentSessionExpiration: 0n, // Set to 0 for new authorities
+  });
+
+  return {
+    data: Uint8Array.from(sessionData),
+    type: AuthorityType.ProgramExecSession,
+  };
+}
+
+/**
  * Creates authority info for any authority type.
  * Delegates to the appropriate create*AuthorityInfo function based on type.
  *
@@ -275,6 +345,14 @@ export function getMockAuthorityFromCreateAuthorityInfo(
 
   if (info.type === AuthorityType.Secp256r1Session) {
     return new Secp256r1SessionAuthority(info.data);
+  }
+
+  if (info.type === AuthorityType.ProgramExec) {
+    return new ProgramExecAuthority(info.data);
+  }
+
+  if (info.type === AuthorityType.ProgramExecSession) {
+    return new ProgramExecSessionAuthority(info.data);
   }
 
   throw new Error('Error creating mock authority from CreateAuthorityInfo');

@@ -613,6 +613,8 @@ export type SwigOptions = {
   signingFn?: SigningFn;
   currentSlot?: bigint;
   payer?: SolPublicKeyData;
+  preInstructions?: SolInstruction[];
+  postInstructions?: SolInstruction[];
 };
 
 export type WithdrawSubAccountArgs<

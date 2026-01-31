@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { LiteSVM } from 'litesvm';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   getSwigCodec,
@@ -14,12 +14,26 @@ import { generateTestKeypair, toPublicKey, type TestKeypair } from './helpers';
 
 export const LAMPORTS_PER_SOL = 1_000_000_000n;
 
+// Test program authority constants (for ProgramExec testing)
+export const TEST_PROGRAM_ID = 'BXAu5ZWHnGun2XZjUZ9nqwiZ5dNVmofPGYdMC4rx4qLV';
+export const VALID_DISCRIMINATOR = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+
 export function getSvm() {
   const swigProgram = Uint8Array.from(
     readFileSync(join(__dirname, '../../../swig.so')),
   );
   const svm = new LiteSVM();
   svm.addProgram(new PublicKey(SWIG_PROGRAM_ADDRESS_STRING), swigProgram);
+  return svm;
+}
+
+export function getSvmWithTestProgram() {
+  const svm = getSvm();
+  const testProgramPath = join(__dirname, '../../../test_program_authority.so');
+  if (existsSync(testProgramPath)) {
+    const testProgram = Uint8Array.from(readFileSync(testProgramPath));
+    svm.addProgram(new PublicKey(TEST_PROGRAM_ID), testProgram);
+  }
   return svm;
 }
 

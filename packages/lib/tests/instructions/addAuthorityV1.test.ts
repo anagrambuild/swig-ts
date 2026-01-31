@@ -20,12 +20,19 @@ import {
   getSwigWalletAddressRaw,
   SolInstruction,
 } from '../../src';
-import { fetchSwig, getFundedKeys, getSvm } from '../context';
 import {
+  fetchSwig,
+  getFundedKeys,
+  getSvm,
+  getSvmWithTestProgram,
+} from '../context';
+import {
+  createTestProgramExecAuthority,
   createTestSecp256k1Authority,
   createTestSecp256r1Authority,
 } from '../fixtures/authorities';
 import {
+  createTestProgramPreInstruction,
   getTransferSolInstruction,
   randomBytes,
   sendSwigSVMTransaction,
@@ -435,6 +442,139 @@ describe('AddAuthorityV1 Instruction', () => {
           currentSlot: slot,
           signingFn: secpRoot.signingFn!,
         },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+    });
+  });
+
+  // ============================================================================
+  // ProgramExec Root Adding Authorities
+  // ============================================================================
+
+  describe('ProgramExec root adding authorities', () => {
+    test('adds Ed25519 authority', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer, newAuthority] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const programExecRoot = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with ProgramExec root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: programExecRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const precedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createEd25519AuthorityInfo(newAuthority.publicKey),
+        Actions.set().solLimit({ amount: SOL }).get(),
+        { payer: payer.publicKey, preInstructions: [precedingIx] },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const newRole = swig.findRolesByEd25519SignerPk(
+        newAuthority.publicKey,
+      )[0];
+      expect(newRole).toBeDefined();
+    });
+
+    test('adds Secp256k1 authority', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const programExecRoot = createTestProgramExecAuthority();
+      const secpNew = createTestSecp256k1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: programExecRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const precedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpNew.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+        { payer: payer.publicKey, preInstructions: [precedingIx] },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const newRole = swig.findRolesBySecp256k1SignerAddress(
+        secpNew.address,
+      )[0];
+      expect(newRole).toBeDefined();
+    });
+
+    test('adds Secp256r1 authority', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const programExecRoot = createTestProgramExecAuthority();
+      const secpNew = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: programExecRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const precedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpNew.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+        { payer: payer.publicKey, preInstructions: [precedingIx] },
       );
       sendSwigSVMTransaction(svm, addIx, payer);
 
