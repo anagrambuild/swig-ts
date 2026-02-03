@@ -5,7 +5,7 @@
  * TransactionInstructions for LiteSVM execution.
  */
 
-import { AccountRole, type Address, type IInstruction } from '@solana/kit';
+import { AccountRole, type Address, type Instruction } from '@solana/kit';
 import {
   PublicKey,
   Transaction,
@@ -46,9 +46,9 @@ function getAccountRole(isSigner: boolean, isWritable: boolean): AccountRole {
 }
 
 /**
- * Convert a kit IInstruction to a web3.js TransactionInstruction.
+ * Convert a kit Instruction to a web3.js TransactionInstruction.
  */
-export function kitInstructionToWeb3(ix: IInstruction): TransactionInstruction {
+export function kitInstructionToWeb3(ix: Instruction): TransactionInstruction {
   // AccountRole enum: READONLY=0, WRITABLE=1, READONLY_SIGNER=2, WRITABLE_SIGNER=3
   return new TransactionInstruction({
     programId: new PublicKey(ix.programAddress),
@@ -62,10 +62,10 @@ export function kitInstructionToWeb3(ix: IInstruction): TransactionInstruction {
 }
 
 /**
- * Convert an array of kit IInstructions to web3.js TransactionInstructions.
+ * Convert an array of kit Instructions to web3.js TransactionInstructions.
  */
 export function kitInstructionsToWeb3(
-  ixs: IInstruction[],
+  ixs: Instruction[],
 ): TransactionInstruction[] {
   return ixs.map(kitInstructionToWeb3);
 }
@@ -76,7 +76,7 @@ export function kitInstructionsToWeb3(
  */
 export function sendKitTransaction(
   svm: LiteSVM,
-  instructions: IInstruction[],
+  instructions: Instruction[],
   payer: TestKeypair,
   signers: TestKeypair[] = [],
 ) {

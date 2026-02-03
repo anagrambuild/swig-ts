@@ -5,10 +5,10 @@ import {
   getAddressEncoder,
   isSignerRole,
   isWritableRole,
-  type IAccountMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type AccountMeta,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyUint8Array,
 } from '@solana/kit';
 import { SWIG_PROGRAM_ADDRESS_STRING } from './consts';
@@ -67,12 +67,12 @@ export function isKitInstruction(
 }
 
 export type KitInstruction<
-  Accounts extends IAccountMeta[] = IAccountMeta[],
+  Accounts extends AccountMeta[] = AccountMeta[],
   Data extends ReadonlyUint8Array = ReadonlyUint8Array,
   Program extends string = string,
-> = IInstruction<Program> &
-  IInstructionWithData<Data> &
-  IInstructionWithAccounts<Accounts>;
+> = Instruction<Program> &
+  InstructionWithData<Data> &
+  InstructionWithAccounts<Accounts>;
 
 export interface Web3Instruction<
   T extends Web3PublicKey = Web3PublicKey,
@@ -96,7 +96,7 @@ export function isWeb3AccountMeta<T extends Web3PublicKey>(
   return 'pubkey' in meta && 'isWritable' in meta && 'isSigner' in meta;
 }
 
-export type KitAccountMeta<T extends string = string> = IAccountMeta<T>;
+export type KitAccountMeta<T extends string = string> = AccountMeta<T>;
 
 export type Web3AccountMeta<T extends Web3PublicKey = Web3PublicKey> = {
   pubkey: T;
@@ -163,7 +163,7 @@ export class SolAccountMeta {
     });
   };
 
-  static fromKitAccountMeta = <T extends IAccountMeta = IAccountMeta>(
+  static fromKitAccountMeta = <T extends AccountMeta = AccountMeta>(
     meta: T,
   ): SolAccountMeta => {
     return new this({
@@ -189,7 +189,7 @@ export class SolAccountMeta {
     };
   };
 
-  toKitAccountMeta = <T extends IAccountMeta = IAccountMeta>(): T => {
+  toKitAccountMeta = <T extends AccountMeta = AccountMeta>(): T => {
     return {
       address: this.publicKey.toAddress(),
       role: this.#getRole(),
@@ -261,7 +261,7 @@ export class SolInstruction {
     };
   };
 
-  toKitInstruction = (): KitInstruction<IAccountMeta[], Uint8Array> => {
+  toKitInstruction = (): KitInstruction<AccountMeta[], Uint8Array> => {
     return {
       accounts: this.accounts.map((acct) => acct.toKitAccountMeta()),
       data: new Uint8Array(this.data),

@@ -8,8 +8,8 @@ import {
   getAddressCodec,
   getAddressDecoder,
   getAddressEncoder,
+  type AccountMeta,
   type Address,
-  type IAccountMeta,
 } from '@solana/kit';
 import {
   Keypair,
@@ -292,7 +292,7 @@ export function getTransferSolInstruction(args: {
   source: Address;
   destination: Address;
   amount: bigint;
-}): KitInstruction<IAccountMeta[], Uint8Array> {
+}): KitInstruction<AccountMeta[], Uint8Array> {
   return {
     programAddress: SYSTEM_PROGRAM_ADDRESS,
     accounts: [

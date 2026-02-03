@@ -21,7 +21,7 @@
     "dist"
   ],
   "devDependencies": {
-    "@solana-program/system": "^0.7.0",
+    "@solana-program/system": "^0.10.0",
     "@solana/web3.js": "^1.98.0",
     "@types/bn.js": "^5.2.0",
     "@types/bun": "^1.2.5",
@@ -39,8 +39,8 @@
   "dependencies": {
     "@noble/curves": "^1.8.2",
     "@noble/hashes": "^1.7.0",
-    "@solana/kit": "^2.1.0",
-    "@solana-program/token": "^0.5.1",
+    "@solana/kit": "^5.5.1",
+    "@solana-program/token": "^0.9.0",
     "@swig-wallet/coder": "workspace:*",
     "bn.js": "^5.2.2"
   },
