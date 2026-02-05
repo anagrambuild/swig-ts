@@ -151,9 +151,13 @@ export type SigningResult = {
  *
  * @property signingFn - {@link SigningFn}.
  * @property currentSlot - current slot.
+ * @property preInstructions - Instructions to prepend before the swig instruction.
+ * @property postInstructions - Instructions to append after the swig instruction.
  */
 export type InstructionDataOptions = {
   signingFn?: SigningFn;
   currentSlot?: bigint;
   odometer?: number;
+  preInstructions?: SolInstruction[];
+  postInstructions?: SolInstruction[];
 };

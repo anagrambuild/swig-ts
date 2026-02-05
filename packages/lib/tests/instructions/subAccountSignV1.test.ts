@@ -22,12 +22,19 @@ import {
   getSignInstructionContext,
   SolInstruction,
 } from '../../src';
-import { fetchSwig, getFundedKeys, getSvm } from '../context';
 import {
+  fetchSwig,
+  getFundedKeys,
+  getSvm,
+  getSvmWithTestProgram,
+} from '../context';
+import {
+  createTestProgramExecAuthority,
   createTestSecp256k1Authority,
   createTestSecp256r1Authority,
 } from '../fixtures/authorities';
 import {
+  createTestProgramPreInstruction,
   getTransferSolInstruction,
   randomBytes,
   sendSwigSVMTransaction,
@@ -354,6 +361,94 @@ describe('SubAccountSignV1 Instruction', () => {
           currentSlot: slot,
           signingFn: secpAuthority.signingFn!,
         },
+      );
+      sendSwigSVMTransaction(svm, signIx, payer);
+
+      expect(svm.getBalance(recipient.publicKey)).toBe(transferAmount);
+    });
+  });
+
+  // ============================================================================
+  // ProgramExec Authority Tests
+  // ============================================================================
+
+  describe('ProgramExec authority with sub-account', () => {
+    test('signs SOL transfer from sub-account', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer, root] = getFundedKeys(svm, 2);
+      const recipient = Keypair.generate();
+      const swigId = randomBytes(32);
+      const programExecAuthority = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Add ProgramExec authority with subAccount permission
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        programExecAuthority.authorityInfo,
+        Actions.set().subAccount().get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      const subAccountRole = swig.roles[1];
+
+      // Create preceding instruction for ProgramExec validation
+      const precedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Create sub-account using ProgramExec authority
+      const createSubAccountIx = await getCreateSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+        { payer: payer.publicKey, preInstructions: [precedingIx] },
+      );
+      sendSwigSVMTransaction(svm, createSubAccountIx, payer);
+
+      // Fund sub-account
+      const [subAccountAddress] = await findSwigSubAccountPdaRaw(
+        subAccountRole.swigId,
+        subAccountRole.id,
+      );
+      svm.airdrop(toPublicKey(subAccountAddress), SOL);
+
+      // Sign transfer from sub-account using ProgramExec authority
+      swig = fetchSwig(svm, swigAddress);
+      const transferAmount = SOL / 10n;
+      const transfer = getTransferSolInstruction({
+        source: address(toPublicKey(subAccountAddress).toBase58()),
+        destination: address(recipient.publicKey.toBase58()),
+        amount: transferAmount,
+      });
+
+      // Create preceding instruction for ProgramExec validation
+      // For subAccountSign, the second account is the subAccount address
+      const signPrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        subAccountAddress,
+      );
+
+      const signIx = await getSignInstructionContext(
+        swig,
+        subAccountRole.id,
+        [transfer].map(SolInstruction.from),
+        true, // withSubAccount = true
+        { payer: payer.publicKey, preInstructions: [signPrecedingIx] },
       );
       sendSwigSVMTransaction(svm, signIx, payer);
 

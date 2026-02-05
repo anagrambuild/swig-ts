@@ -15,12 +15,22 @@ import {
   getCreateSwigInstructionContext,
   getRemoveAuthorityInstructionContext,
 } from '../../src';
-import { fetchSwig, getFundedKeys, getSvm } from '../context';
 import {
+  fetchSwig,
+  getFundedKeys,
+  getSvm,
+  getSvmWithTestProgram,
+} from '../context';
+import {
+  createTestProgramExecAuthority,
   createTestSecp256k1Authority,
   createTestSecp256r1Authority,
 } from '../fixtures/authorities';
-import { randomBytes, sendSwigSVMTransaction } from '../helpers';
+import {
+  createTestProgramPreInstruction,
+  randomBytes,
+  sendSwigSVMTransaction,
+} from '../helpers';
 
 const SOL = 1_000_000_000n;
 
@@ -555,6 +565,203 @@ describe('RemoveAuthorityV1 Instruction', () => {
           currentSlot: slot,
           signingFn: secpRoot.signingFn!,
         },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(1);
+    });
+  });
+
+  // ============================================================================
+  // ProgramExec Root Removing Authorities
+  // ============================================================================
+
+  describe('ProgramExec root removing authorities', () => {
+    test('removes Ed25519 authority', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer, toRemove] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const programExecRoot = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with ProgramExec root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: programExecRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const addPrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Add ed25519 authority using ProgramExec root
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createEd25519AuthorityInfo(toRemove.publicKey),
+        Actions.set().solLimit({ amount: SOL }).get(),
+        { payer: payer.publicKey, preInstructions: [addPrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.findRolesByEd25519SignerPk(
+        toRemove.publicKey,
+      )[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const removePrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Remove authority using ProgramExec root
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        { payer: payer.publicKey, preInstructions: [removePrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      const removedRoles = swig.findRolesByEd25519SignerPk(toRemove.publicKey);
+      expect(removedRoles.length).toBe(0);
+    });
+
+    test('removes Secp256k1 authority', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const programExecRoot = createTestProgramExecAuthority();
+      const secpToRemove = createTestSecp256k1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: programExecRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const addPrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Add secp256k1 authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpToRemove.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+        { payer: payer.publicKey, preInstructions: [addPrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.findRolesBySecp256k1SignerAddress(
+        secpToRemove.address,
+      )[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const removePrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Remove authority
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        { payer: payer.publicKey, preInstructions: [removePrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, removeIx, payer);
+
+      // Verify authority was removed
+      swig = fetchSwig(svm, swigAddress);
+      const removedRoles = swig.findRolesBySecp256k1SignerAddress(
+        secpToRemove.address,
+      );
+      expect(removedRoles.length).toBe(0);
+    });
+
+    test('removes Secp256r1 authority', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const programExecRoot = createTestProgramExecAuthority();
+      const secpToRemove = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: programExecRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const addPrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Add secp256r1 authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        secpToRemove.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+        { payer: payer.publicKey, preInstructions: [addPrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+
+      const roleToRemove = swig.roles[1];
+
+      // Create preceding instruction for ProgramExec validation
+      const removePrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Remove authority
+      const removeIx = await getRemoveAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        roleToRemove.id,
+        { payer: payer.publicKey, preInstructions: [removePrecedingIx] },
       );
       sendSwigSVMTransaction(svm, removeIx, payer);
 

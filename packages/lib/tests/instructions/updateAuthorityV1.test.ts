@@ -26,12 +26,22 @@ import {
   updateAuthorityRemoveByType,
   updateAuthorityReplaceAllActions,
 } from '../../src';
-import { fetchSwig, getFundedKeys, getSvm } from '../context';
 import {
+  fetchSwig,
+  getFundedKeys,
+  getSvm,
+  getSvmWithTestProgram,
+} from '../context';
+import {
+  createTestProgramExecAuthority,
   createTestSecp256k1Authority,
   createTestSecp256r1Authority,
 } from '../fixtures/authorities';
-import { randomBytes, sendSwigSVMTransaction } from '../helpers';
+import {
+  createTestProgramPreInstruction,
+  randomBytes,
+  sendSwigSVMTransaction,
+} from '../helpers';
 
 const SOL = 1_000_000_000n;
 
@@ -499,6 +509,139 @@ describe('UpdateAuthorityV1 Instruction', () => {
       swig = fetchSwig(svm, swigAddress);
       const updatedRole = swig.findRolesByEd25519SignerPk(spender.publicKey)[0];
       expect(updatedRole.actions.canSpendSol()).toBe(false);
+      expect(updatedRole.actions.canManageAuthority()).toBe(true);
+    });
+  });
+
+  // ============================================================================
+  // ProgramExec Authority Tests
+  // ============================================================================
+
+  describe('ProgramExec root updating authority', () => {
+    test('ProgramExec root replaces authority actions', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer, spender] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const programExecRoot = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with ProgramExec root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: programExecRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const addPrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Add Ed25519 spender using ProgramExec root
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createEd25519AuthorityInfo(spender.publicKey),
+        Actions.set().solLimit({ amount: SOL }).get(),
+        { payer: payer.publicKey, preInstructions: [addPrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      const spenderRole = swig.findRolesByEd25519SignerPk(spender.publicKey)[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const updatePrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Update spender's actions using ProgramExec root
+      const newActions = Actions.set().manageAuthority().get();
+      const updateIx = await getUpdateAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        spenderRole.id,
+        updateAuthorityReplaceAllActions(newActions),
+        { payer: payer.publicKey, preInstructions: [updatePrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, updateIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      const updatedRole = swig.findRolesByEd25519SignerPk(spender.publicKey)[0];
+      expect(updatedRole.actions.canSpendSol()).toBe(false);
+      expect(updatedRole.actions.canManageAuthority()).toBe(true);
+    });
+
+    test('ProgramExec root adds actions to authority', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer, spender] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const programExecRoot = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with ProgramExec root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: programExecRoot.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Create preceding instruction for ProgramExec validation
+      const addPrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Add spender with SOL limit only
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createEd25519AuthorityInfo(spender.publicKey),
+        Actions.set().solLimit({ amount: SOL }).get(),
+        { payer: payer.publicKey, preInstructions: [addPrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, addIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+      const spenderRole = swig.findRolesByEd25519SignerPk(spender.publicKey)[0];
+      expect(spenderRole.actions.canSpendSol()).toBe(true);
+      expect(spenderRole.actions.canManageAuthority()).toBe(false);
+
+      // Create preceding instruction for ProgramExec validation
+      const updatePrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Add manageAuthority action using ProgramExec root
+      const additionalActions = Actions.set().manageAuthority().get();
+      const updateIx = await getUpdateAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        spenderRole.id,
+        updateAuthorityAddActions(additionalActions),
+        { payer: payer.publicKey, preInstructions: [updatePrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, updateIx, payer);
+
+      // Verify both actions exist now
+      swig = fetchSwig(svm, swigAddress);
+      const updatedRole = swig.findRolesByEd25519SignerPk(spender.publicKey)[0];
+      expect(updatedRole.actions.canSpendSol()).toBe(true);
       expect(updatedRole.actions.canManageAuthority()).toBe(true);
     });
   });

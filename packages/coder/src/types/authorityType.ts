@@ -49,12 +49,16 @@ export enum AuthorityType {
    */
   Secp256r1Session,
 
-  // /**
-  //  * A session-based authority using a Groth16 zero-knowledge proof.
-  //  * The session is authorized only if the provided ZK circuit proof is valid.
-  //  * Not yet implemented.
-  //  */
-  // Groth16Session,
+  /**
+   * Program execution authority - validates that a preceding instruction
+   * was executed by a specific program with a matching instruction prefix.
+   */
+  ProgramExec,
+
+  /**
+   * A session-based program execution authority with expiration.
+   */
+  ProgramExecSession,
 }
 
 /**

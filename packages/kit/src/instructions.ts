@@ -42,14 +42,14 @@ export async function getAddAuthorityInstructions(
   roleId: number,
   newAuthorityInfo: CreateAuthorityInfo,
   actions: Actions,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getAddAuthorityInstructionContext(
     swig,
     roleId,
     newAuthorityInfo,
     actions,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -59,13 +59,13 @@ export async function getRemoveAuthorityInstructions(
   swig: Swig,
   roleId: number,
   roleToRemoveId: number,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getRemoveAuthorityInstructionContext(
     swig,
     roleId,
     roleToRemoveId,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -76,14 +76,14 @@ export async function getUpdateAuthorityInstructions(
   roleId: number,
   roleToUpdateId: number,
   updateActionsInfo: UpdateAuthorityActionsInfo,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getUpdateAuthorityInstructionContext(
     swig,
     roleId,
     roleToUpdateId,
     updateActionsInfo,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -94,14 +94,14 @@ export async function getSignInstructions(
   roleId: number,
   instructions: KitInstruction[],
   withSubAccount?: boolean,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getSignInstructionContext(
     swig,
     roleId,
     instructions.map(SolInstruction.from),
     withSubAccount,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -112,14 +112,14 @@ export async function getCreateSessionInstructions(
   roleId: number,
   sessionKey: Address,
   duration?: bigint,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getCreateSessionInstructionContext(
     swig,
     roleId,
     sessionKey,
     duration,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -128,12 +128,12 @@ export async function getCreateSessionInstructions(
 export async function getCreateSubAccountInstructions(
   swig: Swig,
   roleId: number,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getCreateSubAccountInstructionContext(
     swig,
     roleId,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -144,14 +144,14 @@ export async function getToggleSubAccountInstructions(
   roleId: number,
   enabled: boolean,
   subAccountRoleId?: number,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getToggleSubAccountInstructionContext(
     swig,
     roleId,
     enabled,
     subAccountRoleId ?? roleId,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -161,13 +161,13 @@ export async function getWithdrawFromSubAccountSubAccountInstructions(
   swig: Swig,
   roleId: number,
   withdrawArgs: WithdrawSubAccountArgs<Address>,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getWithdrawFromSubAccountInstructionContext(
     swig,
     roleId,
     withdrawArgs,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -177,13 +177,13 @@ export async function getWithdrawFromSubAccountCheckedInstructions(
   swig: Swig,
   roleId: number,
   withdrawArgs: WithdrawSubAccountCheckedArgs<Address>,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getWithdrawFromSubAccountCheckedInstructionContext(
     swig,
     roleId,
     withdrawArgs,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -192,12 +192,12 @@ export async function getWithdrawFromSubAccountCheckedInstructions(
 export async function getTransferAssetsInstructions(
   swig: Swig,
   roleId: number,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getTransferAssetsInstructionContext(
     swig,
     roleId,
-    options,
+    toLibOptions(options),
   );
 
   return getInstructionsFromContext(context);
@@ -216,11 +216,15 @@ export class AddMultipleAuthoritiesInstructionBuilder {
     this.#builder = builder;
   }
 
-  static async create(swig: Swig, roleId: number, options?: SwigOptions) {
+  static async create(
+    swig: Swig,
+    roleId: number,
+    options?: SwigInstructionOptions,
+  ) {
     const ixBuilder = await getAddMultipleAuthoritiesInstructionsContextBuilder(
       swig,
       roleId,
-      options,
+      toLibOptions(options),
     );
 
     return new AddMultipleAuthoritiesInstructionBuilder(ixBuilder);
@@ -256,7 +260,7 @@ export class AddMultipleAuthoritiesInstructionBuilder {
 export async function getAddMultipleAuthoritiesInstructionBuilder(
   swig: Swig,
   roleId: number,
-  options?: SwigOptions,
+  options?: SwigInstructionOptions,
 ) {
   return AddMultipleAuthoritiesInstructionBuilder.create(swig, roleId, options);
 }
@@ -276,3 +280,22 @@ export function getCreateSwigInstructionBuilder(args: {
     args,
   );
 }
+
+function toLibOptions(
+  options?: SwigInstructionOptions,
+): SwigOptions | undefined {
+  if (!options) return undefined;
+  return {
+    ...options,
+    preInstructions: options.preInstructions?.map(SolInstruction.from),
+    postInstructions: options.postInstructions?.map(SolInstruction.from),
+  };
+}
+
+export type SwigInstructionOptions = Omit<
+  SwigOptions,
+  'preInstructions' | 'postInstructions'
+> & {
+  preInstructions?: KitInstruction[];
+  postInstructions?: KitInstruction[];
+};

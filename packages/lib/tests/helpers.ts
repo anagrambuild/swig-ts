@@ -304,3 +304,142 @@ export function getTransferSolInstruction(args: {
     ),
   };
 }
+
+// ============================================================================
+// ProgramExec Test Helpers
+// ============================================================================
+
+import {
+  SolAccountMeta,
+  SolInstruction,
+  SWIG_PROGRAM_ADDRESS_STRING,
+} from '../src';
+import { TEST_PROGRAM_ID, VALID_DISCRIMINATOR } from './context';
+
+/**
+ * Creates a SolInstruction for the test program that can be passed as preInstruction
+ * for ProgramExec authority validation.
+ *
+ * IMPORTANT: For ProgramExec validation to pass, the accounts must include:
+ * - swig address (matches swig instruction's account[0])
+ * - payer/swigSystemAddress (matches swig instruction's account[1])
+ * - Instruction data: starts with VALID_DISCRIMINATOR
+ */
+export function createTestProgramPreInstruction(
+  swigAddress: SolPublicKeyData,
+  payer: SolPublicKeyData,
+): SolInstruction {
+  const stateAccount = Keypair.generate();
+
+  return new SolInstruction({
+    program: new SolPublicKey(TEST_PROGRAM_ID),
+    accounts: [
+      SolAccountMeta.readonly(new SolPublicKey(swigAddress)),
+      SolAccountMeta.readonly(new SolPublicKey(payer)),
+      SolAccountMeta.readonly(
+        new SolPublicKey(stateAccount.publicKey.toBytes()),
+      ),
+      SolAccountMeta.readonly(new SolPublicKey(SWIG_PROGRAM_ADDRESS_STRING)),
+    ],
+    data: Uint8Array.from(VALID_DISCRIMINATOR),
+  });
+}
+
+/**
+ * Creates a test program instruction that can precede a swig instruction
+ * for ProgramExec authority validation.
+ *
+ * IMPORTANT: For ProgramExec validation to pass, the first two accounts must match
+ * the first two accounts of the swig instruction that follows:
+ * - Account 0: Swig config account (must match swig instruction's account[0])
+ * - Account 1: Payer (must match swig instruction's account[1] - this is always payer)
+ * - Account 2: State account (readonly, controls success/failure - empty = success)
+ * - Account 3: Swig program (readonly)
+ * - Instruction data: starts with VALID_DISCRIMINATOR
+ */
+export function createTestProgramInstruction(
+  swigAddress: SolPublicKeyData,
+  payer: SolPublicKeyData,
+): TransactionInstruction {
+  // Generate a fresh keypair for state account - it will be empty, which means success
+  const stateAccount = Keypair.generate();
+
+  return {
+    programId: new PublicKey(TEST_PROGRAM_ID),
+    keys: [
+      { pubkey: toPublicKey(swigAddress), isSigner: false, isWritable: false },
+      {
+        pubkey: toPublicKey(payer),
+        isSigner: false,
+        isWritable: false,
+      },
+      // State account - use empty account (test program defaults to success if empty)
+      { pubkey: stateAccount.publicKey, isSigner: false, isWritable: false },
+      // Swig program
+      {
+        pubkey: new PublicKey(SWIG_PROGRAM_ADDRESS_STRING),
+        isSigner: false,
+        isWritable: false,
+      },
+    ],
+    data: Buffer.from(VALID_DISCRIMINATOR),
+  };
+}
+
+/**
+ * Send a swig transaction with a preceding test program instruction.
+ * Used for ProgramExec authority testing.
+ *
+ * IMPORTANT: This function automatically creates the preceding instruction
+ * based on the swig instruction's accounts. For ProgramExec validation,
+ * the preceding instruction must have the same accounts at indices 0 and 1
+ * as the swig instruction.
+ */
+export function sendSwigSVMTransactionWithPrecedingInstruction(
+  svm: LiteSVM,
+  swigIxCtx: SwigInstructionContext,
+  payer: TestKeypair,
+  signers: TestKeypair[] = [],
+) {
+  const swigInstructions = getInstructionsFromContext(swigIxCtx);
+
+  // Create preceding instruction with the same accounts at indices 0 and 1
+  // as the swig instruction (required for ProgramExec validation)
+  const swigIx = swigInstructions[0];
+  const precedingIx = createTestProgramInstructionFromSwigIx(swigIx);
+
+  return sendSVMTransaction(
+    svm,
+    [precedingIx, ...swigInstructions],
+    payer,
+    signers,
+  );
+}
+
+/**
+ * Creates a test program instruction that matches the swig instruction's
+ * first two accounts (required for ProgramExec validation).
+ */
+function createTestProgramInstructionFromSwigIx(
+  swigIx: TransactionInstruction,
+): TransactionInstruction {
+  const stateAccount = Keypair.generate();
+
+  return {
+    programId: new PublicKey(TEST_PROGRAM_ID),
+    keys: [
+      // Copy accounts 0 and 1 from swig instruction
+      { pubkey: swigIx.keys[0].pubkey, isSigner: false, isWritable: false },
+      { pubkey: swigIx.keys[1].pubkey, isSigner: false, isWritable: false },
+      // State account - empty = success
+      { pubkey: stateAccount.publicKey, isSigner: false, isWritable: false },
+      // Swig program
+      {
+        pubkey: new PublicKey(SWIG_PROGRAM_ADDRESS_STRING),
+        isSigner: false,
+        isWritable: false,
+      },
+    ],
+    data: Buffer.from(VALID_DISCRIMINATOR),
+  };
+}

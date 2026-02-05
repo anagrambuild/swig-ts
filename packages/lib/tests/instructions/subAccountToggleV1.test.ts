@@ -16,14 +16,23 @@ import {
   getCreateSwigInstructionContext,
   getToggleSubAccountInstructionContext,
 } from '../../src';
-import { fetchSwig, getFundedKeys, getSvm } from '../context';
 import {
+  fetchSwig,
+  getFundedKeys,
+  getSvm,
+  getSvmWithTestProgram,
+} from '../context';
+import {
+  createTestProgramExecAuthority,
   createTestSecp256k1Authority,
   createTestSecp256r1Authority,
 } from '../fixtures/authorities';
-import { randomBytes, sendSwigSVMTransaction, toPublicKey } from '../helpers';
-
-const SOL = 1_000_000_000n;
+import {
+  createTestProgramPreInstruction,
+  randomBytes,
+  sendSwigSVMTransaction,
+  toPublicKey,
+} from '../helpers';
 
 describe('SubAccountToggleV1 Instruction', () => {
   // ============================================================================
@@ -314,6 +323,89 @@ describe('SubAccountToggleV1 Instruction', () => {
   });
 
   // ============================================================================
+  // ProgramExec Authority Tests
+  // ============================================================================
+
+  describe('ProgramExec authority with sub-account', () => {
+    test('can disable own sub-account', async () => {
+      const svm = getSvmWithTestProgram();
+      const [payer, root] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+      const programExecAuthority = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig with ed25519 root
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Add ProgramExec authority with subAccount permission
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        programExecAuthority.authorityInfo,
+        Actions.set().subAccount().get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      const subAccountRole = swig.roles[1];
+
+      // Create preceding instruction for ProgramExec validation
+      const precedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      // Create sub-account using ProgramExec authority
+      const createSubAccountIx = await getCreateSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+        { payer: payer.publicKey, preInstructions: [precedingIx] },
+      );
+      sendSwigSVMTransaction(svm, createSubAccountIx, payer);
+
+      // Verify sub-account was created
+      const [subAccountAddress] = await findSwigSubAccountPdaRaw(
+        subAccountRole.swigId,
+        subAccountRole.id,
+      );
+      const subAccountBalance = svm.getBalance(toPublicKey(subAccountAddress));
+      expect(subAccountBalance).toBeGreaterThan(0n);
+
+      // Disable sub-account using ProgramExec authority
+      swig = fetchSwig(svm, swigAddress);
+
+      // Create preceding instruction for ProgramExec validation
+      const togglePrecedingIx = createTestProgramPreInstruction(
+        swigAddress,
+        payer.publicKey,
+      );
+
+      const toggleIx = await getToggleSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+        false, // enabled = false
+        undefined,
+        { payer: payer.publicKey, preInstructions: [togglePrecedingIx] },
+      );
+      sendSwigSVMTransaction(svm, toggleIx, payer);
+
+      // Verify transaction succeeded
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+    });
+  });
+
+  // ============================================================================
   // Root Authority Toggle Tests
   // ============================================================================
 
@@ -474,7 +566,7 @@ describe('SubAccountToggleV1 Instruction', () => {
       const subAccountRole = swig.findRolesBySecp256k1SignerAddress(
         secpSubAccount.address,
       )[0];
-      let slot = svm.getClock().slot;
+      const slot = svm.getClock().slot;
 
       // Secp256k1 creates sub-account
       const createSubAccountIx = await getCreateSubAccountInstructionContext(
@@ -534,7 +626,7 @@ describe('SubAccountToggleV1 Instruction', () => {
 
       swig = fetchSwig(svm, swigAddress);
       const subAccountRole = swig.roles[1];
-      let slot = svm.getClock().slot;
+      const slot = svm.getClock().slot;
 
       // Secp256r1 creates sub-account
       const createSubAccountIx = await getCreateSubAccountInstructionContext(
