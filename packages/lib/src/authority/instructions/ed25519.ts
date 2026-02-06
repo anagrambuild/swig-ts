@@ -10,13 +10,13 @@ import {
   getSubAccountCreateV1BaseAccountMetasWithAuthority,
   getSubAccountSignV1BaseAccountMetasWithAuthority,
   getSubAccountToggleV1BaseAccountMetasWithAuthority,
-  getSubAccountWithdrawV1AccountMetasWithSystemProgram,
-  getSubAccountWithdrawV1SolAccountMetasWithAuthority,
-  getSubAccountWithdrawV1TokenAccountMetasWithAuthority,
+  getSubAccountWithdrawV1AccountMetasWithAuthorityContext,
+  getSubAccountWithdrawV1SolAccountMetas,
+  getSubAccountWithdrawV1TokenAccountMetas,
   getTransferAssetsV1BaseAccountMetasWithAuthority,
   getUpdateAuthorityV1BaseAccountMetasWithAuthority,
 } from '../../instructions';
-import { SolPublicKey } from '../../solana';
+import { SolAccountMeta, SolPublicKey } from '../../solana';
 import type { AuthorityInstruction } from './interface';
 
 /**
@@ -125,37 +125,44 @@ export const Ed25519Instruction: AuthorityInstruction = {
   async subAccountWithdrawV1SolInstruction(accounts, data) {
     const authority = new SolPublicKey(new Uint8Array(data.authorityData));
 
-    const [metasWithAuthority, authorityPayload] =
-      getSubAccountWithdrawV1SolAccountMetasWithAuthority(accounts, authority);
+    const baseMetas = getSubAccountWithdrawV1SolAccountMetas(accounts);
+    const authorityMeta = SolAccountMeta.from({
+      pubkey: authority,
+      isSigner: true,
+      isWritable: false,
+    });
 
-    const metas = getSubAccountWithdrawV1AccountMetasWithSystemProgram(
-      metasWithAuthority,
-      authorityPayload + 2,
-    );
+    const [metas, authorityIndex] =
+      getSubAccountWithdrawV1AccountMetasWithAuthorityContext(
+        baseMetas,
+        authorityMeta,
+      );
 
     return SwigInstructionV1.subAccountWithdraw(metas, {
       ...data,
-      authorityPayload: Uint8Array.from([authorityPayload]),
+      authorityPayload: Uint8Array.from([authorityIndex]),
     });
   },
 
   async subAccountWithdrawV1TokenInstruction(accounts, data) {
     const authority = new SolPublicKey(new Uint8Array(data.authorityData));
 
-    const [metasWithAuthority, authorityPayload] =
-      getSubAccountWithdrawV1TokenAccountMetasWithAuthority(
-        accounts,
-        authority,
-      );
+    const baseMetas = getSubAccountWithdrawV1TokenAccountMetas(accounts);
+    const authorityMeta = SolAccountMeta.from({
+      pubkey: authority,
+      isSigner: true,
+      isWritable: false,
+    });
 
-    const metas = getSubAccountWithdrawV1AccountMetasWithSystemProgram(
-      metasWithAuthority,
-      authorityPayload + 2,
-    );
+    const [metas, authorityIndex] =
+      getSubAccountWithdrawV1AccountMetasWithAuthorityContext(
+        baseMetas,
+        authorityMeta,
+      );
 
     return SwigInstructionV1.subAccountWithdraw(metas, {
       ...data,
-      authorityPayload: Uint8Array.from([authorityPayload]),
+      authorityPayload: Uint8Array.from([authorityIndex]),
     });
   },
 
