@@ -399,17 +399,16 @@ export class Secp256k1SessionAuthority
     roleId: number;
     options: InstructionDataOptions;
   }) {
-    return Secp256k1Instruction.closeSwigV1Instruction(
+    return Ed25519Instruction.closeSwigV1Instruction(
       {
         swig: args.swigAddress,
         swigSystemAddress: args.swigSystemAddress,
         destination: args.destination,
       },
       {
-        authorityData: this.data,
+        authorityData: this.sessionKey.toBytes(),
         roleId: args.roleId,
       },
-      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 
@@ -422,7 +421,7 @@ export class Secp256k1SessionAuthority
     roleId: number;
     options: InstructionDataOptions;
   }) {
-    return Secp256k1Instruction.closeTokenAccountV1Instruction(
+    return Ed25519Instruction.closeTokenAccountV1Instruction(
       {
         swig: args.swigAddress,
         swigSystemAddress: args.swigSystemAddress,
@@ -430,11 +429,10 @@ export class Secp256k1SessionAuthority
         tokenProgram: args.tokenProgram,
       },
       {
-        authorityData: this.data,
+        authorityData: this.sessionKey.toBytes(),
         roleId: args.roleId,
         tokenAccounts: args.tokenAccounts as any,
       },
-      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
 }

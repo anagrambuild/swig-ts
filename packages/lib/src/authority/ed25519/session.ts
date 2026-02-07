@@ -361,7 +361,7 @@ export class Ed25519SessionAuthority
         destination: args.destination,
       },
       {
-        authorityData: this.data,
+        authorityData: this.sessionKey.toBytes(),
         roleId: args.roleId,
       },
     );
@@ -383,7 +383,7 @@ export class Ed25519SessionAuthority
         tokenProgram: args.tokenProgram,
       },
       {
-        authorityData: this.data,
+        authorityData: this.sessionKey.toBytes(),
         roleId: args.roleId,
         tokenAccounts: args.tokenAccounts as any,
       },
