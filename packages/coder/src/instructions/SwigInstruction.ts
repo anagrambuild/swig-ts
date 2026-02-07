@@ -21,6 +21,8 @@ export enum SwigInstructionDiscriminator {
   SignV2,
   MigrateToWalletAddressV1,
   TransferAssetsV1,
+  CloseTokenAccountV1,
+  CloseSwigV1,
 }
 
 export function getSwigInstructionDiscriminatorEncoder(): Encoder<SwigInstructionDiscriminator> {
@@ -74,6 +76,12 @@ export function identifySwigInstruction(
   }
   if (containsBytes(data, discriminatorEncoder.encode(13), 0)) {
     return SwigInstructionDiscriminator.TransferAssetsV1;
+  }
+  if (containsBytes(data, discriminatorEncoder.encode(14), 0)) {
+    return SwigInstructionDiscriminator.CloseTokenAccountV1;
+  }
+  if (containsBytes(data, discriminatorEncoder.encode(15), 0)) {
+    return SwigInstructionDiscriminator.CloseSwigV1;
   }
   throw new Error(
     'The provided instruction could not be identified as a swig instruction.',

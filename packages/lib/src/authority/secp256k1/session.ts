@@ -391,6 +391,52 @@ export class Secp256k1SessionAuthority
       { ...args.options, odometer: args.options.odometer ?? this.odometer() },
     );
   }
+
+  closeSwig(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    destination: SolPublicKeyData;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256k1Instruction.closeSwigV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        destination: args.destination,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
+  closeTokenAccount(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    destination: SolPublicKeyData;
+    tokenProgram: SolPublicKeyData;
+    tokenAccounts: SolPublicKeyData[];
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256k1Instruction.closeTokenAccountV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        destination: args.destination,
+        tokenProgram: args.tokenProgram,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
+        tokenAccounts: args.tokenAccounts as any,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
 }
 
 type SessionData = {

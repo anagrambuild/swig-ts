@@ -4,6 +4,8 @@ import {
   AddMultipleAuthoritiesInstructionContextBuilder,
   getAddAuthorityInstructionContext,
   getAddMultipleAuthoritiesInstructionsContextBuilder,
+  getCloseSwigInstructionContext,
+  getCloseSwigTokenAccountInstructionContext,
   getCreateSessionInstructionContext,
   getCreateSubAccountInstructionContext,
   getCreateSwigInstructionContext,
@@ -18,6 +20,8 @@ import {
   SolInstruction,
   Swig,
   SwigInstructionContext,
+  type CloseSwigArgs,
+  type CloseSwigTokenAccountArgs,
   type CreateAuthorityInfo,
   type SigningFn,
   type SwigOptions,
@@ -199,6 +203,38 @@ export async function getTransferAssetsInstructions(
   const context = await getTransferAssetsInstructionContext(
     swig,
     roleId,
+    toLibOptions(options),
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getCloseSwigInstructions(
+  swig: Swig,
+  roleId: number,
+  args: CloseSwigArgs<PublicKey>,
+  options?: SwigInstructionOptions,
+): Promise<TransactionInstruction[]> {
+  const context = await getCloseSwigInstructionContext(
+    swig,
+    roleId,
+    args,
+    toLibOptions(options),
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getCloseSwigTokenAccountInstructions(
+  swig: Swig,
+  roleId: number,
+  args: CloseSwigTokenAccountArgs<PublicKey>,
+  options?: SwigInstructionOptions,
+): Promise<TransactionInstruction[]> {
+  const context = await getCloseSwigTokenAccountInstructionContext(
+    swig,
+    roleId,
+    args,
     toLibOptions(options),
   );
 

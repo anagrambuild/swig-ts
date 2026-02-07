@@ -376,6 +376,52 @@ export class ProgramExecSessionAuthority
       args.options,
     );
   }
+
+  closeSwig(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    destination: SolPublicKeyData;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return ProgramExecInstruction.closeSwigV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        destination: args.destination,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
+      },
+      args.options,
+    );
+  }
+
+  closeTokenAccount(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    destination: SolPublicKeyData;
+    tokenProgram: SolPublicKeyData;
+    tokenAccounts: SolPublicKeyData[];
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return ProgramExecInstruction.closeTokenAccountV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        destination: args.destination,
+        tokenProgram: args.tokenProgram,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
+        tokenAccounts: args.tokenAccounts as any,
+      },
+      args.options,
+    );
+  }
 }
 
 export function isProgramExecSessionAuthority(

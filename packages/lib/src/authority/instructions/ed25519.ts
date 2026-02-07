@@ -3,6 +3,8 @@ import {
   SwigInstructionV2,
   compactInstructions,
   getAddV1BaseAccountMetasWithAuthority,
+  getCloseSwigV1BaseAccountMetasWithAuthority,
+  getCloseTokenAccountV1BaseAccountMetasWithAuthority,
   getCreateSessionV1BaseAccountMetasWithAuthority,
   getRemoveV1BaseAccountMetasWithAuthority,
   getSignV1BaseAccountMetasWithAuthority,
@@ -206,6 +208,46 @@ export const Ed25519Instruction: AuthorityInstruction = {
 
     return SwigInstructionV1.transferAssets(metas, {
       ...data,
+      authorityPayload: Uint8Array.from([authorityPayload]),
+    });
+  },
+
+  async closeSwigV1Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [metas, authorityPayload] =
+      getCloseSwigV1BaseAccountMetasWithAuthority(accounts, authority);
+
+    return SwigInstructionV1.closeSwig(metas, {
+      ...data,
+      authorityPayload: Uint8Array.from([authorityPayload]),
+    });
+  },
+
+  async closeTokenAccountV1Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [baseMetas, authorityPayload] =
+      getCloseTokenAccountV1BaseAccountMetasWithAuthority(accounts, authority);
+
+    // Append writable token account metas after the authority
+    const tokenAccountMetas = (data.tokenAccounts ?? []).map((ta: any) =>
+      SolAccountMeta.from({
+        pubkey: new SolPublicKey(ta),
+        isSigner: false,
+        isWritable: true,
+      }),
+    );
+
+    const allMetas = [...baseMetas, ...tokenAccountMetas] as [
+      ...typeof baseMetas,
+      ...SolAccountMeta[],
+    ];
+
+    return SwigInstructionV1.closeTokenAccount(allMetas, {
+      ...data,
+      // token_account_offset = index of first token account in accounts array
+      tokenAccountOffset: baseMetas.length,
       authorityPayload: Uint8Array.from([authorityPayload]),
     });
   },

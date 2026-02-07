@@ -200,6 +200,42 @@ export abstract class Authority {
   }): Promise<SwigInstructionContext>;
 
   /**
+   * Creates a `CloseSwig` instruction that closes the swig account and
+   * wallet address PDA, transferring all remaining lamports to the destination.
+   *
+   * Requires `All` or `ManageAuthority` permission.
+   * Both the swig account and wallet address PDA must have only rent-exempt
+   * minimum lamports (no excess SOL).
+   *
+   * The account is resized to 1 byte with a `ClosedSwigAccount` discriminator
+   * to prevent rehydration attacks.
+   */
+  abstract closeSwig(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    destination: SolPublicKeyData;
+    roleId: number;
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
+  /**
+   * Creates a `CloseTokenAccount` instruction that closes token accounts
+   * owned by the swig wallet address, transferring rent to the destination.
+   *
+   * Requires `All` or `ManageAuthority` permission.
+   * Token accounts must have zero balance before closing.
+   */
+  abstract closeTokenAccount(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    destination: SolPublicKeyData;
+    tokenProgram: SolPublicKeyData;
+    tokenAccounts: SolPublicKeyData[];
+    roleId: number;
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
+  /**
    * Check two {@link Authority} are partially equal
    */
   isEqual(other: Authority): boolean {

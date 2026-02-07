@@ -1,5 +1,7 @@
 import {
   getAddAuthorityV1InstructionCodec,
+  getCloseSwigV1InstructionDataCodec,
+  getCloseTokenAccountV1InstructionDataCodec,
   getCreateSessionV1InstructionCodec,
   getCreateV1InstructionDataCodec,
   getRemoveAuthorityV1InstructionCodec,
@@ -12,6 +14,8 @@ import {
   getTransferAssetsV1InstructionDataCodec,
   getUpdateAuthorityV1InstructionCodec,
   type AddAuthorityV1InstructionDataArgs,
+  type CloseSwigV1InstructionDataArgs,
+  type CloseTokenAccountV1InstructionDataArgs,
   type CreateSessionV1InstructionDataArgs,
   type CreateV1InstructionDataArgs,
   type RemoveAuthorityV1InstructionDataArgs,
@@ -33,6 +37,8 @@ import {
 } from '../solana';
 import { findSwigPdaRaw, findSwigSystemAddressPdaRaw } from '../utils';
 import { type AddAuthorityV1BaseAccountMetas } from './addAuthorityV1';
+import type { CloseSwigV1BaseAccountMetas } from './closeSwigV1';
+import type { CloseTokenAccountV1BaseAccountMetas } from './closeTokenAccountV1';
 import type { CreateSessionV1BaseAccountMetas } from './createSessionV1';
 import {
   getCreateV1BaseAccountMetas,
@@ -279,6 +285,38 @@ export class SwigInstructionV1 {
     options?: SwigInstructionContextOptions,
   ): SwigInstructionContext {
     const encoder = getTransferAssetsV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
+
+  static closeSwig<
+    T extends [...CloseSwigV1BaseAccountMetas, ...SolAccountMeta[]],
+  >(
+    accounts: T,
+    data: CloseSwigV1InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getCloseSwigV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
+
+  static closeTokenAccount<
+    T extends [...CloseTokenAccountV1BaseAccountMetas, ...SolAccountMeta[]],
+  >(
+    accounts: T,
+    data: CloseTokenAccountV1InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getCloseTokenAccountV1InstructionDataCodec().encoder;
 
     const instructionData = encoder.encode(data);
 

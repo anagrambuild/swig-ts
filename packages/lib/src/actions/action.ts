@@ -109,6 +109,14 @@ export class Actions {
   }
 
   /**
+   * Check if close swig authority action is present
+   * @returns boolean
+   */
+  canCloseSwigAuthority(): boolean {
+    return !!this.actions.find((action) => action.canCloseSwigAuthority());
+  }
+
+  /**
    * Check if the action can interact with a given program
    * @param programId ID of the Program to interact with
    * @returns boolean
@@ -311,6 +319,18 @@ class Action {
     return (
       this.permission === Permission.All ||
       this.permission === Permission.ManageAuthority
+    );
+  }
+
+  /**
+   * Check if this action can close swig accounts
+   * @returns `boolean`
+   */
+  canCloseSwigAuthority() {
+    return (
+      this.permission === Permission.All ||
+      this.permission === Permission.ManageAuthority ||
+      this.permission === Permission.CloseSwigAuthority
     );
   }
 

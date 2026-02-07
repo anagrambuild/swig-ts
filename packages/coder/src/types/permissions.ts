@@ -106,6 +106,11 @@ export enum Permission {
    * Allows recurring transfers of specific SPL tokens up to a limit within a time window to a specific destination.
    */
   TokenRecurringDestinationLimit,
+
+  /**
+   * Grants the ability to close token accounts and the swig account.
+   */
+  CloseSwigAuthority,
 }
 
 /**
