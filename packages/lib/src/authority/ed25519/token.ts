@@ -295,6 +295,48 @@ export class Ed25519Authority
       },
     );
   }
+
+  closeSwig(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    destination: SolPublicKeyData;
+    roleId: number;
+  }) {
+    return Ed25519Instruction.closeSwigV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        destination: args.destination,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
+      },
+    );
+  }
+
+  closeTokenAccount(args: {
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    destination: SolPublicKeyData;
+    tokenProgram: SolPublicKeyData;
+    tokenAccounts: SolPublicKeyData[];
+    roleId: number;
+  }) {
+    return Ed25519Instruction.closeTokenAccountV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        destination: args.destination,
+        tokenProgram: args.tokenProgram,
+      },
+      {
+        authorityData: this.data,
+        roleId: args.roleId,
+        tokenAccounts: args.tokenAccounts as any,
+      },
+    );
+  }
 }
 
 export function isEd25519Authority(

@@ -1,6 +1,8 @@
 import type { ReadonlyUint8Array } from '@solana/kit';
 import type {
   AddAuthorityV1InstructionDataArgs,
+  CloseSwigV1InstructionDataArgs,
+  CloseTokenAccountV1InstructionDataArgs,
   CreateSessionV1InstructionDataArgs,
   RemoveAuthorityV1InstructionDataArgs,
   SubAccountCreateV1InstructionDataArgs,
@@ -11,6 +13,8 @@ import type {
 } from '@swig-wallet/coder';
 import {
   type AddAuthorityV1InstructionAccounts,
+  type CloseSwigV1InstructionAccounts,
+  type CloseTokenAccountV1InstructionAccounts,
   type RemoveAuthorityV1InstructionAccounts,
   type SignV1InstructionAccounts,
   type SignV2InstructionAccounts,
@@ -126,6 +130,26 @@ export interface AuthorityInstruction {
     accounts: TransferAssetsV1InstructionAccounts,
     data: Omit<TransferAssetsV1InstructionDataArgs, 'authorityPayload'> & {
       authorityData: ReadonlyUint8Array;
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
+  closeSwigV1Instruction(
+    accounts: CloseSwigV1InstructionAccounts,
+    data: Omit<CloseSwigV1InstructionDataArgs, 'authorityPayload'> & {
+      authorityData: ReadonlyUint8Array;
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
+  closeTokenAccountV1Instruction(
+    accounts: CloseTokenAccountV1InstructionAccounts,
+    data: Omit<
+      CloseTokenAccountV1InstructionDataArgs,
+      'authorityPayload' | 'tokenAccountOffset'
+    > & {
+      authorityData: ReadonlyUint8Array;
+      tokenAccounts: ReadonlyUint8Array[];
     },
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;

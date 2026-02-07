@@ -4,6 +4,8 @@ import {
   SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetas,
+  getCloseSwigV1BaseAccountMetas,
+  getCloseTokenAccountV1BaseAccountMetas,
   getCreateSessionV1BaseAccountMetas,
   getRemoveAuthorityV1BaseAccountMetas,
   getSignV1BaseAccountMetas,
@@ -373,6 +375,68 @@ export const ProgramExecInstruction: AuthorityInstruction = {
       metas,
       {
         ...data,
+        authorityPayload: Uint8Array.from([sysvarIndex]),
+      },
+      { preInstructions, postInstructions: options?.postInstructions ?? [] },
+    );
+  },
+
+  async closeSwigV1Instruction(accounts, data, options) {
+    const preInstructions = validateAndGetPreInstructions(
+      options,
+      new Uint8Array(data.authorityData),
+      accounts.swig,
+      accounts.destination,
+    );
+
+    const baseMetas = getCloseSwigV1BaseAccountMetas(accounts);
+    const sysvarIndex = baseMetas.length;
+    const metas: [...typeof baseMetas, SolAccountMeta] = [
+      ...baseMetas,
+      getInstructionsSysvarMeta(),
+    ];
+
+    return SwigInstructionV1.closeSwig(
+      metas,
+      {
+        ...data,
+        authorityPayload: Uint8Array.from([sysvarIndex]),
+      },
+      { preInstructions, postInstructions: options?.postInstructions ?? [] },
+    );
+  },
+
+  async closeTokenAccountV1Instruction(accounts, data, options) {
+    const preInstructions = validateAndGetPreInstructions(
+      options,
+      new Uint8Array(data.authorityData),
+      accounts.swig,
+      accounts.destination,
+    );
+
+    const baseMetas = getCloseTokenAccountV1BaseAccountMetas(accounts);
+    const sysvarIndex = baseMetas.length;
+
+    // Append writable token account metas after the sysvar
+    const tokenAccountMetas = (data.tokenAccounts ?? []).map((ta: any) =>
+      SolAccountMeta.from({
+        pubkey: new SolPublicKey(ta),
+        isSigner: false,
+        isWritable: true,
+      }),
+    );
+
+    const metas = [
+      ...baseMetas,
+      getInstructionsSysvarMeta(),
+      ...tokenAccountMetas,
+    ] as [...typeof baseMetas, ...SolAccountMeta[]];
+
+    return SwigInstructionV1.closeTokenAccount(
+      metas,
+      {
+        ...data,
+        tokenAccountOffset: baseMetas.length + 1,
         authorityPayload: Uint8Array.from([sysvarIndex]),
       },
       { preInstructions, postInstructions: options?.postInstructions ?? [] },

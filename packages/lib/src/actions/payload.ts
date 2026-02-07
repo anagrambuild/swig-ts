@@ -101,6 +101,9 @@ export type ActionPayload =
   | {
       permission: Permission.TokenRecurringDestinationLimit;
       data: TokenRecurringDestinationLimit;
+    }
+  | {
+      permission: Permission.CloseSwigAuthority;
     };
 
 export function isActionPayload<P extends ActionPayload['permission']>(
@@ -193,6 +196,10 @@ export function decodeActionPayload(
   }
 
   if (permission === Permission.AllButManageAuthority) {
+    return { permission };
+  }
+
+  if (permission === Permission.CloseSwigAuthority) {
     return { permission };
   }
 

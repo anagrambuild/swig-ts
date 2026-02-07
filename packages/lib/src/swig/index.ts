@@ -541,6 +541,58 @@ export const getTransferAssetsInstructionContext = async (
   });
 };
 
+export type CloseSwigArgs<T extends SolPublicKeyData = SolPublicKeyData> = {
+  destination: T;
+};
+
+export const getCloseSwigInstructionContext = async <
+  T extends SolPublicKeyData = SolPublicKeyData,
+>(
+  swig: Swig,
+  roleId: number,
+  args: CloseSwigArgs<T>,
+  options?: SwigOptions,
+) => {
+  const { role } = await assertInstructionOptions(swig, roleId, false, options);
+
+  return role.authority.closeSwig({
+    roleId: role.id,
+    swigAddress: swig.address,
+    swigSystemAddress: await getSwigSystemAddressRaw(swig),
+    destination: args.destination,
+    options,
+  });
+};
+
+export type CloseSwigTokenAccountArgs<
+  T extends SolPublicKeyData = SolPublicKeyData,
+> = {
+  destination: T;
+  tokenProgram: T;
+  tokenAccounts: T[];
+};
+
+export const getCloseSwigTokenAccountInstructionContext = async <
+  T extends SolPublicKeyData = SolPublicKeyData,
+>(
+  swig: Swig,
+  roleId: number,
+  args: CloseSwigTokenAccountArgs<T>,
+  options?: SwigOptions,
+) => {
+  const { role } = await assertInstructionOptions(swig, roleId, false, options);
+
+  return role.authority.closeTokenAccount({
+    roleId: role.id,
+    swigAddress: swig.address,
+    swigSystemAddress: await getSwigSystemAddressRaw(swig),
+    destination: args.destination,
+    tokenProgram: args.tokenProgram,
+    tokenAccounts: args.tokenAccounts,
+    options,
+  });
+};
+
 async function assertInstructionOptions(
   swig: Swig,
   roleId: number,

@@ -4,6 +4,8 @@ import { getArrayEncoder, getU8Encoder } from '@solana/kit';
 import {
   getAccountsPayloadEncoder,
   getAddAuthorityV1AuthorityPayloadEncoder,
+  getCloseSwigV1InstructionDataCodec,
+  getCloseTokenAccountV1InstructionDataCodec,
   getCompactInstructionEncoder,
   getCreateSessionV1AuthorityPayloadCodec,
   getRemoveAuthorityV1AuthorityPayloadEncoder,
@@ -18,6 +20,8 @@ import {
   SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetas,
+  getCloseSwigV1BaseAccountMetas,
+  getCloseTokenAccountV1BaseAccountMetas,
   getCreateSessionV1BaseAccountMetasWithSystemProgram,
   getRemoveAuthorityV1BaseAccountMetas,
   getSignV1BaseAccountMetas,
@@ -31,7 +35,7 @@ import {
   getTransferAssetsV1BaseAccountMetas,
   getUpdateAuthorityV1BaseAccountMetas,
 } from '../../instructions';
-import { SolAccountMeta } from '../../solana';
+import { SolAccountMeta, SolPublicKey } from '../../solana';
 import type { AuthorityInstruction, SigningFn } from './interface';
 
 /**
@@ -412,6 +416,80 @@ export const Secp256k1Instruction: AuthorityInstruction = {
 
     return SwigInstructionV1.transferAssets(accountMetas, {
       ...data,
+      authorityPayload,
+    });
+  },
+
+  async closeSwigV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const accountMetas = getCloseSwigV1BaseAccountMetas(accounts);
+
+    const { payloadEncoder } = getCloseSwigV1InstructionDataCodec();
+
+    const message = payloadEncoder.encode(data);
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(message),
+      accountMetas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.closeSwig(accountMetas, {
+      ...data,
+      authorityPayload,
+    });
+  },
+
+  async closeTokenAccountV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const baseMetas = getCloseTokenAccountV1BaseAccountMetas(accounts);
+
+    const { payloadEncoder } = getCloseTokenAccountV1InstructionDataCodec();
+
+    // Append writable token account metas after the base accounts
+    const tokenAccountMetas = (data.tokenAccounts ?? []).map((ta: any) =>
+      SolAccountMeta.from({
+        pubkey: new SolPublicKey(ta),
+        isSigner: false,
+        isWritable: true,
+      }),
+    );
+
+    const accountMetas = [...baseMetas, ...tokenAccountMetas] as [
+      ...typeof baseMetas,
+      ...SolAccountMeta[],
+    ];
+
+    const message = payloadEncoder.encode({
+      ...data,
+      tokenAccountOffset: baseMetas.length,
+    });
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(message),
+      accountMetas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.closeTokenAccount(accountMetas, {
+      ...data,
+      tokenAccountOffset: baseMetas.length,
       authorityPayload,
     });
   },

@@ -1,4 +1,6 @@
 export * from './addAuthorityV1';
+export * from './closeSwigV1';
+export * from './closeTokenAccountV1';
 export * from './createSessionV1';
 export * from './createV1';
 export * from './removeAuthorityV1';

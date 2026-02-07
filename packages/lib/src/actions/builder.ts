@@ -108,6 +108,14 @@ export class ActionsBuilder {
   }
 
   /**
+   * Enable CloseSwigAuthority action - allows closing token accounts and swig account
+   */
+  closeSwigAuthority(): this {
+    this._actionConfigs.push(new CloseSwigAuthorityConfig());
+    return this;
+  }
+
+  /**
    * Enable a program scope
    * @param payload.programId ID of the program to enable
    */
@@ -512,6 +520,24 @@ class AllButManageAuthorityConfig extends ActionConfig {
 
   get permission() {
     return Permission.AllButManageAuthority;
+  }
+
+  encode(): Uint8Array {
+    return new Uint8Array(0);
+  }
+}
+
+class CloseSwigAuthorityConfig extends ActionConfig {
+  constructor() {
+    super();
+  }
+
+  get length() {
+    return 0;
+  }
+
+  get permission() {
+    return Permission.CloseSwigAuthority;
   }
 
   encode(): Uint8Array {
