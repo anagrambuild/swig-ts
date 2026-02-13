@@ -1,6 +1,6 @@
 {
   "name": "@swig-wallet/api",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "API clients for the Swig ecosystem (Portal and Paymaster services)",
   "license": "AGPL-3.0-only",
   "type": "module",

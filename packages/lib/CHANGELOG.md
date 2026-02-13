@@ -1,5 +1,19 @@
 # @swig-wallet/classic
 
+## 1.6.0
+
+### Minor Changes
+
+- 11e1a52: - Add ProgramExec authority support for program-based authentication
+  - Add preInstructions/postInstructions support to SwigOptions for transaction composition
+- d06ec30: Adds support for new CloseSwig set of instructions
+
+### Patch Changes
+
+- Updated dependencies [11e1a52]
+- Updated dependencies [d06ec30]
+  - @swig-wallet/coder@1.6.0
+
 ## 1.5.0
 
 ### Minor Changes
