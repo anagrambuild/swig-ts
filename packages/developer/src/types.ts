@@ -6,7 +6,7 @@ export type {
   WalletType,
 } from '@swig-wallet/api';
 
-import type { Network, RetryOptions } from '@swig-wallet/api';
+import type { Network, RetryOptions, WalletType } from '@swig-wallet/api';
 
 export interface SwigConfig {
   /** API key for authenticating with the Portal API */
