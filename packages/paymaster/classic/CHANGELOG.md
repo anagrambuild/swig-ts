@@ -1,5 +1,11 @@
 # @swig-wallet/paymaster-classic
 
+## 1.0.2
+
+### Patch Changes
+
+- @swig-wallet/paymaster-core@1.0.2
+
 ## 1.0.1
 
 ### Patch Changes

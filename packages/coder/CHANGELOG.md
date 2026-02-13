@@ -1,5 +1,12 @@
 # @swig-wallet/coder
 
+## 1.6.0
+
+### Minor Changes
+
+- 11e1a52: Add ProgramExec and ProgramExecSession authority types and codecs
+- d06ec30: Adds support for new CloseSwig set of instructions
+
 ## 1.5.0
 
 ### Minor Changes

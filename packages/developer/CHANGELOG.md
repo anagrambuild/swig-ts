@@ -1,5 +1,19 @@
 # @swig-wallet/developer
 
+## 1.1.0
+
+### Minor Changes
+
+- 5a01842: Adds new manual wallet addition in swig create via API method
+
+### Patch Changes
+
+- Updated dependencies [5a01842]
+- Updated dependencies [11e1a52]
+- Updated dependencies [d06ec30]
+  - @swig-wallet/api@1.1.0
+  - @swig-wallet/lib@1.6.0
+
 ## 1.0.0
 
 ### Major Changes

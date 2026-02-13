@@ -1,5 +1,20 @@
 # @swig-wallet/classic
 
+## 1.6.0
+
+### Minor Changes
+
+- d06ec30: Adds support for new CloseSwig set of instructions
+
+### Patch Changes
+
+- 11e1a52: Add SwigInstructionOptions type for native TransactionInstruction support in pre/postInstructions
+- Updated dependencies [11e1a52]
+- Updated dependencies [11e1a52]
+- Updated dependencies [d06ec30]
+  - @swig-wallet/coder@1.6.0
+  - @swig-wallet/lib@1.6.0
+
 ## 1.5.0
 
 ### Minor Changes
