@@ -16,6 +16,7 @@ export type {
   CreateWalletRequest,
   CreateWalletResponse,
   Policy,
+  WalletType,
 } from './portal/types.js';
 
 export type {

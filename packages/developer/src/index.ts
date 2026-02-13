@@ -13,6 +13,7 @@ export type {
   SwigConfig,
   WalletCreateArgs,
   WalletCreateResult,
+  WalletType,
 } from './types.js';
 
 export { AuthorityType } from '@swig-wallet/lib';
