@@ -61,7 +61,10 @@
     "@ethereumjs/wallet": "^2.0.4",
     "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.98.0",
+    "bitcoinjs-lib": "^7.0.1",
+    "ecpair": "^3.0.1",
     "ethers": "^6.13.5",
+    "tiny-secp256k1": "^2.2.4",
     "ws": "^8.18.1"
   }
 }
