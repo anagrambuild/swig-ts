@@ -17,21 +17,27 @@ The agent writes its own TypeScript scripts using the Swig SDK. The skill is a r
 
 ## Install
 
+> **Source:** [github.com/anagrambuild/swig-ts/skills/swig-smart-wallet](https://github.com/anagrambuild/swig-ts/tree/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet)
+
 ```bash
-npx skills add swig-wallet/swig-ts --skill swig-smart-wallet
+# https://github.com/anagrambuild/swig-ts/tree/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet
+git clone --depth 1 --branch feat/agentic-skills-and-mcp-server https://github.com/anagrambuild/swig-ts.git /tmp/_swig-skill && \
+  npx skills add /tmp/_swig-skill --skill swig-smart-wallet --copy -y && \
+  rm -rf /tmp/_swig-skill
 ```
 
 Or install for a specific agent:
 
 ```bash
-npx skills add swig-wallet/swig-ts --skill swig-smart-wallet -a claude-code
-npx skills add swig-wallet/swig-ts --skill swig-smart-wallet -a cursor
-npx skills add swig-wallet/swig-ts --skill swig-smart-wallet -a openclaw
+# https://github.com/anagrambuild/swig-ts/tree/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet
+git clone --depth 1 --branch feat/agentic-skills-and-mcp-server https://github.com/anagrambuild/swig-ts.git /tmp/_swig-skill && \
+  npx skills add /tmp/_swig-skill --skill swig-smart-wallet --copy -y -a claude-code && \
+  rm -rf /tmp/_swig-skill
 ```
 
 ### Manual install
 
-Copy `SKILL.md` into the skills directory for your agent:
+Download [`SKILL.md`](https://github.com/anagrambuild/swig-ts/blob/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet/SKILL.md) into the skills directory for your agent:
 
 | Agent       | Path                                          |
 | ----------- | --------------------------------------------- |
@@ -42,6 +48,14 @@ Copy `SKILL.md` into the skills directory for your agent:
 | Codex       | `.agents/skills/swig-smart-wallet/SKILL.md`   |
 | Windsurf    | `.windsurf/skills/swig-smart-wallet/SKILL.md` |
 | Roo Code    | `.roo/skills/swig-smart-wallet/SKILL.md`      |
+
+For example, to install manually for Claude Code:
+
+```bash
+mkdir -p .claude/skills/swig-smart-wallet
+curl -sL "https://raw.githubusercontent.com/anagrambuild/swig-ts/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet/SKILL.md" \
+  -o .claude/skills/swig-smart-wallet/SKILL.md
+```
 
 For the full list of supported agents and paths, see the [skills CLI documentation](https://github.com/vercel-labs/skills#supported-agents).
 
