@@ -17,11 +17,11 @@ The agent writes its own TypeScript scripts using the Swig SDK. The skill is a r
 
 ## Install
 
-> **Source:** [github.com/anagrambuild/swig-ts/skills/swig-smart-wallet](https://github.com/anagrambuild/swig-ts/tree/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet)
+> **Source:** [github.com/anagrambuild/swig-ts/skills/swig-smart-wallet](https://github.com/anagrambuild/swig-ts/tree/main/skills/swig-smart-wallet)
 
 ```bash
-# https://github.com/anagrambuild/swig-ts/tree/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet
-git clone --depth 1 --branch feat/agentic-skills-and-mcp-server https://github.com/anagrambuild/swig-ts.git /tmp/_swig-skill && \
+# https://github.com/anagrambuild/swig-ts/tree/main/skills/swig-smart-wallet
+git clone --depth 1 https://github.com/anagrambuild/swig-ts.git /tmp/_swig-skill && \
   npx skills add /tmp/_swig-skill --skill swig-smart-wallet --copy -y && \
   rm -rf /tmp/_swig-skill
 ```
@@ -29,15 +29,15 @@ git clone --depth 1 --branch feat/agentic-skills-and-mcp-server https://github.c
 Or install for a specific agent:
 
 ```bash
-# https://github.com/anagrambuild/swig-ts/tree/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet
-git clone --depth 1 --branch feat/agentic-skills-and-mcp-server https://github.com/anagrambuild/swig-ts.git /tmp/_swig-skill && \
+# https://github.com/anagrambuild/swig-ts/tree/main/skills/swig-smart-wallet
+git clone --depth 1 https://github.com/anagrambuild/swig-ts.git /tmp/_swig-skill && \
   npx skills add /tmp/_swig-skill --skill swig-smart-wallet --copy -y -a claude-code && \
   rm -rf /tmp/_swig-skill
 ```
 
 ### Manual install
 
-Download [`SKILL.md`](https://github.com/anagrambuild/swig-ts/blob/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet/SKILL.md) into the skills directory for your agent:
+Download [`SKILL.md`](https://github.com/anagrambuild/swig-ts/blob/main/skills/swig-smart-wallet/SKILL.md) into the skills directory for your agent:
 
 | Agent       | Path                                          |
 | ----------- | --------------------------------------------- |
@@ -53,7 +53,7 @@ For example, to install manually for Claude Code:
 
 ```bash
 mkdir -p .claude/skills/swig-smart-wallet
-curl -sL "https://raw.githubusercontent.com/anagrambuild/swig-ts/feat/agentic-skills-and-mcp-server/skills/swig-smart-wallet/SKILL.md" \
+curl -sL "https://raw.githubusercontent.com/anagrambuild/swig-ts/main/skills/swig-smart-wallet/SKILL.md" \
   -o .claude/skills/swig-smart-wallet/SKILL.md
 ```
 
