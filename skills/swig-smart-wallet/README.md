@@ -20,19 +20,13 @@ The agent writes its own TypeScript scripts using the Swig SDK. The skill is a r
 > **Source:** [github.com/anagrambuild/swig-ts/skills/swig-smart-wallet](https://github.com/anagrambuild/swig-ts/tree/main/skills/swig-smart-wallet)
 
 ```bash
-# https://github.com/anagrambuild/swig-ts/tree/main/skills/swig-smart-wallet
-git clone --depth 1 https://github.com/anagrambuild/swig-ts.git /tmp/_swig-skill && \
-  npx skills add /tmp/_swig-skill --skill swig-smart-wallet --copy -y && \
-  rm -rf /tmp/_swig-skill
+npx skills add https://github.com/anagrambuild/swig-ts/tree/main/skills/swig-smart-wallet
 ```
 
 Or install for a specific agent:
 
 ```bash
-# https://github.com/anagrambuild/swig-ts/tree/main/skills/swig-smart-wallet
-git clone --depth 1 https://github.com/anagrambuild/swig-ts.git /tmp/_swig-skill && \
-  npx skills add /tmp/_swig-skill --skill swig-smart-wallet --copy -y -a claude-code && \
-  rm -rf /tmp/_swig-skill
+npx skills add https://github.com/anagrambuild/swig-ts/tree/main/skills/swig-smart-wallet
 ```
 
 ### Manual install
