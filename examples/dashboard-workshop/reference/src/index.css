@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+:root {
+  --bg: #0a0a0a;
+  --fg: #ededed;
+  --card: #141414;
+  --border: #27272a;
+  --muted: #a1a1aa;
+  --primary: #6d5cff;
+  --success: #22c55e;
+  --error: #ef4444;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
