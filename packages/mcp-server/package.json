@@ -1,6 +1,6 @@
 {
   "name": "@swig-wallet/mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "MCP server for Swig smart wallet operations on Solana",
