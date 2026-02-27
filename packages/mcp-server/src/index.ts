@@ -2,6 +2,36 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 // StreamableHTTP and node:http are imported dynamically in startHttp() to
 // avoid bundle issues with node builtins in ESM output.
+import {
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  sendAndConfirmTransaction,
+} from '@solana/web3.js';
+import type { Role } from '@swig-wallet/classic';
+import {
+  Actions,
+  Permission,
+  createEd25519AuthorityInfo,
+  createEd25519SessionAuthorityInfo,
+  createSecp256k1AuthorityInfo,
+  createSecp256r1AuthorityInfo,
+  fetchSwig,
+  findSwigPda,
+  getAddAuthorityInstructions,
+  getCreateSwigInstruction,
+  getRemoveAuthorityInstructions,
+  getSignInstructions,
+  getSwigWalletAddress,
+  getUpdateAuthorityInstructions,
+  updateAuthorityAddActions,
+  updateAuthorityRemoveByIndex,
+  updateAuthorityRemoveByType,
+  updateAuthorityReplaceAllActions,
+} from '@swig-wallet/classic';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
