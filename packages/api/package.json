@@ -3,6 +3,11 @@
   "version": "1.1.0",
   "description": "API clients for the Swig ecosystem (Portal and Paymaster services)",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anagrambuild/swig-ts",
+    "directory": "packages/api"
+  },
   "type": "module",
   "scripts": {
     "build-pkg": "tsup-node",

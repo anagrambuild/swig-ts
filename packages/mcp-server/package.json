@@ -2,6 +2,11 @@
   "name": "@swig-wallet/mcp-server",
   "version": "1.0.1",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anagrambuild/swig-ts",
+    "directory": "packages/mcp-server"
+  },
   "type": "module",
   "description": "MCP server for Swig smart wallet operations on Solana",
   "bin": {
