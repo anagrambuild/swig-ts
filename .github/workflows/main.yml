@@ -30,10 +30,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-
-      - name: Install npm 11
-        run: npm install -g npm@11
+          node-version: '24'
 
       - name: Setup bun v2
         uses: oven-sh/setup-bun@v2
