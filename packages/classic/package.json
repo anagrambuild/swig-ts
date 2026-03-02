@@ -2,6 +2,11 @@
   "name": "@swig-wallet/classic",
   "version": "1.6.0",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anagrambuild/swig-ts",
+    "directory": "packages/classic"
+  },
   "type": "module",
   "scripts": {
     "build-pkg": "tsup-node",
