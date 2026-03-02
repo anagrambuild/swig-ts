@@ -26,7 +26,11 @@ import {
   type TransferAssetsV1InstructionAccounts,
   type UpdateAuthorityV1InstructionAccounts,
 } from '../../instructions';
-import type { SolInstruction, SwigInstructionContext } from '../../solana';
+import type {
+  SolInstruction,
+  SolPublicKeyData,
+  SwigInstructionContext,
+} from '../../solana';
 
 /**
  * Authority Instruction Interface
@@ -184,4 +188,8 @@ export type InstructionDataOptions = {
   odometer?: number;
   preInstructions?: SolInstruction[];
   postInstructions?: SolInstruction[];
+  /** Transaction fee payer. Used by secp256r1/secp256k1 authorities to ensure
+   *  the payer account is marked as a signer before computing the message hash,
+   *  matching the Solana runtime behavior. See https://github.com/anagrambuild/swig-ts/issues/107 */
+  payer?: SolPublicKeyData;
 };

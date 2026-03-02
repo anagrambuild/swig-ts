@@ -257,6 +257,67 @@ describe('Sign Instruction', () => {
       expect(svm.getBalance(recipient1.publicKey)).toBe(amount1);
       expect(svm.getBalance(recipient2.publicKey)).toBe(amount2);
     });
+
+    test('signs multi-transfer with fee payer as destination (issue #107)', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const recipient = Keypair.generate();
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256k1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const walletAddress = toPublicKey(await getSwigWalletAddressRaw(swig));
+      const role = swig.roles[0];
+
+      svm.airdrop(walletAddress, SOL);
+
+      const slot = svm.getClock().slot;
+      const payerBalanceBefore = svm.getBalance(payer.publicKey)!;
+      const amount1 = SOL / 10n;
+      const amount2 = SOL / 20n;
+
+      const transfer1 = getTransferSolInstruction({
+        source: address(walletAddress.toBase58()),
+        destination: address(recipient.publicKey.toBase58()),
+        amount: amount1,
+      });
+
+      const transfer2 = getTransferSolInstruction({
+        source: address(walletAddress.toBase58()),
+        destination: address(payer.publicKey.toBase58()),
+        amount: amount2,
+      });
+
+      const signIx = await getSignInstructionContext(
+        swig,
+        role.id,
+        [transfer1, transfer2].map(SolInstruction.from),
+        false,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: authority.signingFn ?? undefined,
+        },
+      );
+
+      sendSwigSVMTransaction(svm, signIx, payer);
+
+      expect(svm.getBalance(recipient.publicKey)).toBe(amount1);
+      const payerBalanceAfter = svm.getBalance(payer.publicKey)!;
+      expect(payerBalanceAfter).toBeGreaterThan(
+        payerBalanceBefore - SOL / 100n,
+      );
+    });
   });
 
   // ============================================================================
@@ -370,6 +431,74 @@ describe('Sign Instruction', () => {
 
       expect(svm.getBalance(recipient1.publicKey)).toBe(amount1);
       expect(svm.getBalance(recipient2.publicKey)).toBe(amount2);
+    });
+
+    test('signs multi-transfer with fee payer as destination (issue #107)', async () => {
+      // This test reproduces the scenario from https://github.com/anagrambuild/swig-ts/issues/107
+      // When the fee payer is also a transfer destination, the on-chain program sees
+      // is_signer=true for the payer account, but the client was computing the hash
+      // with is_signer=false, causing a message hash mismatch (error 0xbd2).
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const recipient = Keypair.generate();
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const walletAddress = toPublicKey(await getSwigWalletAddressRaw(swig));
+      const role = swig.roles[0];
+
+      svm.airdrop(walletAddress, SOL);
+
+      const slot = svm.getClock().slot;
+      const payerBalanceBefore = svm.getBalance(payer.publicKey)!;
+      const amount1 = SOL / 10n;
+      const amount2 = SOL / 20n;
+
+      // Transfer 1: swig wallet -> random recipient
+      const transfer1 = getTransferSolInstruction({
+        source: address(walletAddress.toBase58()),
+        destination: address(recipient.publicKey.toBase58()),
+        amount: amount1,
+      });
+
+      // Transfer 2: swig wallet -> fee payer (this is the problematic case)
+      const transfer2 = getTransferSolInstruction({
+        source: address(walletAddress.toBase58()),
+        destination: address(payer.publicKey.toBase58()),
+        amount: amount2,
+      });
+
+      const signIx = await getSignInstructionContext(
+        swig,
+        role.id,
+        [transfer1, transfer2].map(SolInstruction.from),
+        false,
+        {
+          payer: payer.publicKey,
+          currentSlot: slot,
+          signingFn: authority.signingFn ?? undefined,
+        },
+      );
+
+      sendSwigSVMTransaction(svm, signIx, payer);
+
+      expect(svm.getBalance(recipient.publicKey)).toBe(amount1);
+      // Payer should have received amount2 (minus tx fees)
+      const payerBalanceAfter = svm.getBalance(payer.publicKey)!;
+      expect(payerBalanceAfter).toBeGreaterThan(
+        payerBalanceBefore - SOL / 100n,
+      );
     });
   });
 

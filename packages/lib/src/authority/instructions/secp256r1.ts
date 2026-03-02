@@ -251,6 +251,18 @@ export const Secp256r1Instruction: AuthorityInstruction = {
       [accounts.swigSystemAddress],
     );
 
+    // The Solana runtime always marks the fee payer as is_signer=true on all
+    // AccountInfos. If the payer appears in metas (e.g. as a transfer destination),
+    // it must be marked as signer here so the client-side hash matches the on-chain
+    // hash. See: https://github.com/anagrambuild/swig-ts/issues/107
+    if (options.payer) {
+      const payerKey = new SolPublicKey(options.payer).toBase58();
+      const payerMeta = metas.find((m) => m.publicKey.toBase58() === payerKey);
+      if (payerMeta) {
+        payerMeta.setSigner(true);
+      }
+    }
+
     const encodedCompactInstructions = getArrayEncoder(
       getCompactInstructionEncoder(),
       {
