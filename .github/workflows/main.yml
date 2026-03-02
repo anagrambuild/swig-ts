@@ -1,8 +1,5 @@
 name: Main
 
-permissions:
-  id-token: write  # Required for OIDC
-
 on:
   push:
     branches:
@@ -10,7 +7,7 @@ on:
   pull_request:
     branches:
       - main
-      
+
 env:
   RUST_VERSION: 1.84.0
   SOLANA_VERSION: 2.2.17
@@ -22,9 +19,19 @@ jobs:
     name: Release
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for changesets to create releases/PRs
+      pull-requests: write # Required for changesets to create PRs
+      id-token: write # Required for npm trusted publishing (OIDC)
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Setup bun v2
         uses: oven-sh/setup-bun@v2
@@ -40,12 +47,12 @@ jobs:
           publish: bun release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
 
   docs:
     permissions:
-      id-token: "write"
-      pages: "write"
+      id-token: 'write'
+      pages: 'write'
     name: Docs
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -59,21 +66,21 @@ jobs:
       - name: Install Dependencies
         run: bun install
 
-      - name: "Build repo"
+      - name: 'Build repo'
         run: bun run build:packages
 
-      - name: "Build documentation"
+      - name: 'Build documentation'
         run: bun build:docs
 
-      - name: "Upload Pages artifact"
-        uses: "actions/upload-pages-artifact@v3"
+      - name: 'Upload Pages artifact'
+        uses: 'actions/upload-pages-artifact@v3'
         with:
           name: github-pages
           path: docs/
 
-      - id: "deployment"
-        name: "Deploy documentation to GitHub Pages"
-        uses: "actions/deploy-pages@v4"
+      - id: 'deployment'
+        name: 'Deploy documentation to GitHub Pages'
+        uses: 'actions/deploy-pages@v4'
 
   lint:
     name: Lint
