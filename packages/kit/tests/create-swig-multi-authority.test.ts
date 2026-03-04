@@ -25,7 +25,7 @@ import { fetchSwig, getFundedKeys, getSvm } from './context';
 import { randomBytes, sendKitTransaction } from './utils';
 
 describe('create-swig-multi-authority', () => {
-  test('creates with one signer and enforces root-role removal rules', async () => {
+  test('creates with one signer, downgrades root, and enforces root-role removal rules', async () => {
     const svm = getSvm();
     const [bootstrapAuthority, managerAuthority, appAuthority] = getFundedKeys(
       svm,
@@ -90,13 +90,34 @@ describe('create-swig-multi-authority', () => {
     const managerRole = swig.findRolesByEd25519SignerPk(
       managerAuthority.publicKey,
     )[0]!;
-    const appRole = swig.findRolesByEd25519SignerPk(appAuthority.publicKey)[0]!;
     expect(managerRole.actions.canManageAuthority()).toBe(true);
+
+    const downgradeRootIxs = await getUpdateAuthorityInstructions(
+      swig,
+      bootstrapRole.id,
+      bootstrapRole.id,
+      updateAuthorityReplaceAllActions(
+        Actions.set().solLimit({ amount: 0n }).get(),
+      ),
+    );
+    sendKitTransaction(svm, downgradeRootIxs, bootstrapAuthority);
+
+    swig = fetchSwig(svm, swigAddress);
+    const downgradedRoot = swig.findRoleById(0)!;
+    expect(downgradedRoot.actions.isRoot()).toBe(false);
+    expect(downgradedRoot.actions.canManageAuthority()).toBe(false);
+    expect(downgradedRoot.actions.solSpendLimit()).toBe(0n);
+
+    const managerRoleAfterDowngrade = swig.findRolesByEd25519SignerPk(
+      managerAuthority.publicKey,
+    )[0]!;
+    const appRole = swig.findRolesByEd25519SignerPk(appAuthority.publicKey)[0]!;
+    expect(managerRoleAfterDowngrade.actions.canManageAuthority()).toBe(true);
 
     const removeBootstrapIxs = await getRemoveAuthorityInstructions(
       swig,
-      managerRole.id,
-      bootstrapRole.id,
+      managerRoleAfterDowngrade.id,
+      downgradedRoot.id,
     );
     expect(() =>
       sendKitTransaction(svm, removeBootstrapIxs, managerAuthority),
@@ -104,7 +125,7 @@ describe('create-swig-multi-authority', () => {
 
     const removeAppIxs = await getRemoveAuthorityInstructions(
       swig,
-      managerRole.id,
+      managerRoleAfterDowngrade.id,
       appRole.id,
     );
     sendKitTransaction(svm, removeAppIxs, managerAuthority);
