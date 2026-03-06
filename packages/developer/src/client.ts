@@ -1,17 +1,23 @@
-import { VersionedTransaction } from "@solana/web3.js";
-import type { CreateWalletTransactionResponse } from "@swig-wallet/api";
-import { SwigApiClient } from "@swig-wallet/api";
-import bs58 from "bs58";
-import { SwigError } from "./error.js";
-import { Policy } from "./models/index.js";
-import type { SwigConfig, WalletCreateArgs, WalletCreateResult } from "./types.js";
+import { VersionedTransaction } from '@solana/web3.js';
+import type { CreateWalletTransactionResponse } from '@swig-wallet/api';
+import { SwigApiClient } from '@swig-wallet/api';
+import bs58 from 'bs58';
+import { SwigError } from './error.js';
+import { Policy } from './models/index.js';
+import type {
+  SwigConfig,
+  WalletCreateArgs,
+  WalletCreateResult,
+} from './types.js';
 
-function isTransactionResponse(data: unknown): data is CreateWalletTransactionResponse {
+function isTransactionResponse(
+  data: unknown,
+): data is CreateWalletTransactionResponse {
   return (
-    typeof data === "object" &&
+    typeof data === 'object' &&
     data !== null &&
-    "transaction" in data &&
-    typeof (data as Record<string, unknown>).transaction === "string"
+    'transaction' in data &&
+    typeof (data as Record<string, unknown>).transaction === 'string'
   );
 }
 
@@ -46,7 +52,9 @@ export class SwigClient {
    * returns it in the `transaction` field. The caller is responsible for signing
    * and sending the transaction.
    */
-  createWallet = async (args: WalletCreateArgs): Promise<WalletCreateResult> => {
+  createWallet = async (
+    args: WalletCreateArgs,
+  ): Promise<WalletCreateResult> => {
     const { data, error } = await this.#api.wallet.create(args);
     if (error || !data) {
       throw SwigError.fromApiError(error!);

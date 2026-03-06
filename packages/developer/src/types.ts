@@ -4,10 +4,10 @@ export type {
   Network,
   RetryOptions,
   WalletType,
-} from "@swig-wallet/api";
+} from '@swig-wallet/api';
 
-import type { VersionedTransaction } from "@solana/web3.js";
-import type { Network, RetryOptions, WalletType } from "@swig-wallet/api";
+import type { VersionedTransaction } from '@solana/web3.js';
+import type { Network, RetryOptions, WalletType } from '@swig-wallet/api';
 
 export interface SwigConfig {
   /** API key for authenticating with the Portal API */
@@ -50,7 +50,9 @@ export interface WalletCreateTransactionResult {
  * When a paymaster is provided, the result contains a `signature`.
  * When no paymaster is provided, the result contains a `transaction`.
  */
-export type WalletCreateResult = WalletCreatePaymasterResult | WalletCreateTransactionResult;
+export type WalletCreateResult =
+  | WalletCreatePaymasterResult
+  | WalletCreateTransactionResult;
 
 export interface WalletCreateArgs {
   /** Policy ID to use for wallet creation */

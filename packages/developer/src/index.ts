@@ -1,9 +1,9 @@
-export { SwigClient } from "./client.js";
+export { SwigClient } from './client.js';
 
-export { SwigError } from "./error.js";
+export { SwigError } from './error.js';
 
-export { AuthorityInfo, Policy } from "./models/index.js";
-export type { PolicyConfig } from "./models/index.js";
+export { AuthorityInfo, Policy } from './models/index.js';
+export type { PolicyConfig } from './models/index.js';
 
 export type {
   ActionConfig,
@@ -12,15 +12,15 @@ export type {
   RetryOptions,
   SwigConfig,
   WalletCreateArgs,
-  WalletCreateResult,
   WalletCreatePaymasterResult,
+  WalletCreateResult,
   WalletCreateTransactionResult,
   WalletType,
-} from "./types.js";
+} from './types.js';
 
-export { AuthorityType } from "@swig-wallet/lib";
+export { AuthorityType } from '@swig-wallet/lib';
 export type {
   Actions,
   CreateAuthorityInfo,
   SolPublicKeyData,
-} from "@swig-wallet/lib";
+} from '@swig-wallet/lib';
