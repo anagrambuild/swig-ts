@@ -1,23 +1,25 @@
-export { SwigApiClient } from './client.js';
+export { SwigApiClient } from "./client.js";
 
-export { request } from './utils/request.js';
+export { request } from "./utils/request.js";
 
-export { ApiError, err, ok } from './types.js';
+export { ApiError, err, ok } from "./types.js";
 export type {
   ApiResponse,
   Network,
   RetryOptions,
   SwigApiClientConfig,
-} from './types.js';
+} from "./types.js";
 
 export type {
   ActionConfig,
   AuthorityConfig,
   CreateWalletRequest,
   CreateWalletResponse,
+  CreateWalletPaymasterResponse,
+  CreateWalletTransactionResponse,
   Policy,
   WalletType,
-} from './portal/types.js';
+} from "./portal/types.js";
 
 export type {
   HealthResponse,
@@ -26,4 +28,4 @@ export type {
   SignResponse,
   SponsorRequest,
   SponsorResponse,
-} from './paymaster/types.js';
+} from "./paymaster/types.js";
