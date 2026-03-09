@@ -37,7 +37,10 @@
   },
   "dependencies": {
     "@swig-wallet/api": "workspace:*",
-    "@swig-wallet/lib": "workspace:*"
+    "@swig-wallet/lib": "workspace:*",
+    "bs58": "^6.0.0"
   },
-  "peerDependencies": {}
+  "peerDependencies": {
+    "@solana/web3.js": "^1.98.0"
+  }
 }

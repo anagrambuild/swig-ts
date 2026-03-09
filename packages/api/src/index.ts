@@ -13,8 +13,10 @@ export type {
 export type {
   ActionConfig,
   AuthorityConfig,
+  CreateWalletPaymasterResponse,
   CreateWalletRequest,
   CreateWalletResponse,
+  CreateWalletTransactionResponse,
   Policy,
   WalletType,
 } from './portal/types.js';

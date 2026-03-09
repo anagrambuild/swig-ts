@@ -98,11 +98,19 @@ export interface CreateWalletRequest {
   swigId?: string;
   /** Network to use ('mainnet' or 'devnet') */
   network: Network;
-  /** Paymaster public key */
-  paymasterPubkey: string;
+  /**
+   * Paymaster public key.
+   * When provided, the paymaster signs and sends the transaction on your behalf.
+   * When omitted, the API returns a serialized unsigned transaction for you to
+   * sign and send yourself.
+   */
+  paymasterPubkey?: string;
 }
 
-export interface CreateWalletResponse {
+/**
+ * Response when a paymaster is used — the transaction has been signed and sent.
+ */
+export interface CreateWalletPaymasterResponse {
   /** Swig ID (8-byte identifier) */
   swigId: string;
   /** Swig wallet address */
@@ -110,3 +118,24 @@ export interface CreateWalletResponse {
   /** Transaction signature */
   signature: string;
 }
+
+/**
+ * Response when no paymaster is provided — the unsigned transaction is returned
+ * as a base58-encoded serialized VersionedTransaction.
+ */
+export interface CreateWalletTransactionResponse {
+  /** Swig ID (8-byte identifier) */
+  swigId: string;
+  /** Swig wallet address */
+  swigAddress: string;
+  /** Base58-encoded serialized VersionedTransaction (unsigned) */
+  transaction: string;
+}
+
+/**
+ * Union response type for wallet creation.
+ * Discriminated by the presence of `signature` (paymaster flow) or `transaction` (self-send flow).
+ */
+export type CreateWalletResponse =
+  | CreateWalletPaymasterResponse
+  | CreateWalletTransactionResponse;

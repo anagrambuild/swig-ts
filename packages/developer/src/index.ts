@@ -12,7 +12,9 @@ export type {
   RetryOptions,
   SwigConfig,
   WalletCreateArgs,
+  WalletCreatePaymasterResult,
   WalletCreateResult,
+  WalletCreateTransactionResult,
   WalletType,
 } from './types.js';
 

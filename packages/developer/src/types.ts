@@ -6,6 +6,7 @@ export type {
   WalletType,
 } from '@swig-wallet/api';
 
+import type { VersionedTransaction } from '@solana/web3.js';
 import type { Network, RetryOptions, WalletType } from '@swig-wallet/api';
 
 export interface SwigConfig {
@@ -19,7 +20,10 @@ export interface SwigConfig {
   retryOptions?: RetryOptions;
 }
 
-export interface WalletCreateResult {
+/**
+ * Result when a paymaster was used — the transaction has been signed and sent.
+ */
+export interface WalletCreatePaymasterResult {
   /** Swig ID (8-byte identifier) */
   swigId: string;
   /** Swig wallet address (Solana public key) */
@@ -27,6 +31,28 @@ export interface WalletCreateResult {
   /** Transaction signature */
   signature: string;
 }
+
+/**
+ * Result when no paymaster was provided — contains the unsigned transaction
+ * reconstructed as a VersionedTransaction ready for signing and sending.
+ */
+export interface WalletCreateTransactionResult {
+  /** Swig ID (8-byte identifier) */
+  swigId: string;
+  /** Swig wallet address (Solana public key) */
+  swigAddress: string;
+  /** Unsigned VersionedTransaction ready for the caller to sign and send */
+  transaction: VersionedTransaction;
+}
+
+/**
+ * Union result type for wallet creation.
+ * When a paymaster is provided, the result contains a `signature`.
+ * When no paymaster is provided, the result contains a `transaction`.
+ */
+export type WalletCreateResult =
+  | WalletCreatePaymasterResult
+  | WalletCreateTransactionResult;
 
 export interface WalletCreateArgs {
   /** Policy ID to use for wallet creation */
@@ -52,6 +78,12 @@ export interface WalletCreateArgs {
   swigId?: string;
   /** Network to use ('mainnet' or 'devnet') */
   network: Network;
-  /** Paymaster public key */
-  paymasterPubkey: string;
+  /**
+   * Paymaster public key.
+   * When provided, the paymaster signs and sends the transaction on your behalf,
+   * and the result contains a `signature`.
+   * When omitted, the result contains an unsigned `transaction` (VersionedTransaction)
+   * that you must sign and send yourself.
+   */
+  paymasterPubkey?: string;
 }
