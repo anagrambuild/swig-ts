@@ -1,5 +1,12 @@
 # @swig-wallet/paymaster-core
 
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies [2b1a7fb]
+  - @swig-wallet/api@1.2.0
+
 ## 1.0.2
 
 ### Patch Changes

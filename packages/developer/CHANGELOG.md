@@ -1,5 +1,16 @@
 # @swig-wallet/developer
 
+## 1.2.0
+
+### Minor Changes
+
+- 2b1a7fb: Adds support for optional paymaster in createWallet
+
+### Patch Changes
+
+- Updated dependencies [2b1a7fb]
+  - @swig-wallet/api@1.2.0
+
 ## 1.1.1
 
 ### Patch Changes
