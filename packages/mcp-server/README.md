@@ -151,6 +151,8 @@ These tools set up the server's runtime state. Call `configure_rpc` first.
 | `remove_authority`   | Remove an authority by role ID                                                                              |
 | `update_authority`   | Update an authority's permissions (replace all, add actions, remove by type, or remove by index)            |
 
+For `add_authority`, the `newAuthorityPubkey` format depends on `authorityType`: use Base58 for `ed25519` and `ed25519Session`, a hex-encoded SEC1 public key for `secp256k1`, and a compressed hex-encoded P-256 public key for `secp256r1`.
+
 ### Transactions
 
 | Tool                    | Description                                                                          |

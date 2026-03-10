@@ -5,6 +5,7 @@
 import { AuthorityType } from '@swig-wallet/coder';
 import {
   Actions,
+  createSecp256k1AuthorityInfo,
   findSwigPdaRaw,
   getCreateSessionInstructionContext,
   getCreateSwigInstructionContext,
@@ -30,6 +31,24 @@ describe('Secp256k1 Authority', () => {
   // ============================================================================
 
   describe('Secp256k1Authority', () => {
+    test('createSecp256k1AuthorityInfo accepts hex public keys', () => {
+      const authority = createTestSecp256k1Authority();
+      const publicKeyHex = Buffer.from(authority.publicKey).toString('hex');
+
+      const info = createSecp256k1AuthorityInfo(publicKeyHex);
+
+      expect(info.type).toBe(AuthorityType.Secp256k1);
+      expect(info.data).toEqual(authority.publicKey);
+    });
+
+    test('createSecp256k1AuthorityInfo rejects Base58 input', () => {
+      const base58PublicKey = generateTestKeypair().publicKey.toBase58();
+
+      expect(() => createSecp256k1AuthorityInfo(base58PublicKey)).toThrow(
+        'Invalid secp256k1 public key format',
+      );
+    });
+
     test('type is Secp256k1', async () => {
       const svm = getSvm();
       const [payer] = getFundedKeys(svm, 1);
