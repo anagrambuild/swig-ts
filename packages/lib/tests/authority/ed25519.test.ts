@@ -8,8 +8,10 @@ import {
   createEd25519AuthorityInfo,
   createEd25519SessionAuthorityInfo,
   findSwigPdaRaw,
+  findSwigSubAccountPdaRaw,
   getAddAuthorityInstructionContext,
   getCreateSessionInstructionContext,
+  getCreateSubAccountInstructionContext,
   getCreateSwigInstructionContext,
   isEd25519Authority,
   isEd25519SessionAuthority,
@@ -20,6 +22,7 @@ import {
   generateTestKeypair,
   randomBytes,
   sendSwigSVMTransaction,
+  toPublicKey,
 } from '../helpers';
 
 describe('Ed25519 Authority', () => {
@@ -752,6 +755,90 @@ describe('Ed25519 Authority', () => {
       expect(authority.matchesSigner(sessionKey.publicKey.toBytes())).toBe(
         true,
       );
+    });
+
+    test('session authority can create sub-account after session activation', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const sessionKey = generateTestKeypair();
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519SessionAuthorityInfo(payer.address, 100n),
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+
+      const createSessionIx = await getCreateSessionInstructionContext(
+        swig,
+        0,
+        sessionKey.address,
+        50n,
+        { payer: payer.address },
+      );
+      sendSwigSVMTransaction(svm, createSessionIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+
+      const createSubAccountIx = await getCreateSubAccountInstructionContext(
+        swig,
+        0,
+        { payer: payer.address },
+      );
+      sendSwigSVMTransaction(svm, createSubAccountIx, payer, [sessionKey]);
+
+      const [subAccountAddress] = await findSwigSubAccountPdaRaw(swigId, 0);
+      const balance = svm.getBalance(toPublicKey(subAccountAddress));
+      expect(balance).toBeGreaterThan(0n);
+    });
+
+    test('session authority builds addAuthority instruction without byte-length error', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const sessionKey = generateTestKeypair();
+      const newAuthority = generateTestKeypair();
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519SessionAuthorityInfo(payer.address, 100n),
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+
+      const createSessionIx = await getCreateSessionInstructionContext(
+        swig,
+        0,
+        sessionKey.address,
+        50n,
+        { payer: payer.address },
+      );
+      sendSwigSVMTransaction(svm, createSessionIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+
+      // Before the fix, this threw "Invalid PublicKey byte length. Length is 80, not 32 bytes"
+      // because addAuthority passed the full 80-byte authority struct instead of the 32-byte session key
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        0,
+        createEd25519AuthorityInfo(newAuthority.address),
+        Actions.set().solLimit({ amount: 500_000_000n }).get(),
+      );
+
+      const instructions = addIx.getKitInstructions();
+      expect(instructions.length).toBeGreaterThan(0);
     });
   });
 });
