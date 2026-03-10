@@ -1,3 +1,5 @@
+import { hexToBytes } from '@noble/curves/abstract/utils';
+import { p256 } from '@noble/curves/nist';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import {
   AuthorityType,
@@ -10,7 +12,7 @@ import {
   getSecp256k1SessionEncoder,
 } from '@swig-wallet/coder';
 import { SolPublicKey, type SolPublicKeyData } from '../solana';
-import { detectPubkeyFormat, getUnprefixedSecpBytes } from '../utils';
+import { unprefixedHexString } from '../utils';
 import type { Authority } from './abstract';
 import { Ed25519Authority, Ed25519SessionAuthority } from './ed25519';
 import {
@@ -25,6 +27,76 @@ export type WriteOnlyAuthority = Authority;
 export interface CreateAuthorityInfo {
   data: Uint8Array;
   type: AuthorityType;
+}
+
+const INVALID_SECP256K1_PUBLIC_KEY_ERROR =
+  'Invalid secp256k1 public key format. Expected a hex-encoded SEC1 public key (33-byte compressed with 0x02/0x03 prefix, 65-byte uncompressed with 0x04 prefix, or 64-byte uncompressed X||Y). Base58 is not supported.';
+
+const INVALID_SECP256R1_PUBLIC_KEY_ERROR =
+  'Invalid secp256r1 public key format. Expected a hex-encoded 33-byte compressed P-256 public key with a 0x02/0x03 prefix. Base58 and passkey credential blobs are not supported.';
+
+function parseHexPublicKey(
+  publicKey: string | Uint8Array,
+  errorMessage: string,
+): Uint8Array {
+  if (typeof publicKey !== 'string') {
+    return publicKey;
+  }
+
+  try {
+    return hexToBytes(unprefixedHexString(publicKey));
+  } catch {
+    throw new Error(errorMessage);
+  }
+}
+
+function normalizeSecp256k1PublicKey(
+  publicKey: string | Uint8Array,
+): Uint8Array {
+  const bytes = parseHexPublicKey(
+    publicKey,
+    INVALID_SECP256K1_PUBLIC_KEY_ERROR,
+  );
+
+  try {
+    const encodedPoint =
+      bytes.length === 33 && (bytes[0] === 0x02 || bytes[0] === 0x03)
+        ? bytes
+        : bytes.length === 65 && bytes[0] === 0x04
+          ? bytes
+          : bytes.length === 64
+            ? Uint8Array.from([0x04, ...bytes])
+            : null;
+
+    if (!encodedPoint) {
+      throw new Error(INVALID_SECP256K1_PUBLIC_KEY_ERROR);
+    }
+
+    return secp256k1.ProjectivePoint.fromHex(encodedPoint)
+      .toRawBytes(false)
+      .slice(1);
+  } catch {
+    throw new Error(INVALID_SECP256K1_PUBLIC_KEY_ERROR);
+  }
+}
+
+function normalizeSecp256r1PublicKey(
+  publicKey: string | Uint8Array,
+): Uint8Array {
+  const bytes = parseHexPublicKey(
+    publicKey,
+    INVALID_SECP256R1_PUBLIC_KEY_ERROR,
+  );
+
+  if (bytes.length !== 33 || (bytes[0] !== 0x02 && bytes[0] !== 0x03)) {
+    throw new Error(INVALID_SECP256R1_PUBLIC_KEY_ERROR);
+  }
+
+  try {
+    return p256.ProjectivePoint.fromHex(bytes).toRawBytes(true);
+  } catch {
+    throw new Error(INVALID_SECP256R1_PUBLIC_KEY_ERROR);
+  }
 }
 
 export function createEd25519AuthorityInfo(
@@ -53,26 +125,13 @@ export function createEd25519SessionAuthorityInfo(
 
 /**
  * Creates authority info for secp256k1 public key
- * @param publicKey Compressed (33 bytes with 0x02/0x03 prefix or 32 bytes without prefix) or uncompressed (65 bytes with 0x04 prefix or 64 bytes without prefix) public key as bytes or hex string
+ * @param publicKey Compressed SEC1 (33 bytes with 0x02/0x03 prefix) or uncompressed SEC1 (65 bytes with 0x04 prefix or 64 bytes without prefix) public key as bytes or hex string
  * @returns CreateAuthorityInfo
  */
 export function createSecp256k1AuthorityInfo(
   publicKey: string | Uint8Array,
 ): CreateAuthorityInfo {
-  const format = detectPubkeyFormat(publicKey);
-
-  if (format === 'invalid') {
-    throw new Error(
-      'Invalid secp256k1 public key format. Expected 33-byte compressed or 64-byte uncompressed key.',
-    );
-  }
-
-  // Normalize to uncompressed format for internal processing
-  const data = getUnprefixedSecpBytes(
-    publicKey,
-    format === 'compressed' ? 33 : 64,
-  );
-
+  const data = normalizeSecp256k1PublicKey(publicKey);
   const type = AuthorityType.Secp256k1;
 
   return { data, type };
@@ -80,7 +139,7 @@ export function createSecp256k1AuthorityInfo(
 
 /**
  * Creates session authority info for secp256k1 public key
- * @param publicKey Compressed (33 bytes with 0x02/0x03 prefix or 32 bytes without prefix) or uncompressed (65 bytes with 0x04 prefix or 64 bytes without prefix) public key as bytes or hex string
+ * @param publicKey Compressed SEC1 (33 bytes with 0x02/0x03 prefix) or uncompressed SEC1 (65 bytes with 0x04 prefix or 64 bytes without prefix) public key as bytes or hex string
  * @param maxSessionDuration Maximum session duration in seconds
  * @param sessionKey Optional session key
  * @returns CreateAuthorityInfo
@@ -90,21 +149,7 @@ export function createSecp256k1SessionAuthorityInfo(
   maxSessionDuration: bigint,
   sessionKey?: SolPublicKeyData,
 ): CreateAuthorityInfo {
-  const format = detectPubkeyFormat(publicKey);
-
-  if (format === 'invalid') {
-    throw new Error(
-      'Invalid secp256k1 public key format. Expected 33-byte compressed or 64-byte uncompressed key.',
-    );
-  }
-
-  // sanitise the publickey based on the format
-  const sanitisedPublicKey = getUnprefixedSecpBytes(
-    publicKey,
-    format === 'compressed' ? 33 : 64,
-  );
-  const publicKeyBytes = new Uint8Array(64);
-  publicKeyBytes.set(sanitisedPublicKey);
+  const publicKeyBytes = normalizeSecp256k1PublicKey(publicKey);
 
   const _sessionKey = sessionKey
     ? new SolPublicKey(sessionKey).toBytes()
@@ -125,16 +170,14 @@ export function createSecp256k1SessionAuthorityInfo(
 /**
  * Create an AuthorityInfo object for a basic Secp256r1 authority.
  *
- * @param publicKey Compressed public key (33 bytes) as Uint8Array or hex string.
+ * @param publicKey Compressed P-256 public key (33 bytes with 0x02/0x03 prefix) as Uint8Array or hex string.
  * @returns The encoded authority data and authority type.
  */
 export function createSecp256r1AuthorityInfo(
   publicKey: string | Uint8Array,
 ): CreateAuthorityInfo {
-  const data = getUnprefixedSecpBytes(publicKey, 33);
+  const data = normalizeSecp256r1PublicKey(publicKey);
   const type = AuthorityType.Secp256r1;
-  const d = new Uint8Array(40);
-  d.set(data);
 
   return { data, type };
 }
@@ -142,7 +185,7 @@ export function createSecp256r1AuthorityInfo(
 /**
  * Create an AuthorityInfo object for a Secp256r1 session authority.
  *
- * @param publicKey Compressed public key (33 bytes) as Uint8Array or hex string.
+ * @param publicKey Compressed P-256 public key (33 bytes with 0x02/0x03 prefix) as Uint8Array or hex string.
  * @param maxSessionDuration Number of slots the session is valid for
  * @param sessionKey Optional session key (defaults to zeroed key)
  * @returns The encoded session authority data and authority type.
@@ -152,7 +195,7 @@ export function createSecp256r1SessionAuthorityInfo(
   maxSessionDuration: bigint,
   sessionKey?: SolPublicKeyData,
 ): CreateAuthorityInfo {
-  const publicKeyBytes = getUnprefixedSecpBytes(publicKey, 33);
+  const publicKeyBytes = normalizeSecp256r1PublicKey(publicKey);
 
   const sessionData = getCreateSecp256r1SessionEncoder().encode({
     publicKey: publicKeyBytes,

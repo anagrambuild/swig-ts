@@ -13,6 +13,8 @@ import {
   Actions,
   AddMultipleAuthoritiesInstructionContextBuilder,
   createEd25519AuthorityInfo,
+  createSecp256k1AuthorityInfo,
+  createSecp256r1AuthorityInfo,
   findSwigPdaRaw,
   getAddAuthorityInstructionContext,
   getCreateSwigInstructionContext,
@@ -154,6 +156,41 @@ describe('AddAuthorityV1 Instruction', () => {
       expect(secpRole).toBeDefined();
     });
 
+    test('adds Secp256k1 authority from hex public key', async () => {
+      const svm = getSvm();
+      const [root] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const secpAuthority = createTestSecp256k1Authority();
+      const publicKeyHex = Buffer.from(secpAuthority.publicKey).toString('hex');
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createSecp256k1AuthorityInfo(publicKeyHex),
+        Actions.set().solLimit({ amount: SOL }).get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      const secpRole = swig.findRolesBySecp256k1SignerAddress(
+        secpAuthority.address,
+      )[0];
+      expect(secpRole).toBeDefined();
+    });
+
     test('adds Secp256r1 authority', async () => {
       const svm = getSvm();
       const [root] = getFundedKeys(svm, 1);
@@ -177,6 +214,40 @@ describe('AddAuthorityV1 Instruction', () => {
         swig,
         rootRole.id,
         secpAuthority.authorityInfo,
+        Actions.set().solLimit({ amount: SOL }).get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      expect(swig.roles.length).toBe(2);
+    });
+
+    test('adds Secp256r1 authority from compressed hex public key', async () => {
+      const svm = getSvm();
+      const [root] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const secpAuthority = createTestSecp256r1Authority();
+      const publicKeyHex = Buffer.from(
+        secpAuthority.compressedPublicKey,
+      ).toString('hex');
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createSecp256r1AuthorityInfo(publicKeyHex),
         Actions.set().solLimit({ amount: SOL }).get(),
       );
       sendSwigSVMTransaction(svm, addIx, root);

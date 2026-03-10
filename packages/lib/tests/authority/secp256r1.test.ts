@@ -5,6 +5,7 @@
 import { AuthorityType } from '@swig-wallet/coder';
 import {
   Actions,
+  createSecp256r1AuthorityInfo,
   findSwigPdaRaw,
   getCreateSessionInstructionContext,
   getCreateSwigInstructionContext,
@@ -15,6 +16,7 @@ import {
 import { isSecp256r1BasedAuthority } from '../../src/authority/secp256r1/based';
 import { fetchSwig, getFundedKeys, getSvm } from '../context';
 import {
+  createTestSecp256k1Authority,
   createTestSecp256r1Authority,
   createTestSecp256r1SessionAuthority,
 } from '../fixtures/authorities';
@@ -30,6 +32,36 @@ describe('Secp256r1 Authority', () => {
   // ============================================================================
 
   describe('Secp256r1Authority', () => {
+    test('createSecp256r1AuthorityInfo accepts compressed hex public keys', () => {
+      const authority = createTestSecp256r1Authority();
+      const publicKeyHex = Buffer.from(authority.compressedPublicKey).toString(
+        'hex',
+      );
+
+      const info = createSecp256r1AuthorityInfo(publicKeyHex);
+
+      expect(info.type).toBe(AuthorityType.Secp256r1);
+      expect(info.data).toEqual(authority.compressedPublicKey);
+    });
+
+    test('createSecp256r1AuthorityInfo rejects uncompressed public keys', () => {
+      const authority = createTestSecp256r1Authority();
+      const publicKeyHex = Buffer.from(authority.publicKey).toString('hex');
+
+      expect(() => createSecp256r1AuthorityInfo(publicKeyHex)).toThrow(
+        'Invalid secp256r1 public key format',
+      );
+    });
+
+    test('createSecp256r1AuthorityInfo rejects secp256k1 public keys', () => {
+      const authority = createTestSecp256k1Authority();
+      const publicKeyHex = Buffer.from(authority.publicKey).toString('hex');
+
+      expect(() => createSecp256r1AuthorityInfo(publicKeyHex)).toThrow(
+        'Invalid secp256r1 public key format',
+      );
+    });
+
     test('type is Secp256r1', async () => {
       const svm = getSvm();
       const [payer] = getFundedKeys(svm, 1);

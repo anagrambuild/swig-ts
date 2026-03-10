@@ -534,7 +534,9 @@ function registerAllTools(server: McpServer) {
         ),
       newAuthorityPubkey: z
         .string()
-        .describe('Base58 public key of the new authority to add'),
+        .describe(
+          'Authority public key. Use Base58 for ed25519/ed25519Session, hex-encoded SEC1 public key for secp256k1, and compressed hex-encoded P-256 public key for secp256r1.',
+        ),
       authorityType: z
         .enum(['ed25519', 'ed25519Session', 'secp256k1', 'secp256r1'])
         .default('ed25519')
