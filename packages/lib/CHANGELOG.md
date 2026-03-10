@@ -1,5 +1,12 @@
 # @swig-wallet/classic
 
+## 1.7.1
+
+### Patch Changes
+
+- c522b47: Added k1/r1 validation
+  - @swig-wallet/coder@1.7.1
+
 ## 1.7.0
 
 ### Minor Changes

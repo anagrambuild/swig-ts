@@ -1,5 +1,12 @@
 # @swig-wallet/developer
 
+## 1.2.1
+
+### Patch Changes
+
+- Updated dependencies [c522b47]
+  - @swig-wallet/lib@1.7.1
+
 ## 1.2.0
 
 ### Minor Changes
