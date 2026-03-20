@@ -1,5 +1,11 @@
 # @swig-wallet/mcp-server
 
+## 1.0.5
+
+### Patch Changes
+
+- @swig-wallet/classic@1.8.0
+
 ## 1.0.4
 
 ### Patch Changes
