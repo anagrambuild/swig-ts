@@ -20,6 +20,11 @@ import {
   Swig,
 } from '../../src';
 import { fetchSwig, getFundedKeys, getSvm } from '../context';
+import {
+  createTestProgramExecAuthority,
+  createTestSecp256k1Authority,
+  createTestSecp256r1Authority,
+} from '../fixtures/authorities';
 import { randomBytes, sendSwigSVMTransaction } from '../helpers';
 
 describe('Swig class', () => {
@@ -316,6 +321,155 @@ describe('Swig class', () => {
 
       const roles = swig.findRolesByAuthoritySigner(payer.publicKey.toBytes());
       expect(roles.length).toBe(1);
+    });
+  });
+
+  // ============================================================================
+  // findRolesByAuthorityAddress
+  // ============================================================================
+
+  describe('findRolesByAuthorityAddress', () => {
+    test('finds ed25519 role by authority address', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(payer.publicKey),
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+
+      const roles = swig.findRolesByAuthorityAddress(payer.publicKey.toBytes());
+      expect(roles.length).toBe(1);
+    });
+
+    test('finds secp256k1 role by authority address', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256k1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+
+      const roles = swig.findRolesByAuthorityAddress(authority.address);
+      expect(roles.length).toBe(1);
+    });
+
+    test('finds secp256r1 role by authority address', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+
+      const roles = swig.findRolesByAuthorityAddress(
+        authority.compressedPublicKey,
+      );
+      expect(roles.length).toBe(1);
+    });
+
+    test('finds programexec role by authority address', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+
+      const roles = swig.findRolesByAuthorityAddress(authority.programId);
+      expect(roles.length).toBe(1);
+    });
+
+    test('returns empty array for non-matching address', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(payer.publicKey),
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+
+      const roles = swig.findRolesByAuthorityAddress(randomBytes(32));
+      expect(roles.length).toBe(0);
+    });
+
+    test('finds correct role among multiple roles', async () => {
+      const svm = getSvm();
+      const [payer, auth1] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(payer.publicKey),
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      let swig = fetchSwig(svm, swigAddress);
+
+      const addAuthIx = await getAddAuthorityInstructionContext(
+        swig,
+        0,
+        createEd25519AuthorityInfo(auth1.publicKey),
+        Actions.set().manageAuthority().get(),
+        { payer: payer.publicKey },
+      );
+      sendSwigSVMTransaction(svm, addAuthIx, payer);
+
+      swig = fetchSwig(svm, swigAddress);
+
+      const roles = swig.findRolesByAuthorityAddress(auth1.publicKey.toBytes());
+      expect(roles.length).toBe(1);
+      expect(roles[0].id).toBe(1);
     });
   });
 

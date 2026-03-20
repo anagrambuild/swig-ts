@@ -191,6 +191,109 @@ describe('ProgramExec Authority', () => {
 
       expect(isProgramExecBasedAuthority(swigAuthority)).toBe(true);
     });
+
+    test('address returns program ID bytes', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.address).toBeInstanceOf(Uint8Array);
+      expect(swigAuthority.address.length).toBe(32);
+      expect(Array.from(swigAuthority.address)).toEqual(
+        Array.from(authority.programId),
+      );
+    });
+
+    test('addressString returns base58', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      if (isProgramExecBasedAuthority(swigAuthority)) {
+        expect(swigAuthority.addressString).toBe(
+          swigAuthority.programId.toBase58(),
+        );
+      } else {
+        throw new Error('Expected ProgramExecAuthority');
+      }
+    });
+
+    test('signerAddress returns same as address for token authority', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(Array.from(swigAuthority.signerAddress)).toEqual(
+        Array.from(swigAuthority.address),
+      );
+      expect(swigAuthority.signerAddressString).toBe(
+        swigAuthority.addressString,
+      );
+    });
+
+    test('matchesAddress returns true for program ID', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestProgramExecAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.matchesAddress(authority.programId)).toBe(true);
+    });
   });
 
   // ============================================================================
@@ -306,6 +409,82 @@ describe('ProgramExec Authority', () => {
       const swigAuthority = swig.roles[0].authority;
 
       expect(isProgramExecBasedAuthority(swigAuthority)).toBe(true);
+    });
+
+    test('address returns program ID bytes', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestProgramExecSessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.address).toBeInstanceOf(Uint8Array);
+      expect(swigAuthority.address.length).toBe(32);
+      expect(Array.from(swigAuthority.address)).toEqual(
+        Array.from(authority.programId),
+      );
+    });
+
+    test('addressString returns base58', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestProgramExecSessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      if (isProgramExecBasedAuthority(swigAuthority)) {
+        expect(swigAuthority.addressString).toBe(
+          swigAuthority.programId.toBase58(),
+        );
+      } else {
+        throw new Error('Expected ProgramExecSessionAuthority');
+      }
+    });
+
+    test('matchesAddress returns true for program ID', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestProgramExecSessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.matchesAddress(authority.programId)).toBe(true);
     });
 
     test('maxDuration returns configured max duration', async () => {

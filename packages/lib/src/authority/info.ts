@@ -7,7 +7,14 @@
  * @packageDocumentation
  */
 
+import { bytesToHex } from '@noble/curves/abstract/utils';
 import { AuthorityType } from '@swig-wallet/coder';
+import { SolPublicKey } from '../solana.js';
+import {
+  compressedPubkeyToAddress,
+  detectPubkeyFormat,
+  uncompressedPubkeyToAddress,
+} from '../utils.js';
 import {
   getCreateAuthorityInfo,
   type CreateAuthorityInfo,
@@ -99,6 +106,42 @@ export class AuthorityInfo {
       this.type === AuthorityType.Secp256r1 ||
       this.type === AuthorityType.Secp256r1Session
     );
+  };
+
+  /**
+   * Converts the authority's raw public key bytes to the on-chain address
+   * representation.
+   *
+   * For Ed25519/ProgramExec: returns the id bytes as-is (already matches on-chain).
+   * For Secp256k1: derives the 20-byte Ethereum address from the public key.
+   * For Secp256r1: returns the id bytes as-is (already matches on-chain).
+   *
+   * @returns The on-chain authority address bytes
+   */
+  address = (): Uint8Array => {
+    if (this.isSecp256k1()) {
+      const format = detectPubkeyFormat(this.id);
+      if (format === 'compressed') {
+        return compressedPubkeyToAddress(this.id);
+      }
+      return uncompressedPubkeyToAddress(this.id);
+    }
+    return this.id;
+  };
+
+  /**
+   * String representation of the authority address.
+   *
+   * For Ed25519: base58 encoded.
+   * For Secp256k1/Secp256r1: unprefixed hex.
+   *
+   * @returns The authority address as a human-readable string
+   */
+  addressString = (): string => {
+    if (this.isEd25519()) {
+      return new SolPublicKey(this.id).toBase58();
+    }
+    return bytesToHex(this.address());
   };
 
   /**

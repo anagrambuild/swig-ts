@@ -29,6 +29,8 @@ export abstract class Authority {
    * For {@link TokenBasedAuthority}, it is either a Ed25519 or Secp256k1 Public Key.
    *
    * For {@link SessionBasedAuthority}, It could be public key bytes, groth16 proof etc.
+   *
+   * @deprecated Use {@link address} instead
    */
   abstract id: Uint8Array;
   /**
@@ -40,8 +42,43 @@ export abstract class Authority {
    * For {@link TokenBasedAuthority}, it is either a Ed25519 or Secp256k1 Public Key.
    *
    * For {@link SessionBasedAuthority}, it is the Session Key.
+   *
+   * @deprecated Use {@link signerAddress} instead
    */
   abstract signer: Uint8Array;
+
+  /**
+   * The address that identifies this {@link Authority}.
+   *
+   * For Ed25519/ProgramExec: the public key bytes.
+   * For Secp256k1: the 20-byte Ethereum address derived from the public key.
+   * For Secp256r1: the compressed public key bytes.
+   */
+  abstract address: Uint8Array;
+
+  /**
+   * String representation of the authority {@link address}.
+   *
+   * For Ed25519/ProgramExec: base58 encoded.
+   * For Secp256k1/Secp256r1: unprefixed hex.
+   */
+  abstract addressString: string;
+
+  /**
+   * The address that identifies the signer acting on behalf of this {@link Authority}.
+   *
+   * For {@link TokenBasedAuthority}: same as {@link address}.
+   * For {@link SessionBasedAuthority}: the session key bytes.
+   */
+  abstract signerAddress: Uint8Array;
+
+  /**
+   * String representation of the {@link signerAddress}.
+   *
+   * For {@link TokenBasedAuthority}: same as {@link addressString}.
+   * For {@link SessionBasedAuthority}: base58 encoded session key.
+   */
+  abstract signerAddressString: string;
 
   constructor(public data: Uint8Array) {}
 
@@ -239,7 +276,16 @@ export abstract class Authority {
    * Check two {@link Authority} are partially equal
    */
   isEqual(other: Authority): boolean {
-    return uint8ArraysEqual(this.id, other.id) && this.type === other.type;
+    return (
+      uint8ArraysEqual(this.address, other.address) && this.type === other.type
+    );
+  }
+
+  /**
+   * Check if the given address bytes match this authority's {@link address}.
+   */
+  matchesAddress(address: Uint8Array): boolean {
+    return uint8ArraysEqual(this.address, address);
   }
 
   /**

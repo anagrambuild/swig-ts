@@ -34,6 +34,22 @@ export class Ed25519Authority
     return this.data;
   }
 
+  get address() {
+    return this.data;
+  }
+
+  get addressString() {
+    return this.ed25519PublicKey.toBase58();
+  }
+
+  get signerAddress() {
+    return this.data;
+  }
+
+  get signerAddressString() {
+    return this.ed25519PublicKey.toBase58();
+  }
+
   get ed25519PublicKey() {
     return new SolPublicKey(this.data);
   }

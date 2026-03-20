@@ -230,6 +230,119 @@ describe('Ed25519 Authority', () => {
       );
     });
 
+    test('address returns public key bytes', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(payer.publicKey),
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const authority = swig.roles[0].authority;
+
+      expect(Array.from(authority.address)).toEqual(
+        Array.from(payer.publicKey.toBytes()),
+      );
+    });
+
+    test('addressString returns base58', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(payer.publicKey),
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const authority = swig.roles[0].authority;
+
+      expect(authority.addressString).toBe(payer.publicKey.toBase58());
+    });
+
+    test('signerAddress returns same as address for token authority', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(payer.publicKey),
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const authority = swig.roles[0].authority;
+
+      expect(Array.from(authority.signerAddress)).toEqual(
+        Array.from(authority.address),
+      );
+      expect(authority.signerAddressString).toBe(authority.addressString);
+    });
+
+    test('matchesAddress returns true for correct address', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(payer.publicKey),
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const authority = swig.roles[0].authority;
+
+      expect(authority.matchesAddress(payer.publicKey.toBytes())).toBe(true);
+    });
+
+    test('matchesAddress returns false for wrong address', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const wrongSigner = generateTestKeypair();
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(payer.publicKey),
+        id: swigId,
+        payer: payer.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const authority = swig.roles[0].authority;
+
+      expect(authority.matchesAddress(wrongSigner.publicKey.toBytes())).toBe(
+        false,
+      );
+    });
+
     test('ed25519PublicKey returns SolPublicKey', async () => {
       const svm = getSvm();
       const [payer] = getFundedKeys(svm, 1);
@@ -392,7 +505,7 @@ describe('Ed25519 Authority', () => {
       }
     });
 
-    test('address is alias for ed25519PublicKey', async () => {
+    test('address returns underlying public key bytes', async () => {
       const svm = getSvm();
       const [payer] = getFundedKeys(svm, 1);
       const swigId = randomBytes(32);
@@ -411,12 +524,90 @@ describe('Ed25519 Authority', () => {
       const authority = swig.roles[0].authority;
 
       if (isEd25519SessionAuthority(authority)) {
-        expect(authority.address.toBase58()).toBe(
-          authority.ed25519PublicKey.toBase58(),
+        expect(Array.from(authority.address)).toEqual(
+          Array.from(authority.ed25519PublicKey.toBytes()),
         );
       } else {
         throw new Error('Expected Ed25519SessionAuthority');
       }
+    });
+
+    test('addressString returns base58 of underlying public key', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519SessionAuthorityInfo(payer.address, 100n),
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const authority = swig.roles[0].authority;
+
+      expect(authority.addressString).toBe(payer.address);
+    });
+
+    test('signerAddress returns session key bytes after session created', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const sessionKey = generateTestKeypair();
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519SessionAuthorityInfo(payer.address, 100n),
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+
+      const createSessionIx = await getCreateSessionInstructionContext(
+        swig,
+        0,
+        sessionKey.address,
+        50n,
+        { payer: payer.address },
+      );
+      sendSwigSVMTransaction(svm, createSessionIx, payer);
+
+      const updatedSwig = fetchSwig(svm, swigAddress);
+      const authority = updatedSwig.roles[0].authority;
+
+      expect(Array.from(authority.signerAddress)).toEqual(
+        Array.from(sessionKey.publicKey.toBytes()),
+      );
+      expect(authority.signerAddressString).toBe(sessionKey.address);
+    });
+
+    test('matchesAddress returns true for underlying public key', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519SessionAuthorityInfo(payer.address, 100n),
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const authority = swig.roles[0].authority;
+
+      expect(authority.matchesAddress(payer.publicKey.toBytes())).toBe(true);
     });
 
     test('sessionKey returns SolPublicKey after session created', async () => {
