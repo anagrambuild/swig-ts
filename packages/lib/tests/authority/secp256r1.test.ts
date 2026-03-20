@@ -240,6 +240,103 @@ describe('Secp256r1 Authority', () => {
       }
     });
 
+    test('address returns 33-byte compressed pubkey', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.address).toBeInstanceOf(Uint8Array);
+      expect(swigAuthority.address.length).toBe(33);
+    });
+
+    test('addressString returns unprefixed hex', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.addressString).toMatch(/^[0-9a-f]+$/i);
+      expect(swigAuthority.addressString).not.toMatch(/^0x/);
+    });
+
+    test('signerAddress returns same as address for token authority', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(Array.from(swigAuthority.signerAddress)).toEqual(
+        Array.from(swigAuthority.address),
+      );
+      expect(swigAuthority.signerAddressString).toBe(
+        swigAuthority.addressString,
+      );
+    });
+
+    test('matchesAddress returns true for compressed pubkey', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1Authority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.matchesAddress(authority.compressedPublicKey)).toBe(
+        true,
+      );
+    });
+
     test('matchesSigner returns true for compressed public key', async () => {
       const svm = getSvm();
       const [payer] = getFundedKeys(svm, 1);
@@ -479,6 +576,117 @@ describe('Secp256r1 Authority', () => {
       } else {
         throw new Error('Expected Secp256r1SessionAuthority');
       }
+    });
+
+    test('address returns 33-byte compressed pubkey', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1SessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.address).toBeInstanceOf(Uint8Array);
+      expect(swigAuthority.address.length).toBe(33);
+    });
+
+    test('addressString returns unprefixed hex', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1SessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.addressString).toMatch(/^[0-9a-f]+$/i);
+      expect(swigAuthority.addressString).not.toMatch(/^0x/);
+    });
+
+    test('signerAddress returns session key bytes after session created', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const sessionKey = generateTestKeypair();
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1SessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+
+      const createSessionIx = await getCreateSessionInstructionContext(
+        swig,
+        0,
+        sessionKey.address,
+        50n,
+        {
+          payer: payer.address,
+          signingFn: authority.signingFn!,
+          currentSlot: BigInt(svm.getClock().slot),
+        },
+      );
+      sendSwigSVMTransaction(svm, createSessionIx, payer);
+
+      const updatedSwig = fetchSwig(svm, swigAddress);
+      const swigAuthority = updatedSwig.roles[0].authority;
+
+      expect(Array.from(swigAuthority.signerAddress)).toEqual(
+        Array.from(sessionKey.publicKey.toBytes()),
+      );
+      expect(swigAuthority.signerAddressString).toBe(sessionKey.address);
+    });
+
+    test('matchesAddress returns true for compressed pubkey', async () => {
+      const svm = getSvm();
+      const [payer] = getFundedKeys(svm, 1);
+      const swigId = randomBytes(32);
+      const authority = createTestSecp256r1SessionAuthority();
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: authority.authorityInfo,
+        id: swigId,
+        payer: payer.address,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, payer);
+
+      const swig = fetchSwig(svm, swigAddress);
+      const swigAuthority = swig.roles[0].authority;
+
+      expect(swigAuthority.matchesAddress(authority.compressedPublicKey)).toBe(
+        true,
+      );
     });
 
     test('matchesSigner returns true for session key after session created', async () => {

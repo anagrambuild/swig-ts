@@ -36,6 +36,22 @@ export class Secp256r1Authority
     return this.secp256r1PublicKey;
   }
 
+  get address() {
+    return this.publicKeyBytes;
+  }
+
+  get addressString() {
+    return bytesToHex(this.publicKeyBytes);
+  }
+
+  get signerAddress() {
+    return this.publicKeyBytes;
+  }
+
+  get signerAddressString() {
+    return bytesToHex(this.publicKeyBytes);
+  }
+
   get secp256r1PublicKey() {
     return this.publicKeyBytes;
   }

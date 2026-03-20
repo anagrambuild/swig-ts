@@ -146,6 +146,15 @@ export class Swig {
   };
 
   /**
+   * Find Roles by Authority Address
+   * @param address Authority address bytes
+   * @returns Role[]
+   */
+  findRolesByAuthorityAddress = (address: Uint8Array) => {
+    return this.roles.filter((role) => role.authority.matchesAddress(address));
+  };
+
+  /**
    * Find a Role by Authority Signer
    * @param signer Authority signer
    * @returns Role[]

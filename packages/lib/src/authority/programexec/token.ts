@@ -38,6 +38,22 @@ export class ProgramExecAuthority
     return this.programId.toBytes();
   }
 
+  get address() {
+    return this.programId.toBytes();
+  }
+
+  get addressString() {
+    return this.programId.toBase58();
+  }
+
+  get signerAddress() {
+    return this.programId.toBytes();
+  }
+
+  get signerAddressString() {
+    return this.programId.toBase58();
+  }
+
   get programId() {
     return new SolPublicKey(this.info.programId);
   }

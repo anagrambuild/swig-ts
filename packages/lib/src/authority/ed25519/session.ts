@@ -38,11 +38,23 @@ export class Ed25519SessionAuthority
     return this.sessionKey.toBytes();
   }
 
-  get publicKey() {
-    return this.ed25519PublicKey;
+  get address() {
+    return this.info.publicKey;
   }
 
-  get address() {
+  get addressString() {
+    return this.ed25519PublicKey.toBase58();
+  }
+
+  get signerAddress() {
+    return this.sessionKey.toBytes();
+  }
+
+  get signerAddressString() {
+    return this.sessionKey.toBase58();
+  }
+
+  get publicKey() {
     return this.ed25519PublicKey;
   }
 

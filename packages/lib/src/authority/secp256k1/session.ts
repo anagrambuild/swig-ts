@@ -43,6 +43,22 @@ export class Secp256k1SessionAuthority
     return this.sessionKey.toBytes();
   }
 
+  get address() {
+    return this.secp256k1Address;
+  }
+
+  get addressString() {
+    return bytesToHex(this.secp256k1Address);
+  }
+
+  get signerAddress() {
+    return this.sessionKey.toBytes();
+  }
+
+  get signerAddressString() {
+    return this.sessionKey.toBase58();
+  }
+
   get publicKeyBytes(): Uint8Array {
     return this.info.publicKey;
   }
@@ -56,7 +72,7 @@ export class Secp256k1SessionAuthority
   }
 
   get secp256k1AddressString(): string {
-    return `Ox${bytesToHex(this.secp256k1Address)}`;
+    return `0x${bytesToHex(this.secp256k1Address)}`;
   }
 
   get secp256k1PublicKey() {

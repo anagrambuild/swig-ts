@@ -39,12 +39,28 @@ export class Secp256k1Authority
     return this.secp256k1Address;
   }
 
+  get address() {
+    return this.secp256k1Address;
+  }
+
+  get addressString() {
+    return bytesToHex(this.secp256k1Address);
+  }
+
+  get signerAddress() {
+    return this.secp256k1Address;
+  }
+
+  get signerAddressString() {
+    return bytesToHex(this.secp256k1Address);
+  }
+
   get secp256k1Address() {
     return compressedPubkeyToAddress(this.publicKeyBytes);
   }
 
   get secp256k1AddressString(): string {
-    return `Ox${bytesToHex(this.secp256k1Address)}`;
+    return `0x${bytesToHex(this.secp256k1Address)}`;
   }
 
   get secp256k1PublicKey() {

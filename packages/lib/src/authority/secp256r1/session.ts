@@ -1,3 +1,4 @@
+import { bytesToHex } from '@noble/curves/abstract/utils';
 import {
   findAssociatedTokenPda,
   TOKEN_PROGRAM_ADDRESS,
@@ -37,6 +38,22 @@ export class Secp256r1SessionAuthority
 
   get signer() {
     return this.sessionKey.toBytes();
+  }
+
+  get address() {
+    return this.publicKeyBytes;
+  }
+
+  get addressString() {
+    return bytesToHex(this.publicKeyBytes);
+  }
+
+  get signerAddress() {
+    return this.sessionKey.toBytes();
+  }
+
+  get signerAddressString() {
+    return this.sessionKey.toBase58();
   }
 
   get publicKeyBytes(): Uint8Array {
