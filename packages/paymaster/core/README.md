@@ -49,4 +49,4 @@ See the [main README](../../README.md) for full documentation.
 
 ## License
 
-AGPL-3.0
+Apache-2.0

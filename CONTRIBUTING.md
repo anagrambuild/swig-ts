@@ -1,9 +1,8 @@
-
 # Contributing to Swig
 
 We welcome contributions to Swig, a project developed by Anagram Ltd.
 
-By contributing, you agree to license your work under the terms of the AGPL v3.
+By contributing, you agree to license your work under the Apache License, Version 2.0.
 
 ## How to Contribute
 
