@@ -1,5 +1,15 @@
 # @swig-wallet/developer
 
+## 1.2.3
+
+### Patch Changes
+
+- f796830: Update all published packages to Apache-2.0 licensing metadata and align repository
+  license notices with Apache 2.0.
+- Updated dependencies [f796830]
+  - @swig-wallet/api@1.2.1
+  - @swig-wallet/lib@1.8.1
+
 ## 1.2.2
 
 ### Patch Changes
