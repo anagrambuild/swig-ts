@@ -1,5 +1,14 @@
 # @swig-wallet/paymaster-kit
 
+## 1.0.4
+
+### Patch Changes
+
+- f796830: Update all published packages to Apache-2.0 licensing metadata and align repository
+  license notices with Apache 2.0.
+- Updated dependencies [f796830]
+  - @swig-wallet/paymaster-core@1.0.4
+
 ## 1.0.3
 
 ### Patch Changes

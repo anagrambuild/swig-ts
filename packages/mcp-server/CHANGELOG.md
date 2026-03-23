@@ -1,5 +1,15 @@
 # @swig-wallet/mcp-server
 
+## 1.0.6
+
+### Patch Changes
+
+- f796830: Update all published packages to Apache-2.0 licensing metadata and align repository
+  license notices with Apache 2.0.
+- Updated dependencies [f796830]
+  - @swig-wallet/paymaster-classic@1.0.4
+  - @swig-wallet/classic@1.8.1
+
 ## 1.0.5
 
 ### Patch Changes
