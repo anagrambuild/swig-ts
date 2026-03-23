@@ -135,4 +135,4 @@ The Policy model has:
 
 ## License
 
-AGPL-3.0
+Apache-2.0

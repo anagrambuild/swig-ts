@@ -151,4 +151,4 @@ Claude Code, Cursor, Codex, OpenClaw, Cline, Windsurf, Roo Code, Goose, Kilo, Gi
 
 ## License
 
-AGPL-3.0-only
+Apache-2.0

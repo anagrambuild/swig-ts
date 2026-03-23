@@ -259,4 +259,4 @@ The server uses `@swig-wallet/classic` (web3.js v1.x) internally. All Swig SDK o
 
 ## License
 
-AGPL-3.0-only
+Apache-2.0
