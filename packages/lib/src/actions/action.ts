@@ -322,6 +322,13 @@ class Action {
     );
   }
 
+  private hasAllButManageAuthorityAccess(): boolean {
+    return (
+      this.permission === Permission.All ||
+      this.permission === Permission.AllButManageAuthority
+    );
+  }
+
   /**
    * Check if this action can close swig accounts
    * @returns `boolean`
@@ -338,7 +345,7 @@ class Action {
    * Sol Spend controller
    */
   solControl(): SpendController {
-    if (isActionPayload(Permission.All, this.payload)) {
+    if (this.hasAllButManageAuthorityAccess()) {
       return SpendController.max();
     }
 
@@ -365,7 +372,7 @@ class Action {
    * Token Spend controller
    */
   tokenControl(mint: SolPublicKeyData): SpendController {
-    if (isActionPayload(Permission.All, this.payload)) {
+    if (this.hasAllButManageAuthorityAccess()) {
       return SpendController.max();
     }
 
@@ -390,7 +397,7 @@ class Action {
    * Check action use program
    */
   canUseProgram(program: SolPublicKeyData): boolean {
-    if (isActionPayload(Permission.All, this.payload)) {
+    if (this.hasAllButManageAuthorityAccess()) {
       return true;
     }
 
@@ -419,7 +426,7 @@ class Action {
    */
   hasProgramAction(): boolean {
     return (
-      this.permission === Permission.All ||
+      this.hasAllButManageAuthorityAccess() ||
       this.permission === Permission.Program ||
       this.permission === Permission.ProgramAll ||
       this.permission === Permission.ProgramCurated

@@ -105,6 +105,12 @@ describe('Actions class', () => {
       expect(actions.canUseProgram(randomProgram)).toBe(true);
     });
 
+    test('returns true for AllButManageAuthority permission', () => {
+      const actions = Actions.set().allButManageAuthority().get();
+      const randomProgram = Keypair.generate().publicKey;
+      expect(actions.canUseProgram(randomProgram)).toBe(true);
+    });
+
     test('returns true for ProgramAll permission', () => {
       const actions = Actions.set().programAll().get();
       const randomProgram = Keypair.generate().publicKey;
@@ -134,6 +140,11 @@ describe('Actions class', () => {
   describe('hasProgramAction', () => {
     test('returns true for All permission', () => {
       const actions = Actions.set().all().get();
+      expect(actions.hasProgramAction()).toBe(true);
+    });
+
+    test('returns true for AllButManageAuthority permission', () => {
+      const actions = Actions.set().allButManageAuthority().get();
       expect(actions.hasProgramAction()).toBe(true);
     });
 
@@ -169,6 +180,11 @@ describe('Actions class', () => {
       expect(actions.canSpendSolMax()).toBe(true);
     });
 
+    test('returns true for AllButManageAuthority permission', () => {
+      const actions = Actions.set().allButManageAuthority().get();
+      expect(actions.canSpendSolMax()).toBe(true);
+    });
+
     test('returns false for limited SOL permission', () => {
       const actions = Actions.set().solLimit({ amount: 1_000_000n }).get();
       expect(actions.canSpendSolMax()).toBe(false);
@@ -184,6 +200,12 @@ describe('Actions class', () => {
     test('returns true for All permission', () => {
       const actions = Actions.set().all().get();
       expect(actions.canSpendSol()).toBe(true);
+    });
+
+    test('returns true for AllButManageAuthority permission', () => {
+      const actions = Actions.set().allButManageAuthority().get();
+      expect(actions.canSpendSol()).toBe(true);
+      expect(actions.canSpendSol(1_000_000_000n)).toBe(true);
     });
 
     test('returns true for any SOL limit when no amount specified', () => {
@@ -215,6 +237,11 @@ describe('Actions class', () => {
   describe('solSpendLimit', () => {
     test('returns null for All permission (unlimited)', () => {
       const actions = Actions.set().all().get();
+      expect(actions.solSpendLimit()).toBe(null);
+    });
+
+    test('returns null for AllButManageAuthority permission (unlimited)', () => {
+      const actions = Actions.set().allButManageAuthority().get();
       expect(actions.solSpendLimit()).toBe(null);
     });
 
@@ -261,6 +288,11 @@ describe('Actions class', () => {
       expect(actions.canSpendTokenMax(mint)).toBe(true);
     });
 
+    test('returns true for AllButManageAuthority permission', () => {
+      const actions = Actions.set().allButManageAuthority().get();
+      expect(actions.canSpendTokenMax(mint)).toBe(true);
+    });
+
     test('returns false for limited token permission', () => {
       const actions = Actions.set()
         .tokenLimit({ mint, amount: 1_000_000n })
@@ -275,6 +307,12 @@ describe('Actions class', () => {
     test('returns true for All permission', () => {
       const actions = Actions.set().all().get();
       expect(actions.canSpendToken(mint)).toBe(true);
+    });
+
+    test('returns true for AllButManageAuthority permission', () => {
+      const actions = Actions.set().allButManageAuthority().get();
+      expect(actions.canSpendToken(mint)).toBe(true);
+      expect(actions.canSpendToken(mint, 1_000_000n)).toBe(true);
     });
 
     test('returns true for matching mint token limit', () => {
@@ -312,6 +350,11 @@ describe('Actions class', () => {
 
     test('returns null for All permission (unlimited)', () => {
       const actions = Actions.set().all().get();
+      expect(actions.tokenSpendLimit(mint)).toBe(null);
+    });
+
+    test('returns null for AllButManageAuthority permission (unlimited)', () => {
+      const actions = Actions.set().allButManageAuthority().get();
       expect(actions.tokenSpendLimit(mint)).toBe(null);
     });
 
