@@ -1,5 +1,12 @@
 # @swig-wallet/classic
 
+## 1.8.2
+
+### Patch Changes
+
+- 5b2643a: Fix `allButManageAuthority` action checks in the TypeScript SDK so it correctly allows unlimited SOL and SPL token spending and program interactions, while still disallowing authority management.
+  - @swig-wallet/coder@1.8.2
+
 ## 1.8.1
 
 ### Patch Changes
