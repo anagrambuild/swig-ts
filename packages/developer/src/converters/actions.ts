@@ -18,6 +18,14 @@ export function actionsFromConfig(actions: ActionConfig[]): Actions {
         builder.manageAuthority();
         break;
 
+      case 'CloseSwigAuthority':
+        builder.closeSwigAuthority();
+        break;
+
+      case 'RentDestination':
+        builder.rentDestination();
+        break;
+
       case 'SolLimit':
         builder.solLimit({ amount: BigInt(action.amount) });
         break;

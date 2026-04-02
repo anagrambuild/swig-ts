@@ -38,6 +38,11 @@ describe('ActionsBuilder', () => {
       expect(actions.isRoot()).toBe(false);
       expect(actions.count).toBe(1);
     });
+
+    test('rentDestination() creates RentDestination permission', () => {
+      const actions = Actions.set().rentDestination().get();
+      expect(actions.count).toBe(1);
+    });
   });
 
   // ============================================================================
@@ -287,6 +292,7 @@ describe('ActionsBuilder', () => {
       // Each method should return the same builder instance for chaining
       expect(builder.all()).toBe(builder);
       expect(builder.manageAuthority()).toBe(builder);
+      expect(builder.rentDestination()).toBe(builder);
       expect(builder.programAll()).toBe(builder);
     });
   });
