@@ -24,6 +24,8 @@ export type ActionConfig =
   | { type: 'All' }
   | { type: 'AllButManageAuthority' }
   | { type: 'ManageAuthority' }
+  | { type: 'CloseSwigAuthority' }
+  | { type: 'RentDestination' }
   | { type: 'SolLimit'; amount: string }
   | { type: 'SolRecurringLimit'; recurringAmount: string; window: string }
   | { type: 'SolDestinationLimit'; amount: string; destination: string }

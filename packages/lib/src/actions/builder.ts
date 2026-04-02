@@ -116,6 +116,14 @@ export class ActionsBuilder {
   }
 
   /**
+   * Enable RentDestination action - marks authority as a valid close rent recipient
+   */
+  rentDestination(): this {
+    this._actionConfigs.push(new RentDestinationConfig());
+    return this;
+  }
+
+  /**
    * Enable a program scope
    * @param payload.programId ID of the program to enable
    */
@@ -538,6 +546,24 @@ class CloseSwigAuthorityConfig extends ActionConfig {
 
   get permission() {
     return Permission.CloseSwigAuthority;
+  }
+
+  encode(): Uint8Array {
+    return new Uint8Array(0);
+  }
+}
+
+class RentDestinationConfig extends ActionConfig {
+  constructor() {
+    super();
+  }
+
+  get length() {
+    return 0;
+  }
+
+  get permission() {
+    return Permission.RentDestination;
   }
 
   encode(): Uint8Array {

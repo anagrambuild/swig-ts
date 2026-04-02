@@ -104,6 +104,9 @@ export type ActionPayload =
     }
   | {
       permission: Permission.CloseSwigAuthority;
+    }
+  | {
+      permission: Permission.RentDestination;
     };
 
 export function isActionPayload<P extends ActionPayload['permission']>(
@@ -200,6 +203,10 @@ export function decodeActionPayload(
   }
 
   if (permission === Permission.CloseSwigAuthority) {
+    return { permission };
+  }
+
+  if (permission === Permission.RentDestination) {
     return { permission };
   }
 

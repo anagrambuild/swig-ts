@@ -111,6 +111,11 @@ export enum Permission {
    * Grants the ability to close token accounts and the swig account.
    */
   CloseSwigAuthority,
+
+  /**
+   * Marks an authority as a valid rent destination for close instructions.
+   */
+  RentDestination,
 }
 
 /**

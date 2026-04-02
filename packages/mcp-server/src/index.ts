@@ -87,6 +87,9 @@ function buildActions(
       case 'closeSwigAuthority':
         builder = builder.closeSwigAuthority();
         break;
+      case 'rentDestination':
+        builder = builder.rentDestination();
+        break;
       case 'solLimit':
         builder = builder.solLimit({ amount: BigInt(perm.amount as string) });
         break;

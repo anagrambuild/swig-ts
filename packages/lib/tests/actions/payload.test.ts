@@ -57,6 +57,14 @@ describe('Action payload utilities', () => {
       expect(payload.permission).toBe(Permission.StakeAll);
     });
 
+    test('decodes RentDestination permission', () => {
+      const payload = decodeActionPayload(
+        Permission.RentDestination,
+        new Uint8Array(0),
+      );
+      expect(payload.permission).toBe(Permission.RentDestination);
+    });
+
     test('decodes SolLimit permission with data', () => {
       // SolLimit is 8 bytes (u64 amount)
       const data = new Uint8Array(8);
@@ -128,6 +136,7 @@ describe('Action payload utilities', () => {
         Permission.AllButManageAuthority,
         Permission.ProgramAll,
         Permission.StakeAll,
+        Permission.RentDestination,
       ];
 
       noPayloadPermissions.forEach((perm) => {
