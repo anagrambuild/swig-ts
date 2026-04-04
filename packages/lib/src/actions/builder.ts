@@ -779,7 +779,7 @@ class ProgramCuratedConfig extends ActionConfig {
   }
 
   get length() {
-    return 0;
+    return 32;
   }
 
   get permission() {
