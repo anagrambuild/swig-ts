@@ -1,5 +1,15 @@
 # @swig-wallet/coder
 
+## 1.9.0
+
+### Minor Changes
+
+- 446bb16: Add `RentDestination` action support across the TypeScript SDK so APIs, action builders, payload decoding, and MCP permission parsing can encode and accept rent-destination configs.
+
+### Patch Changes
+
+- 446bb16: Fix `ProgramCurated` action encoding to include the reserved 32-byte payload so generated SignV2 instructions match on-chain expectations.
+
 ## 1.8.2
 
 ## 1.8.1

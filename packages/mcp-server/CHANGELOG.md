@@ -1,5 +1,16 @@
 # @swig-wallet/mcp-server
 
+## 1.1.0
+
+### Minor Changes
+
+- 446bb16: Add `RentDestination` action support across the TypeScript SDK so APIs, action builders, payload decoding, and MCP permission parsing can encode and accept rent-destination configs.
+
+### Patch Changes
+
+- @swig-wallet/classic@1.9.0
+- @swig-wallet/paymaster-classic@1.0.5
+
 ## 1.0.7
 
 ### Patch Changes
