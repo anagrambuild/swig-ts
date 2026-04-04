@@ -77,6 +77,26 @@ describe('ActionsBuilder', () => {
       expect(actions.hasProgramAction()).toBe(true);
     });
 
+    test('programCurated() encodes a 32-byte reserved payload', () => {
+      const actions = Actions.set().programCurated().get();
+      const bytes = actions.bytes();
+
+      // action header (8) + reserved payload (32)
+      expect(bytes.length).toBe(40);
+      // action length field (u16 little-endian)
+      expect(bytes[2]).toBe(32);
+      expect(bytes[3]).toBe(0);
+      // boundary field (u32 little-endian) == 40
+      expect(bytes[4]).toBe(40);
+      expect(bytes[5]).toBe(0);
+      expect(bytes[6]).toBe(0);
+      expect(bytes[7]).toBe(0);
+
+      const reserved = bytes.slice(8);
+      expect(reserved.length).toBe(32);
+      expect(Array.from(reserved).every((byte) => byte === 0)).toBe(true);
+    });
+
     test('programScopeBasic() creates basic scope', () => {
       const programId = Keypair.generate().publicKey;
       const targetAccount = Keypair.generate().publicKey;
