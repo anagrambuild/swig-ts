@@ -31,7 +31,8 @@ export function getProgramCuratedEncoder(): Encoder<ProgramCurated> {
       ],
     ]),
     (value) => ({
-      _reserved: value._reserved ?? new Uint8Array(PROGRAM_CURATED_RESERVED_BYTES),
+      _reserved:
+        value._reserved ?? new Uint8Array(PROGRAM_CURATED_RESERVED_BYTES),
     }),
   );
 }
