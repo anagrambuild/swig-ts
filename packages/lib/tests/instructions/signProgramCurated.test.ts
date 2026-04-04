@@ -55,7 +55,9 @@ describe('SignV2 ProgramCurated', () => {
     sendSwigSVMTransaction(svm, addIx, root);
 
     swig = fetchSwig(svm, swigAddress);
-    const restrictedRole = swig.findRolesByEd25519SignerPk(restricted.publicKey)[0];
+    const restrictedRole = swig.findRolesByEd25519SignerPk(
+      restricted.publicKey,
+    )[0];
     expect(restrictedRole).toBeDefined();
 
     const roleActionBytes = restrictedRole.actions.bytes();
@@ -118,7 +120,9 @@ describe('SignV2 ProgramCurated', () => {
     sendSwigSVMTransaction(svm, addIx, root);
 
     swig = fetchSwig(svm, swigAddress);
-    const restrictedRole = swig.findRolesByEd25519SignerPk(restricted.publicKey)[0];
+    const restrictedRole = swig.findRolesByEd25519SignerPk(
+      restricted.publicKey,
+    )[0];
     const walletAddress = toPublicKey(await getSwigWalletAddressRaw(swig));
 
     const nonCuratedProgram = Keypair.generate().publicKey;
