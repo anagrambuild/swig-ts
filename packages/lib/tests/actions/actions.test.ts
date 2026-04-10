@@ -78,9 +78,9 @@ describe('Actions class', () => {
   // ============================================================================
 
   describe('canManageAuthority', () => {
-    test('returns true for All permission', () => {
+    test('returns false for All permission (All does NOT grant authority management)', () => {
       const actions = Actions.set().all().get();
-      expect(actions.canManageAuthority()).toBe(true);
+      expect(actions.canManageAuthority()).toBe(false);
     });
 
     test('returns true for ManageAuthority permission', () => {
@@ -99,10 +99,10 @@ describe('Actions class', () => {
   // ============================================================================
 
   describe('canUseProgram', () => {
-    test('returns true for All permission', () => {
+    test('returns false for All permission (All does NOT grant program access)', () => {
       const actions = Actions.set().all().get();
       const randomProgram = Keypair.generate().publicKey;
-      expect(actions.canUseProgram(randomProgram)).toBe(true);
+      expect(actions.canUseProgram(randomProgram)).toBe(false);
     });
 
     test('returns true for ProgramAll permission', () => {
@@ -111,10 +111,17 @@ describe('Actions class', () => {
       expect(actions.canUseProgram(randomProgram)).toBe(true);
     });
 
-    test('returns true for ProgramCurated permission', () => {
+    test('returns true for ProgramCurated permission with curated program', () => {
+      const actions = Actions.set().programCurated().get();
+      // System Program is a curated program
+      const systemProgram = '11111111111111111111111111111111';
+      expect(actions.canUseProgram(systemProgram)).toBe(true);
+    });
+
+    test('returns false for ProgramCurated permission with non-curated program', () => {
       const actions = Actions.set().programCurated().get();
       const randomProgram = Keypair.generate().publicKey;
-      expect(actions.canUseProgram(randomProgram)).toBe(true);
+      expect(actions.canUseProgram(randomProgram)).toBe(false);
     });
 
     test('returns true for matching program limit', () => {
@@ -132,9 +139,9 @@ describe('Actions class', () => {
   });
 
   describe('hasProgramAction', () => {
-    test('returns true for All permission', () => {
+    test('returns false for All permission (All is NOT a program action)', () => {
       const actions = Actions.set().all().get();
-      expect(actions.hasProgramAction()).toBe(true);
+      expect(actions.hasProgramAction()).toBe(false);
     });
 
     test('returns true for ProgramAll permission', () => {

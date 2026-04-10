@@ -23,7 +23,8 @@ describe('ActionsBuilder', () => {
     test('all() creates All permission', () => {
       const actions = Actions.set().all().get();
       expect(actions.isRoot()).toBe(true);
-      expect(actions.canManageAuthority()).toBe(true);
+      // Note: All does NOT grant authority management - need separate ManageAuthority
+      expect(actions.canManageAuthority()).toBe(false);
     });
 
     test('manageAuthority() creates ManageAuthority permission', () => {
@@ -71,10 +72,15 @@ describe('ActionsBuilder', () => {
 
     test('programCurated() sets curated programs permission', () => {
       const actions = Actions.set().programCurated().get();
-      const randomProgram = Keypair.generate().publicKey;
+      // System Program is a curated program
+      const systemProgram = '11111111111111111111111111111111';
 
-      expect(actions.canUseProgram(randomProgram)).toBe(true);
+      expect(actions.canUseProgram(systemProgram)).toBe(true);
       expect(actions.hasProgramAction()).toBe(true);
+
+      // Random programs should NOT be allowed with ProgramCurated
+      const randomProgram = Keypair.generate().publicKey;
+      expect(actions.canUseProgram(randomProgram)).toBe(false);
     });
 
     test('programScopeBasic() creates basic scope', () => {
