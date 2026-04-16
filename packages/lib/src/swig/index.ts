@@ -466,7 +466,12 @@ export const getWithdrawFromSubAccountInstructionContext = async <
   );
 
   const subAccount = new SolPublicKey(
-    (await findSwigSubAccountPdaRaw(role.swigId, role.id))[0],
+    (
+      await findSwigSubAccountPdaRaw(
+        role.swigId,
+        args.subAccountRoleId ?? role.id,
+      )
+    )[0],
   );
   const swigSystemAddress = await getSwigSystemAddressRaw(swig);
   return 'mint' in args
@@ -683,11 +688,13 @@ export type WithdrawSubAccountArgs<
 > =
   | {
       amount: bigint;
+      subAccountRoleId?: number;
     }
   | {
       amount: bigint;
       mint: T;
       tokenProgram?: T;
+      subAccountRoleId?: number;
     };
 
 export type WithdrawSubAccountCheckedArgs<
@@ -695,6 +702,7 @@ export type WithdrawSubAccountCheckedArgs<
 > =
   | {
       amount: bigint;
+      subAccountRoleId?: number;
       allowBelowRentExempt?: boolean;
       currentBalance?: bigint;
       allowMax?: boolean;
@@ -703,6 +711,7 @@ export type WithdrawSubAccountCheckedArgs<
       amount: bigint;
       mint: T;
       tokenProgram?: T;
+      subAccountRoleId?: number;
     };
 
 export type SwigFetchFn<
