@@ -122,6 +122,94 @@ describe('SubAccountWithdrawV1 Instruction', () => {
       expect(finalSwigBalance - initialSwigBalance).toBe(withdrawAmount);
     });
 
+    test('all authority can withdraw another role sub-account with subAccountRoleId', async () => {
+      const svm = getSvm();
+      const [root, subAccountAuth] = getFundedKeys(svm, 2);
+      const swigId = randomBytes(32);
+
+      const [swigAddress] = await findSwigPdaRaw(swigId);
+
+      // Create swig
+      const createIx = await getCreateSwigInstructionContext({
+        authorityInfo: createEd25519AuthorityInfo(root.publicKey),
+        id: swigId,
+        payer: root.publicKey,
+        actions: Actions.set().all().get(),
+      });
+      sendSwigSVMTransaction(svm, createIx, root);
+
+      let swig = fetchSwig(svm, swigAddress);
+      const rootRole = swig.roles[0];
+
+      // Add sub-account authority
+      const addIx = await getAddAuthorityInstructionContext(
+        swig,
+        rootRole.id,
+        createEd25519AuthorityInfo(subAccountAuth.publicKey),
+        Actions.set().subAccount().get(),
+      );
+      sendSwigSVMTransaction(svm, addIx, root);
+
+      swig = fetchSwig(svm, swigAddress);
+      const subAccountRole = swig.findRolesByEd25519SignerPk(
+        subAccountAuth.publicKey,
+      )[0];
+
+      // Create and fund sub-account owned by subAccountRole
+      const createSubAccountIx = await getCreateSubAccountInstructionContext(
+        swig,
+        subAccountRole.id,
+      );
+      sendSwigSVMTransaction(svm, createSubAccountIx, subAccountAuth);
+
+      const [subAccountAddress] = await findSwigSubAccountPdaRaw(
+        subAccountRole.swigId,
+        subAccountRole.id,
+      );
+      svm.airdrop(toPublicKey(subAccountAddress), SOL);
+
+      const withdrawAmount = SOL / 4n;
+
+      // Default SDK flow derives sub-account from acting role (root role here),
+      // so this fails when root's own sub-account is not funded.
+      swig = fetchSwig(svm, swigAddress);
+      const defaultWithdrawIx =
+        await getWithdrawFromSubAccountInstructionContext(swig, rootRole.id, {
+          amount: withdrawAmount,
+        });
+      expect(() =>
+        sendSwigSVMTransaction(svm, defaultWithdrawIx, root),
+      ).toThrow();
+
+      // Explicitly target the sub-account role. This should succeed with .all()
+      // authority.
+      swig = fetchSwig(svm, swigAddress);
+      const swigWalletAddress = await getSwigWalletAddressRaw(swig);
+      const initialSwigBalance = svm.getBalance(
+        toPublicKey(swigWalletAddress),
+      )!;
+      const initialSubAccountBalance = svm.getBalance(
+        toPublicKey(subAccountAddress),
+      )!;
+
+      const rescueWithdrawIx =
+        await getWithdrawFromSubAccountInstructionContext(swig, rootRole.id, {
+          amount: withdrawAmount,
+          subAccountRoleId: subAccountRole.id,
+        });
+      sendSwigSVMTransaction(svm, rescueWithdrawIx, root);
+
+      const finalSubAccountBalance = svm.getBalance(
+        toPublicKey(subAccountAddress),
+      )!;
+      const finalSwigBalance = svm.getBalance(toPublicKey(swigWalletAddress))!;
+
+      expect(initialSubAccountBalance - finalSubAccountBalance).toBe(
+        withdrawAmount,
+      );
+      expect(finalSwigBalance - initialSwigBalance).toBe(withdrawAmount);
+    });
+
     test('withdraws different amounts', async () => {
       const svm = getSvm();
       const [root, subAccountAuth] = getFundedKeys(svm, 2);
