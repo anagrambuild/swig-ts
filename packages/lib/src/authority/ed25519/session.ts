@@ -114,7 +114,7 @@ export class Ed25519SessionAuthority
         swigSystemAddress: args.swigSystemAddress,
       },
       {
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         innerInstructions: args.innerInstructions,
         roleId: args.roleId,
       },
@@ -136,7 +136,7 @@ export class Ed25519SessionAuthority
       {
         actingRoleId: args.actingRoleId,
         actions: args.actions.bytes(),
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         newAuthorityData: args.newAuthorityInfo.data,
         newAuthorityType: args.newAuthorityInfo.type,
         noOfActions: args.actions.count,
@@ -157,7 +157,7 @@ export class Ed25519SessionAuthority
       },
       {
         actingRoleId: args.roleId,
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         authorityToRemoveId: args.roleIdToRemove,
       },
     );
@@ -177,7 +177,7 @@ export class Ed25519SessionAuthority
       },
       {
         actingRoleId: args.roleId,
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         authorityToUpdateId: args.roleIdToUpdate,
         updateActionsPayload: args.updateActionsInfo.data,
       },
@@ -223,7 +223,7 @@ export class Ed25519SessionAuthority
       },
       {
         roleId: args.roleId,
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         bump,
       },
     );
@@ -242,7 +242,7 @@ export class Ed25519SessionAuthority
       },
       {
         roleId: args.roleId,
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         innerInstructions: args.innerInstructions,
       },
     );
@@ -265,7 +265,7 @@ export class Ed25519SessionAuthority
       {
         subAccountRoleId: args.subAccountRoleId,
         actingRoleId: args.actingRoleId,
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         enabled: args.enabled,
       },
     );
@@ -288,7 +288,7 @@ export class Ed25519SessionAuthority
       },
       {
         roleId: args.roleId,
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         amount: args.amount,
       },
     );
@@ -335,7 +335,7 @@ export class Ed25519SessionAuthority
       },
       {
         roleId: args.roleId,
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         amount: args.amount,
       },
     );
@@ -354,7 +354,7 @@ export class Ed25519SessionAuthority
         swigSystemAddress: args.swigSystemAddress,
       },
       {
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         roleId: args.roleId,
       },
     );
@@ -373,7 +373,7 @@ export class Ed25519SessionAuthority
         destination: args.destination,
       },
       {
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         roleId: args.roleId,
       },
     );
@@ -395,7 +395,7 @@ export class Ed25519SessionAuthority
         tokenProgram: args.tokenProgram,
       },
       {
-        authorityData: this.id,
+        authorityData: this.sessionKey.toBytes(),
         roleId: args.roleId,
         tokenAccounts: args.tokenAccounts as any,
       },
