@@ -769,7 +769,7 @@ describe('Ed25519 Authority', () => {
         authorityInfo: createEd25519SessionAuthorityInfo(payer.address, 100n),
         id: swigId,
         payer: payer.address,
-        actions: Actions.set().all().get(),
+        actions: Actions.set().all().subAccount().get(),
       });
       sendSwigSVMTransaction(svm, createIx, payer);
 
