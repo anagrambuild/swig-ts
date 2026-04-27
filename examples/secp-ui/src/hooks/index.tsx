@@ -15,6 +15,7 @@ import {
   getCreateSwigInstruction,
   getEvmPersonalSignPrefix,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -62,6 +63,26 @@ export function useSwig() {
   });
 
   return { swig: query.data, ...query };
+}
+
+/**
+ * In Swig v3 the swig PDA holds roles/authorities while a separate
+ * "wallet" PDA holds the actual SOL/tokens and is the address the program
+ * `invoke_signed`s for. Use this for airdrops, balance reads, and as the
+ * `fromPubkey` of any inner transfer instruction.
+ */
+export function useSwigWalletAddress() {
+  const { swig } = useSwig();
+  const { swigAddress } = getSwigAddress();
+
+  const query = useQuery({
+    queryKey: ['swig', 'walletAddress', swigAddress.toBase58()],
+    queryFn: () => getSwigWalletAddress(swig!),
+    enabled: !!swig,
+    staleTime: Infinity,
+  });
+
+  return { walletAddress: query.data, ...query };
 }
 
 export function useWalletPublicKey() {
@@ -144,11 +165,12 @@ export function useCreateSwig() {
 
 export function useSwigBalance() {
   const { connection } = useConnection();
-  const { swigAddress } = getSwigAddress();
+  const { walletAddress } = useSwigWalletAddress();
 
   const query = useQuery({
-    queryKey: ['swig', 'balance'],
-    queryFn: () => connection.getBalance(swigAddress, 'processed'),
+    queryKey: ['swig', 'balance', walletAddress?.toBase58()],
+    queryFn: () => connection.getBalance(walletAddress!, 'processed'),
+    enabled: !!walletAddress,
     refetchInterval: 3 * 1000,
   });
 
@@ -156,17 +178,18 @@ export function useSwigBalance() {
 }
 
 export function useSwigTransfer() {
-  const { swigAddress } = getSwigAddress();
   const { connection } = useConnection();
   const queryClient = useQueryClient();
   const { address } = useAccount();
   const { swig } = useSwig();
+  const { walletAddress } = useSwigWalletAddress();
   const { signMessageAsync } = useSignMessage();
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected');
       if (!swig) throw new Error('Swig not created');
+      if (!walletAddress) throw new Error('Swig wallet address not ready yet');
       let signerRoles = swig.findRolesBySecp256k1SignerAddress(address);
       if (!signerRoles)
         throw new Error(`No roles found from wallet address ${address}`);
@@ -177,7 +200,7 @@ export function useSwigTransfer() {
         [
           SystemProgram.transfer({
             lamports: 0.1 * LAMPORTS_PER_SOL,
-            fromPubkey: swigAddress,
+            fromPubkey: walletAddress,
             toPubkey: Keypair.generate().publicKey,
           }),
         ],
@@ -225,14 +248,18 @@ export function useSwigTransfer() {
 }
 
 export function useRequestAirdrop() {
-  const { swigAddress } = getSwigAddress();
+  const { walletAddress } = useSwigWalletAddress();
   const { connection } = useConnection();
   const queryClient = useQueryClient();
   const {} = useSwigBalance();
 
   const mutation = useMutation({
-    mutationFn: async () =>
-      connection.requestAirdrop(swigAddress, LAMPORTS_PER_SOL * 100),
+    mutationFn: async () => {
+      if (!walletAddress) {
+        throw new Error('Swig wallet address not ready yet');
+      }
+      return connection.requestAirdrop(walletAddress, LAMPORTS_PER_SOL * 100);
+    },
     onSuccess: (tx) => {
       toast.success('Transaction successful!', {
         action: <GoToExplorer tx={tx} />,

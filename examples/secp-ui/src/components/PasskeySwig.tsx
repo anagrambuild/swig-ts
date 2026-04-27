@@ -25,7 +25,12 @@ import {
   SystemProgram,
   Transaction,
 } from '@solana/web3.js';
-import { AuthorityType, getSignInstructions, Role } from '@swig-wallet/classic';
+import {
+  AuthorityType,
+  getSignInstructions,
+  getSwigWalletAddress,
+  Role,
+} from '@swig-wallet/classic';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { GoToExplorer } from './GoToExplorer';
@@ -102,13 +107,15 @@ export function PasskeySwig() {
 
     let capturedSignatureData: StoredSignatureData | null = null;
 
+    const walletAddress = await getSwigWalletAddress(swig);
+
     const ixs = await getSignInstructions(
       swig,
       signerRole.id,
       [
         SystemProgram.transfer({
           lamports: 0.1 * LAMPORTS_PER_SOL,
-          fromPubkey: swigAddress!,
+          fromPubkey: walletAddress,
           toPubkey: Keypair.generate().publicKey,
         }),
       ],
@@ -210,13 +217,15 @@ export function PasskeySwig() {
         (currentRole.authority as any).odometer?.(),
       );
 
+      const replayWalletAddress = await getSwigWalletAddress(swig);
+
       const ixs = await getSignInstructions(
         swig,
         currentRole.id,
         [
           SystemProgram.transfer({
             lamports: 0.1 * LAMPORTS_PER_SOL,
-            fromPubkey: swigAddress!,
+            fromPubkey: replayWalletAddress,
             toPubkey: Keypair.generate().publicKey,
           }),
         ],
