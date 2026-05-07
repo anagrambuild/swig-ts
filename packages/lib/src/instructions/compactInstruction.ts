@@ -1,11 +1,41 @@
 import { type CompactInstruction } from '@swig-wallet/coder';
-import { SYSTEM_PROGRAM_ADDRESS_STRING } from '../consts';
+import {
+  SYSTEM_PROGRAM_ADDRESS_STRING,
+  SYSVAR_RENT_ADDRESS_STRING,
+  TOKEN_PROGRAM_ADDRESS_STRING,
+} from '../consts';
 import {
   SolAccountMeta,
   SolInstruction,
   SolPublicKey,
   type SolPublicKeyData,
 } from '../solana';
+
+/**
+ * Detect and sanitize SyncNative instructions.  Spl-token's SyncNative
+ * only expects the wSOL ATA, but Swig's compaction can append extra
+ * accounts to satisfy solana-labs/solana#9711 (unbalanced CPI lamport
+ * tracking).  p-token #138 validates extra accounts: if a 2nd account
+ * exists it must be the Rent sysvar.  Pre-p-token ignored extra accounts,
+ * so adding Rent + swigAccount is safe on both sides.
+ */
+function isSyncNative(ix: SolInstruction): boolean {
+  return (
+    ix.program.toBase58() === TOKEN_PROGRAM_ADDRESS_STRING &&
+    ix.data.length === 1 &&
+    ix.data[0] === 17 // SyncNative instruction discriminator
+  );
+}
+
+function sanitizeSyncNative(ix: SolInstruction): SolInstruction {
+  if (!isSyncNative(ix)) return ix;
+
+  return new SolInstruction({
+    program: ix.program,
+    data: ix.data,
+    accounts: ix.accounts.slice(0, 1), // keep only wSOL ATA
+  });
+}
 
 /**
  * Convert TransactionInstructions to CompactInstructions
@@ -31,11 +61,17 @@ export function compactInstructions<
   const hashmap = new Map<string, number>(
     accounts.map((x, i) => [x.publicKey.toBase58(), i]),
   );
+
+  // Sanitize inner instructions before compaction
+  const sanitizedInstructions = innerInstructions.map(sanitizeSyncNative);
+
   let handleUnbalanced = false;
-  for (const ix of innerInstructions) {
+  for (const ix of sanitizedInstructions) {
     const programIdIndex = accounts.length;
 
     accounts.push(SolAccountMeta.readonly(ix.program));
+
+    const syncNative = isSyncNative(ix);
 
     const accts: number[] = [];
     for (const ixAccount of ix.accounts) {
@@ -65,19 +101,38 @@ export function compactInstructions<
         accts.push(idx);
       }
     }
+
+    // After a SystemProgram.transfer the swig account's lamports have
+    // changed.  The Solana runtime needs that account in the next CPI so
+    // it can verify lamport balances (solana-labs/solana#9711).
+    //
+    // For SyncNative this creates a p-token #138 conflict: the appended
+    // swig account would be the 2nd account, but p-token requires the 2nd
+    // account to be the Rent sysvar.  We resolve this by inserting Rent
+    // before the swig account so SyncNative sees [wSOL ATA, Rent, swig].
+    // Pre-p-token silently ignores extras, so this is backwards-safe.
     if (handleUnbalanced) {
-      for (const swigPda of ix.accounts) {
-        const accountIndex = swigPda
-          ? hashmap.get(swigPda.toString())
-          : hashmap.get(swigAccount.toString());
-        if (accountIndex !== undefined) {
-          accts.push(accountIndex);
-        } else {
-          accts.push(0); // Should be first account until SignV2 changes come
+      if (syncNative) {
+        // Ensure Rent sysvar is in the combined accounts list
+        const rentPubkey = new SolPublicKey(SYSVAR_RENT_ADDRESS_STRING);
+        let rentIndex = hashmap.get(rentPubkey.toBase58());
+        if (rentIndex === undefined) {
+          rentIndex = accounts.length;
+          hashmap.set(rentPubkey.toBase58(), rentIndex);
+          accounts.push(SolAccountMeta.readonly(rentPubkey));
         }
+        accts.push(rentIndex);
+      }
+
+      const swigIndex = hashmap.get(new SolPublicKey(swigAccount).toBase58());
+      if (swigIndex !== undefined) {
+        accts.push(swigIndex);
+      } else {
+        accts.push(0); // Should be first account until SignV2 changes come
       }
       handleUnbalanced = false;
     }
+
     if (
       ix.program.toBase58() === SYSTEM_PROGRAM_ADDRESS_STRING &&
       ix.data.subarray(0, 4).toString() ===
