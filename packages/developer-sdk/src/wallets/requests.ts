@@ -38,6 +38,7 @@ export function transferRequest(
 ) {
   return {
     wallet: wallet.swigConfigAddress,
+    roleId: wallet.roleId,
     network: args.network ?? wallet.network ?? defaultNetwork,
     destination: args.destination,
     mint: args.mint,
@@ -53,6 +54,7 @@ export function swapRequest(
 ) {
   return {
     wallet: wallet.swigConfigAddress,
+    roleId: wallet.roleId,
     network: args.network ?? wallet.network ?? defaultNetwork,
     inputMint: args.inputMint,
     outputMint: args.outputMint,
@@ -69,6 +71,7 @@ export function executeRequest(
 ) {
   return {
     wallet: wallet.swigConfigAddress,
+    roleId: wallet.roleId,
     network: args.network ?? wallet.network ?? defaultNetwork,
     instructions: args.instructions.map(normalizeInstruction),
     addressLookupTableAccounts: args.addressLookupTableAccounts,

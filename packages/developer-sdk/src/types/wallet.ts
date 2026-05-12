@@ -19,6 +19,12 @@ export interface WalletReference {
   network?: Network;
 }
 
+export interface IdpWalletSession {
+  configAddress: string;
+  walletAddress: string;
+  roleId: number;
+}
+
 export interface WalletHandleOptions {
   network?: Network;
   roleId?: number;

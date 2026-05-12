@@ -87,6 +87,20 @@ const swapSubmission = await swig.transactions.sponsor({
 console.log(swapSubmission.signature);
 ```
 
+If the wallet comes from `@swig-wallet/expo-idp-sdk`, use the persisted session directly:
+
+```typescript
+const session = await idp.getPersistedSession();
+
+if (!session) {
+  throw new Error('No Swig IdP session found');
+}
+
+const wallet = swig.wallets.fromIdpSession(session, { network: 'devnet' });
+```
+
+The IdP session supplies the Swig config address, system wallet address, and role ID. Signing is still a separate step: the prepared transaction must be signed by the IdP/passkey/session-authority flow before it is sent directly or submitted to `swig.transactions.sponsor`.
+
 `signPreparedSwigTransaction` is a placeholder for the transaction-level passkey signing helper that will sit on top of the existing Swig secp256r1 WebAuthn signing function. The key rule is that passkey signing happens after the backend prepares the transaction, because signing may change the final instructions.
 
 By default the SDK talks to `https://backend.prod.infra.onswig.com`.

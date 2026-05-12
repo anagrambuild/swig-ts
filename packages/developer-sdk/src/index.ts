@@ -9,6 +9,7 @@ export type {
   CreateWalletArgs,
   CreateWalletResponse,
   ExecuteArgs,
+  IdpWalletSession,
   JsonObject,
   JsonValue,
   Network,

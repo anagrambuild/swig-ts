@@ -3,6 +3,7 @@ import type {
   CreateWalletArgs,
   CreateWalletResponse,
   ExecuteArgs,
+  IdpWalletSession,
   Network,
   PreparedTransaction,
   PreparedTransactionWire,
@@ -67,6 +68,18 @@ export class WalletsClient {
       walletAddress: wallet.walletAddress,
       network: options.network ?? wallet.network ?? this.defaultNetwork,
       roleId: options.roleId,
+    });
+  };
+
+  fromIdpSession = (
+    session: IdpWalletSession,
+    options: WalletHandleOptions = {},
+  ): WalletHandle => {
+    return new WalletHandle(this, {
+      swigConfigAddress: session.configAddress,
+      walletAddress: session.walletAddress,
+      network: options.network ?? this.defaultNetwork,
+      roleId: options.roleId ?? session.roleId,
     });
   };
 
