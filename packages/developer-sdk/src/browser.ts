@@ -4,6 +4,7 @@ import type {
   Network,
   PreparedTransaction,
   PreparedTransactionWire,
+  WalletReference,
 } from './types/index.js';
 import {
   normalizeAmount,
@@ -11,6 +12,11 @@ import {
 } from './wallets/normalizers.js';
 
 export interface SwigBrowserClientConfig {
+  proxyUrl?: string;
+  /**
+   * Deprecated. Use proxyUrl to make it clear this points to your app's
+   * server-side SDK proxy, not the Swig transaction API.
+   */
   baseUrl?: string;
   fetch?: typeof fetch;
   network?: Network;
@@ -25,13 +31,15 @@ export interface BrowserTransferSolArgs {
   destination: string;
   amount: Amount;
   network?: Network;
+  idempotencyKey?: string;
 }
 
 export interface PrepareSolTransferRequest {
-  session: IdpWalletSession;
+  wallet: WalletReference;
   network: Network;
   destination: string;
-  amountLamports: string;
+  amount: string;
+  idempotencyKey?: string;
 }
 
 export interface SignedPreparedTransaction {
@@ -65,7 +73,7 @@ export class SwigBrowserClient {
 
   constructor(config: SwigBrowserClientConfig = {}) {
     const http = new BrowserHttpClient({
-      baseUrl: config.baseUrl ?? defaultBrowserApiBaseUrl,
+      baseUrl: config.proxyUrl ?? config.baseUrl ?? defaultBrowserApiBaseUrl,
       fetch: config.fetch ?? fetch,
     });
 
@@ -80,15 +88,38 @@ export class BrowserWalletsClient {
     private readonly defaultNetwork?: Network,
   ) {}
 
+  use = (
+    wallet: string | WalletReference,
+    options: BrowserWalletHandleOptions = {},
+  ): BrowserWalletHandle => {
+    if (typeof wallet === 'string') {
+      return new BrowserWalletHandle(this, {
+        swigConfigAddress: wallet,
+        network: options.network ?? this.defaultNetwork,
+        requesterPubkey: options.requesterPubkey,
+      });
+    }
+
+    return new BrowserWalletHandle(this, {
+      swigId: wallet.swigId,
+      swigConfigAddress: wallet.swigConfigAddress,
+      walletAddress: wallet.walletAddress,
+      network: options.network ?? wallet.network ?? this.defaultNetwork,
+      requesterPubkey: options.requesterPubkey ?? wallet.requesterPubkey,
+    });
+  };
+
   fromIdpSession = (
     session: IdpWalletSession,
     options: BrowserWalletHandleOptions = {},
   ): BrowserWalletHandle => {
     return new BrowserWalletHandle(this, {
-      session: {
-        ...session,
-        requesterPubkey: options.requesterPubkey ?? session.requesterPubkey,
-      },
+      swigConfigAddress: session.configAddress,
+      walletAddress: session.walletAddress,
+      requesterPubkey:
+        options.requesterPubkey ??
+        session.requesterPubkey ??
+        session.authorityPublicKey,
       network: options.network ?? this.defaultNetwork,
     });
   };
@@ -102,28 +133,40 @@ export class BrowserWalletsClient {
       throw new Error('network is required');
     }
 
-    return this.http.postPrepared('/transfers/prepare', {
-      session: wallet.session,
+    return this.http.postPrepared('/transfer/sol', {
+      wallet: wallet.toReference(),
       network,
       destination: args.destination,
-      amountLamports: normalizeAmount(args.amount),
+      amount: normalizeAmount(args.amount),
+      idempotencyKey: args.idempotencyKey,
     } satisfies PrepareSolTransferRequest);
   };
 }
 
 export class BrowserWalletHandle {
-  readonly session: IdpWalletSession;
+  readonly swigId?: string;
+  readonly swigConfigAddress: string;
+  readonly walletAddress?: string;
   readonly network?: Network;
+  readonly requesterPubkey?: string;
   readonly transfer: BrowserWalletTransferClient;
 
-  constructor(
-    wallets: BrowserWalletsClient,
-    init: { session: IdpWalletSession; network?: Network },
-  ) {
-    this.session = init.session;
+  constructor(wallets: BrowserWalletsClient, init: WalletReference) {
+    this.swigId = init.swigId;
+    this.swigConfigAddress = init.swigConfigAddress;
+    this.walletAddress = init.walletAddress;
     this.network = init.network;
+    this.requesterPubkey = init.requesterPubkey;
     this.transfer = new BrowserWalletTransferClient(wallets, this);
   }
+
+  toReference = (): WalletReference => ({
+    swigId: this.swigId,
+    swigConfigAddress: this.swigConfigAddress,
+    walletAddress: this.walletAddress,
+    network: this.network,
+    requesterPubkey: this.requesterPubkey,
+  });
 }
 
 export class BrowserWalletTransferClient {
@@ -132,9 +175,11 @@ export class BrowserWalletTransferClient {
     private readonly wallet: BrowserWalletHandle,
   ) {}
 
-  prepareSol = (args: BrowserTransferSolArgs): Promise<PreparedTransaction> => {
+  sol = (args: BrowserTransferSolArgs): Promise<PreparedTransaction> => {
     return this.wallets.prepareSolTransfer(this.wallet, args);
   };
+
+  prepareSol = this.sol;
 }
 
 export class BrowserSigningClient {

@@ -38,7 +38,7 @@ describe('SwigBrowserClient', () => {
   test('prepares SOL transfers through an app proxy', async () => {
     const calls: CapturedRequest[] = [];
     const swig = new SwigBrowserClient({
-      baseUrl: 'https://app.example/api/swig',
+      proxyUrl: 'https://app.example/api/swig',
       network: 'devnet',
       fetch: jsonFetch((request) => {
         calls.push(request);
@@ -53,30 +53,30 @@ describe('SwigBrowserClient', () => {
         };
       }),
     });
-    const wallet = swig.wallets.fromIdpSession({
-      configAddress: 'swig_config_123',
+    const wallet = swig.wallets.use({
+      swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
       requesterPubkey: 'requester_123',
     });
 
-    const prepared = await wallet.transfer.prepareSol({
+    const prepared = await wallet.transfer.sol({
       destination: 'destination_123',
       amount: 42n,
     });
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
-      url: 'https://app.example/api/swig/transfers/prepare',
+      url: 'https://app.example/api/swig/transfer/sol',
       method: 'POST',
       body: {
-        session: {
-          configAddress: 'swig_config_123',
+        wallet: {
+          swigConfigAddress: 'swig_config_123',
           walletAddress: 'wallet_123',
           requesterPubkey: 'requester_123',
         },
         network: 'devnet',
         destination: 'destination_123',
-        amountLamports: '42',
+        amount: '42',
       },
     });
     expect(prepared).toMatchObject({

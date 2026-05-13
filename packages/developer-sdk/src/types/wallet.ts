@@ -24,6 +24,7 @@ export interface IdpWalletSession {
   configAddress: string;
   walletAddress: string;
   requesterPubkey?: string;
+  authorityPublicKey?: string;
   /**
    * Deprecated. The transaction API resolves the requester's role on-chain.
    */

@@ -41,6 +41,11 @@
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js",
       "require": "./dist/server.cjs"
+    },
+    "./server/next": {
+      "types": "./dist/server/next.d.ts",
+      "import": "./dist/server/next.js",
+      "require": "./dist/server/next.cjs"
     }
   },
   "sideEffects": false,
