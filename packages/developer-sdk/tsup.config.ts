@@ -17,6 +17,7 @@ export default defineConfig([
       'src/core.ts',
       'src/server.ts',
       'src/server/fetch.ts',
+      'src/server/nest.ts',
       'src/server/next.ts',
     ],
     dts: {
@@ -26,6 +27,7 @@ export default defineConfig([
         'src/core.ts',
         'src/server.ts',
         'src/server/fetch.ts',
+        'src/server/nest.ts',
         'src/server/next.ts',
       ],
     },

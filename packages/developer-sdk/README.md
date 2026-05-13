@@ -25,6 +25,23 @@ import { createSwigRouteHandlers } from '@swig-wallet/developer-sdk/server/next'
 export const { POST } = createSwigRouteHandlers();
 ```
 
+For NestJS, add one controller method:
+
+```typescript
+import { Controller, Post, Req, Res } from '@nestjs/common';
+import { createSwigNestHandler } from '@swig-wallet/developer-sdk/server/nest';
+
+const swigHandler = createSwigNestHandler();
+
+@Controller('swig')
+export class SwigController {
+  @Post('*')
+  handle(@Req() request: Request, @Res() response: Response) {
+    return swigHandler(request, response);
+  }
+}
+```
+
 For Expo, React Native, or any app that does not host its own API routes, mount
 the same proxy on any Fetch-standard server:
 
@@ -216,6 +233,7 @@ Set `SWIG_LOCAL_SMOKE_SUBMIT=false` to stop after preparing transactions without
 - `src/core` owns HTTP transport, retry defaults, and SDK errors.
 - `src/passkeys` wraps Swig passkey signing helpers.
 - `src/server/fetch.ts` provides the portable Fetch-standard proxy handler.
+- `src/server/nest.ts` adapts the Fetch handler to NestJS request/response handlers.
 - `src/server/next.ts` wraps the Fetch handler for Next.js catch-all routes.
 - `src/transactions` owns signed transaction submission, including sponsored send.
 - `src/types` contains the public TypeScript contracts split by concern.
