@@ -14,6 +14,7 @@
     "dev": "tsup-node --watch",
     "lint": "eslint --config ../../eslint.config.mjs --ext js,ts,tsx src",
     "lint:fix": "eslint --config ../../eslint.config.mjs --ext js,ts,tsx src --fix",
+    "smoke:local": "bun run scripts/local-transaction-smoke.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
@@ -35,6 +36,7 @@
     "@swig-wallet/lib": "workspace:*"
   },
   "devDependencies": {
+    "@solana/web3.js": "^1.98.0",
     "@types/bun": "^1.2.5",
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",

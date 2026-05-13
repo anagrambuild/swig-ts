@@ -113,6 +113,25 @@ const swig = new SwigClient({
 });
 ```
 
+## Local transaction smoke
+
+With the backend local stack running on `localhost:8080` and Surfpool on `localhost:8899`, the package includes a smoke script that seeds a throwaway org/API key/policy in local Postgres, calls the transaction API through the SDK, signs the prepared create and transfer transactions, and submits them to the local RPC:
+
+```bash
+bun --filter '@swig-wallet/developer-sdk' build
+bun --filter '@swig-wallet/developer-sdk' smoke:local
+```
+
+The script defaults to:
+
+```bash
+SWIG_TRANSACTION_API_URL=http://localhost:8080
+SOLANA_RPC_URL=http://localhost:8899
+DATABASE_URL=postgres://swig:swig@localhost:55432/swig
+```
+
+Set `SWIG_LOCAL_SMOKE_SUBMIT=false` to stop after preparing transactions without submitting them.
+
 ## Source layout
 
 - `src/client.ts` wires the public `SwigClient` and default API configuration.
