@@ -8,6 +8,10 @@
     "allowJs": true,
 
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@swig-wallet/developer-sdk": ["src/index.ts"]
+    },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
