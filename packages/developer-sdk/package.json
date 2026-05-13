@@ -73,7 +73,9 @@
     "access": "public"
   },
   "files": [
-    "dist"
+    "dist",
+    "nest",
+    "next"
   ],
   "dependencies": {
     "@swig-wallet/lib": "workspace:*"

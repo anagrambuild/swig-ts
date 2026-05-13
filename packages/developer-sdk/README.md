@@ -15,6 +15,11 @@ The SDK shape is intentionally prepare-first:
 
 ### Browser app with a server proxy
 
+Framework-specific setup guides:
+
+- [Next.js](./next/README.md)
+- [NestJS](./nest/README.md)
+
 Install one server route in your app. API key access, transaction API URL, and
 fee payer can come from the standard environment variables:
 
