@@ -37,6 +37,16 @@
       "import": "./dist/core.js",
       "require": "./dist/core.cjs"
     },
+    "./nest": {
+      "types": "./dist/nest.d.ts",
+      "import": "./dist/nest.js",
+      "require": "./dist/nest.cjs"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js",
+      "require": "./dist/next.cjs"
+    },
     "./server": {
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js",

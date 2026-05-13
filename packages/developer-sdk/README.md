@@ -20,7 +20,7 @@ fee payer can come from the standard environment variables:
 
 ```typescript
 // app/api/swig/[...swig]/route.ts
-import { createSwigRouteHandlers } from '@swig-wallet/developer-sdk/server/next';
+import { createSwigRouteHandlers } from '@swig-wallet/developer-sdk/next';
 
 export const { POST } = createSwigRouteHandlers();
 ```
@@ -29,7 +29,7 @@ For NestJS, add one controller method:
 
 ```typescript
 import { Controller, Post, Req, Res } from '@nestjs/common';
-import { createSwigNestHandler } from '@swig-wallet/developer-sdk/server/nest';
+import { createSwigNestHandler } from '@swig-wallet/developer-sdk/nest';
 
 const swigHandler = createSwigNestHandler();
 
@@ -231,6 +231,7 @@ Set `SWIG_LOCAL_SMOKE_SUBMIT=false` to stop after preparing transactions without
 - `src/client.ts` wires the public `SwigClient` and default API configuration.
 - `src/browser.ts` owns browser-safe wallet handles that prepare through an app proxy.
 - `src/core` owns HTTP transport, retry defaults, and SDK errors.
+- `src/next.ts` and `src/nest.ts` expose framework-focused proxy helpers.
 - `src/passkeys` wraps Swig passkey signing helpers.
 - `src/server/fetch.ts` provides the portable Fetch-standard proxy handler.
 - `src/server/nest.ts` adapts the Fetch handler to NestJS request/response handlers.
