@@ -16,6 +16,7 @@ export default defineConfig([
       'src/browser.ts',
       'src/core.ts',
       'src/server.ts',
+      'src/server/fetch.ts',
       'src/server/next.ts',
     ],
     dts: {
@@ -24,6 +25,7 @@ export default defineConfig([
         'src/browser.ts',
         'src/core.ts',
         'src/server.ts',
+        'src/server/fetch.ts',
         'src/server/next.ts',
       ],
     },

@@ -42,6 +42,11 @@
       "import": "./dist/server.js",
       "require": "./dist/server.cjs"
     },
+    "./server/fetch": {
+      "types": "./dist/server/fetch.d.ts",
+      "import": "./dist/server/fetch.js",
+      "require": "./dist/server/fetch.cjs"
+    },
     "./server/next": {
       "types": "./dist/server/next.d.ts",
       "import": "./dist/server/next.js",
