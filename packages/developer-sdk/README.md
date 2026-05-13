@@ -183,6 +183,33 @@ const transferSubmission = await swig.transactions.sponsor({
 console.log(transferSubmission.signature);
 ```
 
+And swaps use the same wallet handle. The backend prepares a Jupiter swap transaction, the client signs locally, then the signed transaction is sent or sponsored:
+
+```typescript
+const preparedSwap = await wallet.swap({
+  feePayer,
+  requesterPubkey: memberPubkey,
+  inputMint: 'So11111111111111111111111111111111111111112',
+  outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  amount: 10_000n,
+  slippageBps: 100,
+  wrapAndUnwrapSol: true,
+});
+
+const signedSwapTransaction = await signPreparedSwigTransaction(
+  preparedSwap.transaction,
+  signingFn,
+);
+
+const swapSubmission = await swig.transactions.sponsor({
+  intentId: preparedSwap.intentId,
+  transaction: signedSwapTransaction,
+  transactionEncoding: preparedSwap.transactionEncoding,
+});
+
+console.log(swapSubmission.signature);
+```
+
 If the wallet comes from `@swig-wallet/expo-idp-sdk`, use the persisted session directly:
 
 ```typescript
@@ -214,7 +241,7 @@ const swig = new SwigClient({
 
 ## Local transaction smoke
 
-With the backend local stack running on `localhost:8080` and Surfpool on `localhost:8899`, the package includes a smoke script that seeds a throwaway org/API key/policy in local Postgres, calls the transaction API through the SDK, signs the prepared create and transfer transactions, and submits them to the local RPC:
+With the backend local stack running on `localhost:8080` and Surfpool on `localhost:8899`, the package includes a smoke script that seeds a throwaway org/API key/policy in local Postgres, calls the transaction API through the SDK, signs the prepared create and transfer transactions, submits them to the local RPC, and prepares a Jupiter swap transaction:
 
 ```bash
 bun --filter '@swig-wallet/developer-sdk' build
@@ -227,6 +254,8 @@ The script defaults to:
 SWIG_TRANSACTION_API_URL=http://localhost:8080
 SOLANA_RPC_URL=http://localhost:8899
 DATABASE_URL=postgres://swig:swig@localhost:55432/swig
+SWIG_LOCAL_SMOKE_SWAP=true
+SWIG_LOCAL_SMOKE_SWAP_SUBMIT=false
 ```
 
 Set `SWIG_LOCAL_SMOKE_SUBMIT=false` to stop after preparing transactions without submitting them.

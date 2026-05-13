@@ -20,7 +20,6 @@ import {
   swapRequest,
   transferSolRequest,
   transferTokenRequest,
-  walletActionPath,
 } from './requests.js';
 
 export class WalletsClient {
@@ -31,7 +30,7 @@ export class WalletsClient {
 
   create = async (args: CreateWalletArgs): Promise<WalletHandle> => {
     const response = await this.http.post<PreparedTransactionWire>(
-      '/wallet/create',
+      '/transaction/wallet/create',
       createWalletRequest(args, this.defaultNetwork),
     );
     const creationTransaction = normalizePreparedTransaction(response);
@@ -87,8 +86,8 @@ export class WalletsClient {
     args: TransferArgs,
   ): Promise<PreparedTransaction> => {
     const path = isTokenTransfer(args)
-      ? '/transfer/spl-token'
-      : '/transfer/sol';
+      ? '/transaction/transfer/spl-token'
+      : '/transaction/transfer/sol';
     const body = isTokenTransfer(args)
       ? transferTokenRequest(wallet, args, this.defaultNetwork)
       : transferSolRequest(wallet, args, this.defaultNetwork);
@@ -101,7 +100,7 @@ export class WalletsClient {
     args: SwapArgs,
   ): Promise<PreparedTransaction> => {
     const response = await this.http.post<PreparedTransactionWire>(
-      walletActionPath(wallet, 'swap'),
+      '/transaction/swap/jupiter',
       swapRequest(wallet, args, this.defaultNetwork),
     );
     return normalizePreparedTransaction(response);
@@ -112,7 +111,7 @@ export class WalletsClient {
     args: ExecuteArgs,
   ): Promise<PreparedTransaction> => {
     const response = await this.http.post<PreparedTransactionWire>(
-      walletActionPath(wallet, 'execute'),
+      `/v1/wallets/${encodeURIComponent(wallet.swigConfigAddress)}/execute`,
       executeRequest(wallet, args, this.defaultNetwork),
     );
     return normalizePreparedTransaction(response);

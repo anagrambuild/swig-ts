@@ -14,15 +14,6 @@ import {
   toProtoNetwork,
 } from './normalizers.js';
 
-export type WalletAction = 'transfer' | 'swap' | 'execute';
-
-export function walletActionPath(
-  wallet: WalletHandle,
-  action: WalletAction,
-): string {
-  return `/v1/wallets/${encodeURIComponent(wallet.swigConfigAddress)}/${action}`;
-}
-
 export function createWalletRequest(
   args: CreateWalletArgs,
   defaultNetwork?: Network,
@@ -83,13 +74,29 @@ export function swapRequest(
   defaultNetwork?: Network,
 ) {
   return {
-    wallet: wallet.swigConfigAddress,
-    network: args.network ?? wallet.network ?? defaultNetwork,
+    network: toProtoNetwork(
+      resolveNetwork(args.network, wallet.network, defaultNetwork),
+    ),
+    feePayer: args.feePayer,
+    swigId: wallet.swigId,
+    swigConfigAddress: wallet.swigConfigAddress,
+    walletAddress: wallet.walletAddress,
+    requesterPubkey: resolveRequesterPubkey(wallet, args),
     inputMint: args.inputMint,
     outputMint: args.outputMint,
     amount: normalizeAmount(args.amount),
     slippageBps: args.slippageBps,
-    idempotencyKey: args.idempotencyKey,
+    destinationTokenAccount: args.destinationTokenAccount,
+    nativeDestinationAccount: args.nativeDestinationAccount,
+    wrapAndUnwrapSol: args.wrapAndUnwrapSol,
+    tipAmountLamports:
+      args.tipAmountLamports === undefined
+        ? undefined
+        : normalizeAmount(args.tipAmountLamports),
+    computeUnitPricePercentile: args.computeUnitPricePercentile,
+    maxAccounts: args.maxAccounts,
+    mode: args.mode,
+    blockhashSlotsToExpiry: args.blockhashSlotsToExpiry,
   };
 }
 
@@ -123,7 +130,7 @@ function resolveNetwork(...networks: Array<Network | undefined>): Network {
 
 function resolveRequesterPubkey(
   wallet: WalletHandle,
-  args: TransferArgs,
+  args: TransferArgs | SwapArgs,
 ): string {
   const requesterPubkey = args.requesterPubkey ?? wallet.requesterPubkey;
   if (!requesterPubkey) {
