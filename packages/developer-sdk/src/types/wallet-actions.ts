@@ -1,14 +1,12 @@
-import type { Amount, JsonObject, Network } from './common.js';
+import type { Amount, Network } from './common.js';
 import type { SolanaInstructionInput } from './instruction.js';
 import type { PreparedTransactionWire } from './transaction.js';
 import type { WalletAddressInfo } from './wallet.js';
 
 export interface CreateWalletArgs {
   policyId: string;
+  feePayer: string;
   network?: Network;
-  label?: string;
-  externalId?: string;
-  metadata?: JsonObject;
   idempotencyKey?: string;
 }
 
@@ -19,16 +17,30 @@ export interface CreateWalletResponse
   externalId?: string;
 }
 
-export interface TransferArgs {
-  destination: string;
+export interface BaseTransferArgs {
+  feePayer: string;
+  requesterPubkey?: string;
   amount: Amount;
-  /**
-   * Omit for native SOL, or pass a mint address for SPL token transfers.
-   */
-  mint?: string;
   network?: Network;
   idempotencyKey?: string;
 }
+
+export interface TransferSolArgs extends BaseTransferArgs {
+  destination: string;
+  mint?: undefined;
+}
+
+export interface TransferTokenArgs extends BaseTransferArgs {
+  mint: string;
+  destination?: string;
+  destinationOwner?: string;
+  sourceTokenAccount?: string;
+  destinationTokenAccount?: string;
+  tokenProgram?: string;
+  createDestinationTokenAccount?: boolean;
+}
+
+export type TransferArgs = TransferSolArgs | TransferTokenArgs;
 
 export interface SwapArgs {
   inputMint: string;

@@ -17,15 +17,20 @@ export interface WalletReference {
   swigConfigAddress: string;
   walletAddress?: string;
   network?: Network;
+  requesterPubkey?: string;
 }
 
 export interface IdpWalletSession {
   configAddress: string;
   walletAddress: string;
-  roleId: number;
+  requesterPubkey?: string;
+  /**
+   * Deprecated. The transaction API resolves the requester's role on-chain.
+   */
+  roleId?: number;
 }
 
 export interface WalletHandleOptions {
   network?: Network;
-  roleId?: number;
+  requesterPubkey?: string;
 }

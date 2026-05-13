@@ -1,11 +1,15 @@
 import type {
   Amount,
+  Network,
+  NetworkWire,
   PreparedTransaction,
   PreparedTransactionWire,
   SolanaInstruction,
   SolanaInstructionInput,
   SubmittedTransaction,
   SubmittedTransactionWire,
+  TransactionEncoding,
+  TransactionEncodingWire,
 } from '../types/index.js';
 
 export function normalizePreparedTransaction(
@@ -28,9 +32,12 @@ export function normalizePreparedTransaction(
     intentId,
     wallet: response.wallet,
     transaction,
-    transactionEncoding:
+    transactionEncoding: normalizeTransactionEncoding(
       response.transactionEncoding ?? response.transaction_encoding,
+    ),
     expiresAt: response.expiresAt ?? response.expires_at,
+    network: normalizeNetwork(response.network),
+    recentBlockhash: response.recentBlockhash ?? response.recent_blockhash,
   };
 }
 
@@ -67,6 +74,43 @@ export function normalizeInstruction(
 
 export function normalizeAmount(amount: Amount): string {
   return amount.toString();
+}
+
+export function toProtoNetwork(network: Network): Exclude<NetworkWire, number> {
+  switch (network) {
+    case 'devnet':
+      return 'NETWORK_DEVNET';
+    case 'mainnet':
+      return 'NETWORK_MAINNET';
+  }
+}
+
+export function normalizeNetwork(network?: NetworkWire): Network | undefined {
+  switch (network) {
+    case 'devnet':
+    case 'NETWORK_DEVNET':
+    case 1:
+      return 'devnet';
+    case 'mainnet':
+    case 'NETWORK_MAINNET':
+    case 2:
+      return 'mainnet';
+    default:
+      return undefined;
+  }
+}
+
+export function normalizeTransactionEncoding(
+  encoding?: TransactionEncodingWire,
+): TransactionEncoding | undefined {
+  switch (encoding) {
+    case 'base64':
+    case 'TRANSACTION_ENCODING_BASE64':
+    case 1:
+      return 'base64';
+    default:
+      return undefined;
+  }
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

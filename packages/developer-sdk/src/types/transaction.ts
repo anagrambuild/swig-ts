@@ -1,7 +1,20 @@
 import type { JsonObject, Network } from './common.js';
 import type { WalletAddressInfo } from './wallet.js';
 
-export type TransactionEncoding = 'base64' | 'base58';
+export type TransactionEncoding = 'base64';
+export type ProtoTransactionEncoding =
+  | 'TRANSACTION_ENCODING_UNSPECIFIED'
+  | 'TRANSACTION_ENCODING_BASE64';
+export type TransactionEncodingWire =
+  | TransactionEncoding
+  | ProtoTransactionEncoding
+  | number;
+
+export type ProtoNetwork =
+  | 'NETWORK_UNSPECIFIED'
+  | 'NETWORK_DEVNET'
+  | 'NETWORK_MAINNET';
+export type NetworkWire = Network | ProtoNetwork | number;
 
 export interface PreparedTransaction {
   intentId: string;
@@ -9,6 +22,8 @@ export interface PreparedTransaction {
   transactionEncoding?: TransactionEncoding;
   wallet?: WalletAddressInfo;
   expiresAt?: string;
+  network?: Network;
+  recentBlockhash?: string;
 }
 
 export interface PreparedTransactionWire {
@@ -17,11 +32,14 @@ export interface PreparedTransactionWire {
   transaction?: string;
   unsigned_transaction?: string;
   unsignedTransaction?: string;
-  transaction_encoding?: TransactionEncoding;
-  transactionEncoding?: TransactionEncoding;
+  transaction_encoding?: TransactionEncodingWire;
+  transactionEncoding?: TransactionEncodingWire;
   wallet?: WalletAddressInfo;
   expires_at?: string;
   expiresAt?: string;
+  network?: NetworkWire;
+  recent_blockhash?: string;
+  recentBlockhash?: string;
 }
 
 export interface SponsorSignedTransactionArgs {

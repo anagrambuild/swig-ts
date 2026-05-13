@@ -9,7 +9,6 @@ import type {
 import type { WalletsClient } from './client.js';
 
 export interface WalletHandleInit extends WalletReference {
-  roleId?: number;
   creationTransaction?: PreparedTransaction;
 }
 
@@ -18,7 +17,7 @@ export class WalletHandle {
   readonly swigConfigAddress: string;
   readonly walletAddress?: string;
   readonly network?: Network;
-  readonly roleId?: number;
+  readonly requesterPubkey?: string;
   readonly creationTransaction?: PreparedTransaction;
 
   constructor(
@@ -29,7 +28,7 @@ export class WalletHandle {
     this.swigConfigAddress = init.swigConfigAddress;
     this.walletAddress = init.walletAddress;
     this.network = init.network;
-    this.roleId = init.roleId;
+    this.requesterPubkey = init.requesterPubkey;
     this.creationTransaction = init.creationTransaction;
   }
 

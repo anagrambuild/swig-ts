@@ -13,10 +13,16 @@ describe('wallet normalizers', () => {
       normalizePreparedTransaction({
         intent_id: 'intent_123',
         unsigned_transaction: 'base64-tx',
+        transaction_encoding: 'TRANSACTION_ENCODING_BASE64',
+        network: 'NETWORK_DEVNET',
+        recent_blockhash: 'blockhash_123',
       }),
     ).toEqual({
       intentId: 'intent_123',
       transaction: 'base64-tx',
+      transactionEncoding: 'base64',
+      network: 'devnet',
+      recentBlockhash: 'blockhash_123',
     });
   });
 

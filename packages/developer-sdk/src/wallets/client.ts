@@ -1,7 +1,6 @@
 import type { HttpClient } from '../core/index.js';
 import type {
   CreateWalletArgs,
-  CreateWalletResponse,
   ExecuteArgs,
   IdpWalletSession,
   Network,
@@ -17,8 +16,10 @@ import { normalizePreparedTransaction } from './normalizers.js';
 import {
   createWalletRequest,
   executeRequest,
+  isTokenTransfer,
   swapRequest,
-  transferRequest,
+  transferSolRequest,
+  transferTokenRequest,
   walletActionPath,
 } from './requests.js';
 
@@ -29,24 +30,22 @@ export class WalletsClient {
   ) {}
 
   create = async (args: CreateWalletArgs): Promise<WalletHandle> => {
-    const response = await this.http.post<CreateWalletResponse>(
-      '/v1/wallets',
+    const response = await this.http.post<PreparedTransactionWire>(
+      '/wallet/create',
       createWalletRequest(args, this.defaultNetwork),
     );
+    const creationTransaction = normalizePreparedTransaction(response);
+    const wallet = creationTransaction.wallet;
 
-    const wallet = {
-      swigId: response.swigId,
-      swigConfigAddress: response.swigConfigAddress,
-      walletAddress: response.walletAddress,
-    };
+    if (!wallet) {
+      throw new Error('Create wallet response is missing wallet');
+    }
 
     return new WalletHandle(this, {
       ...wallet,
-      network: response.network ?? args.network ?? this.defaultNetwork,
-      creationTransaction: normalizePreparedTransaction({
-        ...response,
-        wallet: response.wallet ?? wallet,
-      }),
+      network:
+        creationTransaction.network ?? args.network ?? this.defaultNetwork,
+      creationTransaction,
     });
   };
 
@@ -58,7 +57,7 @@ export class WalletsClient {
       return new WalletHandle(this, {
         swigConfigAddress: wallet,
         network: options.network ?? this.defaultNetwork,
-        roleId: options.roleId,
+        requesterPubkey: options.requesterPubkey,
       });
     }
 
@@ -67,7 +66,7 @@ export class WalletsClient {
       swigConfigAddress: wallet.swigConfigAddress,
       walletAddress: wallet.walletAddress,
       network: options.network ?? wallet.network ?? this.defaultNetwork,
-      roleId: options.roleId,
+      requesterPubkey: options.requesterPubkey ?? wallet.requesterPubkey,
     });
   };
 
@@ -79,7 +78,7 @@ export class WalletsClient {
       swigConfigAddress: session.configAddress,
       walletAddress: session.walletAddress,
       network: options.network ?? this.defaultNetwork,
-      roleId: options.roleId ?? session.roleId,
+      requesterPubkey: options.requesterPubkey ?? session.requesterPubkey,
     });
   };
 
@@ -87,10 +86,13 @@ export class WalletsClient {
     wallet: WalletHandle,
     args: TransferArgs,
   ): Promise<PreparedTransaction> => {
-    const response = await this.http.post<PreparedTransactionWire>(
-      walletActionPath(wallet, 'transfer'),
-      transferRequest(wallet, args, this.defaultNetwork),
-    );
+    const path = isTokenTransfer(args)
+      ? '/transfer/spl-token'
+      : '/transfer/sol';
+    const body = isTokenTransfer(args)
+      ? transferTokenRequest(wallet, args, this.defaultNetwork)
+      : transferSolRequest(wallet, args, this.defaultNetwork);
+    const response = await this.http.post<PreparedTransactionWire>(path, body);
     return normalizePreparedTransaction(response);
   };
 
