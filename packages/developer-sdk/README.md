@@ -13,6 +13,105 @@ The SDK shape is intentionally prepare-first:
 
 ## Usage
 
+### Browser app with a server proxy
+
+Framework-specific setup guides:
+
+- [Next.js](./next/README.md)
+- [NestJS](./nest/README.md)
+
+Install one server route in your app. API key access, transaction API URL, and
+fee payer can come from the standard environment variables:
+
+```typescript
+// app/api/swig/[...swig]/route.ts
+import { createSwigRouteHandlers } from '@swig-wallet/developer-sdk/next';
+
+export const { POST } = createSwigRouteHandlers();
+```
+
+For NestJS, add one controller method:
+
+```typescript
+import { Controller, Post, Req, Res } from '@nestjs/common';
+import { createSwigNestHandler } from '@swig-wallet/developer-sdk/nest';
+
+const swigHandler = createSwigNestHandler();
+
+@Controller('swig')
+export class SwigController {
+  @Post('*')
+  handle(@Req() request: Request, @Res() response: Response) {
+    return swigHandler(request, response);
+  }
+}
+```
+
+For Expo, React Native, or any app that does not host its own API routes, mount
+the same proxy on any Fetch-standard server:
+
+```typescript
+import { createSwigFetchHandler } from '@swig-wallet/developer-sdk/server/fetch';
+
+export default {
+  fetch: createSwigFetchHandler(),
+};
+```
+
+Point the mobile app at that deployed proxy:
+
+```typescript
+const swig = new SwigBrowserClient({
+  proxyUrl: 'https://api.example.com/swig',
+  network: 'devnet',
+});
+```
+
+Then the browser code can prepare transactions without knowing about that proxy:
+
+```typescript
+import { SwigBrowserClient } from '@swig-wallet/developer-sdk/browser';
+
+const swig = new SwigBrowserClient({
+  network: 'devnet',
+});
+
+const wallet = swig.wallets.use({
+  swigConfigAddress,
+  requesterPubkey: memberPubkey,
+});
+
+const prepared = await wallet.transfer.sol({
+  destination,
+  amount: '1000000',
+});
+```
+
+The browser client defaults to `/api/swig`. If your app mounts the route
+somewhere else, pass `proxyUrl`.
+
+```typescript
+const swig = new SwigBrowserClient({
+  proxyUrl: '/api/wallet',
+  network: 'devnet',
+});
+```
+
+The server helper reads these env vars by default:
+
+```bash
+SWIG_DEVELOPER_API_KEY=...
+SWIG_TRANSACTION_API_URL=...
+SWIG_FEE_PAYER=...
+```
+
+`SWIG_TRANSACTION_API_URL` and `SWIG_FEE_PAYER` are optional. The SDK defaults
+to the production transaction API URL when no URL is set, and transfer
+preparation falls back to the requester public key as the fee payer when no fee
+payer is configured.
+
+### Server-side preparation
+
 ```typescript
 import {
   SwigClient,
@@ -135,8 +234,13 @@ Set `SWIG_LOCAL_SMOKE_SUBMIT=false` to stop after preparing transactions without
 ## Source layout
 
 - `src/client.ts` wires the public `SwigClient` and default API configuration.
+- `src/browser.ts` owns browser-safe wallet handles that prepare through an app proxy.
 - `src/core` owns HTTP transport, retry defaults, and SDK errors.
+- `src/next.ts` and `src/nest.ts` expose framework-focused proxy helpers.
 - `src/passkeys` wraps Swig passkey signing helpers.
+- `src/server/fetch.ts` provides the portable Fetch-standard proxy handler.
+- `src/server/nest.ts` adapts the Fetch handler to NestJS request/response handlers.
+- `src/server/next.ts` wraps the Fetch handler for Next.js catch-all routes.
 - `src/transactions` owns signed transaction submission, including sponsored send.
 - `src/types` contains the public TypeScript contracts split by concern.
 - `src/wallets` owns wallet handles, wallet operation clients, request shaping, and response normalization.
