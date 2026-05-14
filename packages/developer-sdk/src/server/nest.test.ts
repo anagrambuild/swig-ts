@@ -107,7 +107,7 @@ describe('createSwigNestHandler', () => {
     });
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
-      url: 'http://localhost:8080/transfer/sol',
+      url: 'http://localhost:8080/transaction/transfer/sol',
       method: 'POST',
       body: {
         network: 'NETWORK_DEVNET',
