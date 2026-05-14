@@ -7,18 +7,18 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
   Transaction,
+  VersionedTransaction,
 } from '@solana/web3.js';
 import {
   SwigClient,
   type PreparedTransaction,
 } from '@swig-wallet/developer-sdk';
 
-const apiBaseUrl =
-  process.env.SWIG_TRANSACTION_API_URL ?? 'http://localhost:8080';
-const databaseUrl =
-  process.env.DATABASE_URL ?? 'postgres://swig:swig@localhost:55432/swig';
-const rpcUrl = process.env.SOLANA_RPC_URL ?? 'http://localhost:8899';
-const shouldSubmit = process.env.SWIG_LOCAL_SMOKE_SUBMIT !== 'false';
+const apiBaseUrl = 'http://localhost:8080';
+const databaseUrl = 'postgres://swig:swig@localhost:55432/swig';
+const rpcUrl = 'http://localhost:8899';
+const swapAmountLamports = 10_000_000;
+const swapSlippageBps = 1_000;
 const runId = randomUUID();
 const apiKey = `sk_local_transaction_smoke_${runId}`;
 const userId = `local-smoke-user-${runId}`;
@@ -30,6 +30,8 @@ const policyId = `local-smoke-policy-${runId}`;
 const feePayer = Keypair.generate();
 const requester = Keypair.generate();
 const destination = Keypair.generate();
+const solMint = 'So11111111111111111111111111111111111111112';
+const usdcMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 await main();
 
@@ -61,20 +63,18 @@ async function main() {
   console.log(`swig config: ${wallet.swigConfigAddress}`);
   console.log(`wallet: ${requireWalletAddress(wallet.walletAddress)}`);
 
-  if (shouldSubmit) {
-    const createSignature = await signAndSendPreparedTransaction(
-      connection,
-      createTransaction,
-      [feePayer],
-    );
-    console.log(`create signature: ${createSignature}`);
-    await waitForAccount(connection, new PublicKey(wallet.swigConfigAddress));
-    await airdropIfNeeded(
-      connection,
-      new PublicKey(requireWalletAddress(wallet.walletAddress)),
-      LAMPORTS_PER_SOL / 10,
-    );
-  }
+  const createSignature = await signAndSendPreparedTransaction(
+    connection,
+    createTransaction,
+    [feePayer],
+  );
+  console.log(`create signature: ${createSignature}`);
+  await waitForAccount(connection, new PublicKey(wallet.swigConfigAddress));
+  await airdropIfNeeded(
+    connection,
+    new PublicKey(requireWalletAddress(wallet.walletAddress)),
+    LAMPORTS_PER_SOL / 10,
+  );
 
   const transferTransaction = await wallet.transfer({
     feePayer: feePayer.publicKey.toBase58(),
@@ -84,17 +84,38 @@ async function main() {
   });
   console.log(`transfer intent: ${transferTransaction.intentId}`);
 
-  if (shouldSubmit) {
-    const before = await connection.getBalance(destination.publicKey);
-    const transferSignature = await signAndSendPreparedTransaction(
-      connection,
-      transferTransaction,
-      [feePayer, requester],
-    );
-    const after = await connection.getBalance(destination.publicKey);
-    console.log(`transfer signature: ${transferSignature}`);
-    console.log(`destination balance delta: ${after - before} lamports`);
-  }
+  const before = await connection.getBalance(destination.publicKey);
+  const transferSignature = await signAndSendPreparedTransaction(
+    connection,
+    transferTransaction,
+    [feePayer, requester],
+  );
+  const after = await connection.getBalance(destination.publicKey);
+  console.log(`transfer signature: ${transferSignature}`);
+  console.log(`destination balance delta: ${after - before} lamports`);
+
+  const swapTransaction = await wallet.swap({
+    feePayer: feePayer.publicKey.toBase58(),
+    requesterPubkey: requester.publicKey.toBase58(),
+    inputMint: solMint,
+    outputMint: usdcMint,
+    amount: swapAmountLamports,
+    slippageBps: swapSlippageBps,
+    wrapAndUnwrapSol: true,
+    maxAccounts: 20,
+    mode: 'fast',
+  });
+  console.log(`swap intent: ${swapTransaction.intentId}`);
+  console.log(
+    `swap transaction bytes: ${Buffer.from(swapTransaction.transaction, 'base64').length}`,
+  );
+
+  const swapSignature = await signAndSendPreparedTransaction(
+    connection,
+    swapTransaction,
+    [feePayer, requester],
+  );
+  console.log(`swap signature: ${swapSignature}`);
 }
 
 function seedLocalFixture() {
@@ -223,13 +244,8 @@ async function signAndSendPreparedTransaction(
     );
   }
 
-  const transaction = Transaction.from(
-    Buffer.from(prepared.transaction, 'base64'),
-  );
-  const message = transaction.compileMessage();
-  const requiredSigners = message.accountKeys
-    .slice(0, message.header.numRequiredSignatures)
-    .map((key) => key.toBase58());
+  const transaction = deserializePreparedTransaction(prepared);
+  const requiredSigners = getRequiredSigners(transaction);
   const availableSigners = signers.filter((signer) =>
     requiredSigners.includes(signer.publicKey.toBase58()),
   );
@@ -246,7 +262,11 @@ async function signAndSendPreparedTransaction(
     );
   }
 
-  transaction.partialSign(...availableSigners);
+  if (transaction instanceof VersionedTransaction) {
+    transaction.sign(availableSigners);
+  } else {
+    transaction.partialSign(...availableSigners);
+  }
 
   const signature = await connection.sendRawTransaction(
     transaction.serialize(),
@@ -256,6 +276,32 @@ async function signAndSendPreparedTransaction(
   );
   await confirmSignature(connection, signature);
   return signature;
+}
+
+function getRequiredSigners(
+  transaction: Transaction | VersionedTransaction,
+): string[] {
+  if (transaction instanceof VersionedTransaction) {
+    return transaction.message.staticAccountKeys
+      .slice(0, transaction.message.header.numRequiredSignatures)
+      .map((key) => key.toBase58());
+  }
+
+  const message = transaction.compileMessage();
+  return message.accountKeys
+    .slice(0, message.header.numRequiredSignatures)
+    .map((key) => key.toBase58());
+}
+
+function deserializePreparedTransaction(
+  prepared: PreparedTransaction,
+): Transaction | VersionedTransaction {
+  const bytes = Buffer.from(prepared.transaction, 'base64');
+  try {
+    return VersionedTransaction.deserialize(bytes);
+  } catch {
+    return Transaction.from(bytes);
+  }
 }
 
 async function airdropIfNeeded(

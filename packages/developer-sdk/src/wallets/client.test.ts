@@ -2,7 +2,11 @@ import { describe, expect, test } from 'bun:test';
 
 import { SwigClient } from '../client.js';
 import { WalletsClient } from './client.js';
-import { transferSolRequest, transferTokenRequest } from './requests.js';
+import {
+  swapRequest,
+  transferSolRequest,
+  transferTokenRequest,
+} from './requests.js';
 
 type CapturedRequest = {
   url: string;
@@ -131,6 +135,57 @@ describe('WalletsClient', () => {
     });
   });
 
+  test('builds Jupiter swap requests for the transaction API', () => {
+    const wallets = new WalletsClient(
+      { post: async () => ({}) } as never,
+      'devnet',
+    );
+    const wallet = wallets.use({
+      swigId: 'swig_123',
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      requesterPubkey: 'requester_123',
+    });
+
+    expect(
+      swapRequest(
+        wallet,
+        {
+          feePayer: 'payer_123',
+          inputMint: 'input_mint_123',
+          outputMint: 'output_mint_123',
+          amount: 1_000n,
+          slippageBps: 75,
+          tipAmountLamports: '5000',
+          computeUnitPricePercentile: 'high',
+          maxAccounts: 32,
+          mode: 'fast',
+          blockhashSlotsToExpiry: 10,
+        },
+        'devnet',
+      ),
+    ).toEqual({
+      network: 'NETWORK_DEVNET',
+      feePayer: 'payer_123',
+      swigId: 'swig_123',
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      requesterPubkey: 'requester_123',
+      inputMint: 'input_mint_123',
+      outputMint: 'output_mint_123',
+      amount: '1000',
+      slippageBps: 75,
+      destinationTokenAccount: undefined,
+      nativeDestinationAccount: undefined,
+      wrapAndUnwrapSol: undefined,
+      tipAmountLamports: '5000',
+      computeUnitPricePercentile: 'high',
+      maxAccounts: 32,
+      mode: 'fast',
+      blockhashSlotsToExpiry: 10,
+    });
+  });
+
   test('prepares wallet creation through the local transaction endpoint', async () => {
     const calls: CapturedRequest[] = [];
     const swig = new SwigClient({
@@ -162,7 +217,7 @@ describe('WalletsClient', () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
-      url: 'http://localhost:8080/wallet/create',
+      url: 'http://localhost:8080/transaction/wallet/create',
       method: 'POST',
       body: {
         network: 'NETWORK_DEVNET',
@@ -218,7 +273,7 @@ describe('WalletsClient', () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
-      url: 'http://localhost:8080/transfer/sol',
+      url: 'http://localhost:8080/transaction/transfer/sol',
       method: 'POST',
       body: {
         network: 'NETWORK_DEVNET',
@@ -237,6 +292,69 @@ describe('WalletsClient', () => {
       transactionEncoding: 'base64',
       network: 'devnet',
       recentBlockhash: 'blockhash_456',
+    });
+  });
+
+  test('prepares Jupiter swaps through the local transaction endpoint', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          intentId: 'intent_swap_123',
+          transaction: 'base64-swap-tx',
+          transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+          network: 'NETWORK_DEVNET',
+          recentBlockhash: 'blockhash_789',
+          wallet: {
+            swigId: 'swig_123',
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+        };
+      }),
+    });
+    const wallet = swig.wallets.use({
+      swigId: 'swig_123',
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      requesterPubkey: 'requester_123',
+    });
+
+    const prepared = await wallet.swap({
+      feePayer: 'payer_123',
+      inputMint: 'input_mint_123',
+      outputMint: 'output_mint_123',
+      amount: 42n,
+      slippageBps: 100,
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/swap/jupiter',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigId: 'swig_123',
+        swigConfigAddress: 'swig_config_123',
+        walletAddress: 'wallet_123',
+        requesterPubkey: 'requester_123',
+        inputMint: 'input_mint_123',
+        outputMint: 'output_mint_123',
+        amount: '42',
+        slippageBps: 100,
+      },
+    });
+    expect(prepared).toMatchObject({
+      intentId: 'intent_swap_123',
+      transaction: 'base64-swap-tx',
+      transactionEncoding: 'base64',
+      network: 'devnet',
+      recentBlockhash: 'blockhash_789',
     });
   });
 });

@@ -43,10 +43,20 @@ export interface TransferTokenArgs extends BaseTransferArgs {
 export type TransferArgs = TransferSolArgs | TransferTokenArgs;
 
 export interface SwapArgs {
+  feePayer: string;
+  requesterPubkey?: string;
   inputMint: string;
   outputMint: string;
   amount: Amount;
   slippageBps?: number;
+  destinationTokenAccount?: string;
+  nativeDestinationAccount?: string;
+  wrapAndUnwrapSol?: boolean;
+  tipAmountLamports?: Amount;
+  computeUnitPricePercentile?: string;
+  maxAccounts?: number;
+  mode?: string;
+  blockhashSlotsToExpiry?: number;
   network?: Network;
   idempotencyKey?: string;
 }
