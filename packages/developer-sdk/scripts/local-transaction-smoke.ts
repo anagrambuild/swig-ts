@@ -14,14 +14,11 @@ import {
   type PreparedTransaction,
 } from '@swig-wallet/developer-sdk';
 
-const apiBaseUrl =
-  process.env.SWIG_TRANSACTION_API_URL ?? 'http://localhost:8080';
-const databaseUrl =
-  process.env.DATABASE_URL ?? 'postgres://swig:swig@localhost:55432/swig';
-const rpcUrl = process.env.SOLANA_RPC_URL ?? 'http://localhost:8899';
-const shouldSubmit = process.env.SWIG_LOCAL_SMOKE_SUBMIT !== 'false';
-const shouldPrepareSwap = process.env.SWIG_LOCAL_SMOKE_SWAP !== 'false';
-const shouldSubmitSwap = process.env.SWIG_LOCAL_SMOKE_SWAP_SUBMIT === 'true';
+const apiBaseUrl = 'http://localhost:8080';
+const databaseUrl = 'postgres://swig:swig@localhost:55432/swig';
+const rpcUrl = 'http://localhost:8899';
+const swapAmountLamports = 10_000_000;
+const swapSlippageBps = 1_000;
 const runId = randomUUID();
 const apiKey = `sk_local_transaction_smoke_${runId}`;
 const userId = `local-smoke-user-${runId}`;
@@ -66,20 +63,18 @@ async function main() {
   console.log(`swig config: ${wallet.swigConfigAddress}`);
   console.log(`wallet: ${requireWalletAddress(wallet.walletAddress)}`);
 
-  if (shouldSubmit) {
-    const createSignature = await signAndSendPreparedTransaction(
-      connection,
-      createTransaction,
-      [feePayer],
-    );
-    console.log(`create signature: ${createSignature}`);
-    await waitForAccount(connection, new PublicKey(wallet.swigConfigAddress));
-    await airdropIfNeeded(
-      connection,
-      new PublicKey(requireWalletAddress(wallet.walletAddress)),
-      LAMPORTS_PER_SOL / 10,
-    );
-  }
+  const createSignature = await signAndSendPreparedTransaction(
+    connection,
+    createTransaction,
+    [feePayer],
+  );
+  console.log(`create signature: ${createSignature}`);
+  await waitForAccount(connection, new PublicKey(wallet.swigConfigAddress));
+  await airdropIfNeeded(
+    connection,
+    new PublicKey(requireWalletAddress(wallet.walletAddress)),
+    LAMPORTS_PER_SOL / 10,
+  );
 
   const transferTransaction = await wallet.transfer({
     feePayer: feePayer.publicKey.toBase58(),
@@ -89,42 +84,38 @@ async function main() {
   });
   console.log(`transfer intent: ${transferTransaction.intentId}`);
 
-  if (shouldSubmit) {
-    const before = await connection.getBalance(destination.publicKey);
-    const transferSignature = await signAndSendPreparedTransaction(
-      connection,
-      transferTransaction,
-      [feePayer, requester],
-    );
-    const after = await connection.getBalance(destination.publicKey);
-    console.log(`transfer signature: ${transferSignature}`);
-    console.log(`destination balance delta: ${after - before} lamports`);
-  }
+  const before = await connection.getBalance(destination.publicKey);
+  const transferSignature = await signAndSendPreparedTransaction(
+    connection,
+    transferTransaction,
+    [feePayer, requester],
+  );
+  const after = await connection.getBalance(destination.publicKey);
+  console.log(`transfer signature: ${transferSignature}`);
+  console.log(`destination balance delta: ${after - before} lamports`);
 
-  if (shouldPrepareSwap) {
-    const swapTransaction = await wallet.swap({
-      feePayer: feePayer.publicKey.toBase58(),
-      requesterPubkey: requester.publicKey.toBase58(),
-      inputMint: solMint,
-      outputMint: usdcMint,
-      amount: 10_000,
-      slippageBps: 100,
-      wrapAndUnwrapSol: true,
-    });
-    console.log(`swap intent: ${swapTransaction.intentId}`);
-    console.log(
-      `swap transaction bytes: ${Buffer.from(swapTransaction.transaction, 'base64').length}`,
-    );
+  const swapTransaction = await wallet.swap({
+    feePayer: feePayer.publicKey.toBase58(),
+    requesterPubkey: requester.publicKey.toBase58(),
+    inputMint: solMint,
+    outputMint: usdcMint,
+    amount: swapAmountLamports,
+    slippageBps: swapSlippageBps,
+    wrapAndUnwrapSol: true,
+    maxAccounts: 20,
+    mode: 'fast',
+  });
+  console.log(`swap intent: ${swapTransaction.intentId}`);
+  console.log(
+    `swap transaction bytes: ${Buffer.from(swapTransaction.transaction, 'base64').length}`,
+  );
 
-    if (shouldSubmitSwap) {
-      const swapSignature = await signAndSendPreparedTransaction(
-        connection,
-        swapTransaction,
-        [feePayer, requester],
-      );
-      console.log(`swap signature: ${swapSignature}`);
-    }
-  }
+  const swapSignature = await signAndSendPreparedTransaction(
+    connection,
+    swapTransaction,
+    [feePayer, requester],
+  );
+  console.log(`swap signature: ${swapSignature}`);
 }
 
 function seedLocalFixture() {
