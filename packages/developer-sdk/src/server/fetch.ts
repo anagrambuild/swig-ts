@@ -3,6 +3,7 @@ import type {
   Amount,
   CreateWalletArgs,
   Network,
+  SwapArgs,
   TransferTokenArgs,
   WalletReference,
 } from '../types/index.js';
@@ -10,7 +11,8 @@ import type {
 export type SwigProxyRoute =
   | 'wallet/create'
   | 'transfer/sol'
-  | 'transfer/spl-token';
+  | 'transfer/spl-token'
+  | 'swap/jupiter';
 
 export interface SwigRouteContext {
   request: Request;
@@ -52,6 +54,7 @@ const swigProxyRoutes: SwigProxyRoute[] = [
   'wallet/create',
   'transfer/sol',
   'transfer/spl-token',
+  'swap/jupiter',
 ];
 
 export type SwigFetchHandler = (request: Request) => Promise<Response>;
@@ -100,6 +103,10 @@ async function handlePost(
         return json({
           prepared: await prepareTokenTransfer(swig, body, context, config),
         });
+      case 'swap/jupiter':
+        return json({
+          prepared: await prepareJupiterSwap(swig, body, context, config),
+        });
     }
   } catch (error) {
     const message =
@@ -119,6 +126,12 @@ async function prepareWalletCreation(
   const args: CreateWalletArgs = {
     feePayer,
     policyId: readRequiredString(body, 'policyId'),
+    ...(readWalletAuthority(body.initialUser)
+      ? { initialUser: readWalletAuthority(body.initialUser) }
+      : {}),
+    ...(readOptionalString(body, 'guardianPubkey')
+      ? { guardianPubkey: readOptionalString(body, 'guardianPubkey') }
+      : {}),
     ...(context.network ? { network: context.network } : {}),
     ...(readOptionalString(body, 'idempotencyKey')
       ? { idempotencyKey: readOptionalString(body, 'idempotencyKey') }
@@ -133,7 +146,29 @@ async function prepareWalletCreation(
     );
   }
 
-  return wallet.creationTransaction;
+  return createWalletResult(wallet);
+}
+
+function createWalletResult(
+  wallet: Awaited<ReturnType<SwigClient['wallets']['create']>>,
+) {
+  const intentId =
+    wallet.creationTransaction?.intentId ??
+    wallet.creationTransactions[0]?.intentId;
+
+  return {
+    intentId,
+    wallet: {
+      swigId: wallet.swigId,
+      swigConfigAddress: wallet.swigConfigAddress,
+      walletAddress: wallet.walletAddress,
+      network: wallet.network,
+    },
+    transactions: wallet.creationTransactions,
+    creationTransaction: wallet.creationTransaction,
+    addAuthorityChallenge: wallet.addAuthorityChallenge,
+    network: wallet.network,
+  };
 }
 
 async function prepareSolTransfer(
@@ -221,6 +256,84 @@ async function prepareTokenTransfer(
   };
 
   return handle.transfer(args);
+}
+
+async function prepareJupiterSwap(
+  swig: SwigClient,
+  body: Record<string, unknown>,
+  context: SwigRouteContext,
+  config: CreateSwigFetchHandlerConfig,
+) {
+  const wallet = requireWallet(context.wallet);
+  const requesterPubkey = await resolveRequesterPubkey(context, config);
+  const feePayer = await resolveFeePayer(context, config, requesterPubkey);
+  const handle = swig.wallets.use(
+    {
+      ...wallet,
+      requesterPubkey,
+    },
+    { network: context.network },
+  );
+  const args: SwapArgs = {
+    feePayer,
+    requesterPubkey,
+    inputMint: readRequiredString(body, 'inputMint'),
+    outputMint: readRequiredString(body, 'outputMint'),
+    amount: readAmount(body),
+    ...(readOptionalNumber(body, 'slippageBps') !== undefined
+      ? { slippageBps: readOptionalNumber(body, 'slippageBps') }
+      : {}),
+    ...(readOptionalString(body, 'destinationTokenAccount')
+      ? {
+          destinationTokenAccount: readOptionalString(
+            body,
+            'destinationTokenAccount',
+          ),
+        }
+      : {}),
+    ...(readOptionalString(body, 'nativeDestinationAccount')
+      ? {
+          nativeDestinationAccount: readOptionalString(
+            body,
+            'nativeDestinationAccount',
+          ),
+        }
+      : {}),
+    ...(readOptionalBoolean(body, 'wrapAndUnwrapSol') !== undefined
+      ? { wrapAndUnwrapSol: readOptionalBoolean(body, 'wrapAndUnwrapSol') }
+      : {}),
+    ...(readOptionalString(body, 'tipAmountLamports')
+      ? { tipAmountLamports: readOptionalString(body, 'tipAmountLamports') }
+      : {}),
+    ...(readOptionalString(body, 'computeUnitPricePercentile')
+      ? {
+          computeUnitPricePercentile: readOptionalString(
+            body,
+            'computeUnitPricePercentile',
+          ),
+        }
+      : {}),
+    ...(readOptionalNumber(body, 'maxAccounts') !== undefined
+      ? { maxAccounts: readOptionalNumber(body, 'maxAccounts') }
+      : {}),
+    ...(readOptionalString(body, 'mode')
+      ? { mode: readOptionalString(body, 'mode') }
+      : {}),
+    ...(readOptionalNumber(body, 'blockhashSlotsToExpiry') !== undefined
+      ? {
+          blockhashSlotsToExpiry: readOptionalNumber(
+            body,
+            'blockhashSlotsToExpiry',
+          ),
+        }
+      : {}),
+    ...(context.network ? { network: context.network } : {}),
+    ...(readOptionalString(body, 'idempotencyKey')
+      ? { idempotencyKey: readOptionalString(body, 'idempotencyKey') }
+      : {}),
+  };
+
+  return handle.swap(args);
 }
 
 async function resolveRequesterPubkey(
@@ -328,6 +441,26 @@ function readWallet(value: unknown): WalletReference | undefined {
   };
 }
 
+function readWalletAuthority(value: unknown): CreateWalletArgs['initialUser'] {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new SwigRouteError('initialUser must be an object');
+  }
+  for (const scheme of ['ed25519', 'secp256k1', 'secp256r1'] as const) {
+    const authority = value[scheme];
+    if (!isRecord(authority)) {
+      continue;
+    }
+    const publicKey = readOptionalString(authority, 'publicKey');
+    if (publicKey) {
+      return { [scheme]: { publicKey } } as CreateWalletArgs['initialUser'];
+    }
+  }
+  throw new SwigRouteError('initialUser must include a supported authority');
+}
+
 function requireWallet(wallet: WalletReference | undefined): WalletReference {
   if (!wallet) {
     throw new SwigRouteError('wallet is required');
@@ -375,6 +508,16 @@ function readOptionalBoolean(
 ): boolean | undefined {
   const value = body[key];
   return typeof value === 'boolean' ? value : undefined;
+}
+
+function readOptionalNumber(
+  body: Record<string, unknown>,
+  key: string,
+): number | undefined {
+  const value = body[key];
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function readEnv(...names: string[]): string | undefined {

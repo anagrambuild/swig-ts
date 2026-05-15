@@ -1,8 +1,14 @@
 import type {
+  AddAuthorityChallenge,
+  AddAuthorityChallengeWire,
   Amount,
+  CreateWalletResponseWire,
+  CreateWalletResult,
   Network,
   NetworkWire,
   PreparedTransaction,
+  PreparedTransactionKind,
+  PreparedTransactionKindWire,
   PreparedTransactionWire,
   SolanaInstruction,
   SolanaInstructionInput,
@@ -38,6 +44,48 @@ export function normalizePreparedTransaction(
     expiresAt: response.expiresAt ?? response.expires_at,
     network: normalizeNetwork(response.network),
     recentBlockhash: response.recentBlockhash ?? response.recent_blockhash,
+    kind: normalizePreparedTransactionKind(response.kind),
+  };
+}
+
+export function normalizeCreateWalletResponse(
+  response: CreateWalletResponseWire,
+): CreateWalletResult {
+  const topLevelIntentId = response.intentId ?? response.intent_id;
+  const topLevelNetwork = normalizeNetwork(response.network);
+  const transactions = Array.isArray(response.transactions)
+    ? response.transactions.map((transaction) =>
+        normalizePreparedTransaction({
+          ...transaction,
+          intentId:
+            transaction.intentId ?? transaction.intent_id ?? topLevelIntentId,
+          network: transaction.network ?? response.network,
+        }),
+      )
+    : [normalizePreparedTransaction(response)];
+  const creationTransaction =
+    transactions.find(
+      (transaction) => transaction.kind === 'create-swig-wallet',
+    ) ?? transactions[0];
+  const wallet = response.wallet ?? creationTransaction?.wallet;
+  const intentId = topLevelIntentId ?? creationTransaction?.intentId;
+
+  if (!intentId) {
+    throw new Error('Create wallet response is missing intent_id');
+  }
+  if (!wallet) {
+    throw new Error('Create wallet response is missing wallet');
+  }
+
+  return {
+    intentId,
+    wallet,
+    transactions,
+    creationTransaction,
+    addAuthorityChallenge: normalizeAddAuthorityChallenge(
+      response.addAuthorityChallenge ?? response.add_authority_challenge,
+    ),
+    network: topLevelNetwork ?? creationTransaction?.network,
   };
 }
 
@@ -108,6 +156,80 @@ export function normalizeTransactionEncoding(
     case 'TRANSACTION_ENCODING_BASE64':
     case 1:
       return 'base64';
+    default:
+      return undefined;
+  }
+}
+
+function normalizePreparedTransactionKind(
+  kind?: PreparedTransactionKindWire,
+): PreparedTransactionKind | undefined {
+  switch (kind) {
+    case 'create-swig-wallet':
+    case 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET':
+    case 1:
+      return 'create-swig-wallet';
+    case 'add-authority':
+    case 'PREPARED_TRANSACTION_KIND_ADD_AUTHORITY':
+    case 2:
+      return 'add-authority';
+    case 'configure-recovery':
+    case 'PREPARED_TRANSACTION_KIND_CONFIGURE_RECOVERY':
+    case 3:
+      return 'configure-recovery';
+    default:
+      return undefined;
+  }
+}
+
+function normalizeAddAuthorityChallenge(
+  challenge?: AddAuthorityChallengeWire,
+): AddAuthorityChallenge | undefined {
+  if (!challenge) {
+    return undefined;
+  }
+
+  const transactionIndex =
+    challenge.transactionIndex ?? challenge.transaction_index;
+  const messageHash = challenge.messageHash ?? challenge.message_hash;
+  const scheme = normalizeAuthoritySignatureScheme(challenge.scheme);
+
+  if (
+    transactionIndex === undefined ||
+    !scheme ||
+    !challenge.signer ||
+    !messageHash ||
+    challenge.slot === undefined ||
+    challenge.counter === undefined
+  ) {
+    throw new Error(
+      'Create wallet response has invalid add_authority_challenge',
+    );
+  }
+
+  return {
+    transactionIndex,
+    scheme,
+    signer: challenge.signer,
+    messageHash,
+    slot:
+      typeof challenge.slot === 'string'
+        ? Number.parseInt(challenge.slot, 10)
+        : challenge.slot,
+    counter: challenge.counter,
+  };
+}
+
+function normalizeAuthoritySignatureScheme(
+  scheme: AddAuthorityChallengeWire['scheme'],
+): AddAuthorityChallenge['scheme'] | undefined {
+  switch (scheme) {
+    case 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1':
+    case 1:
+      return 'secp256r1';
+    case 'AUTHORITY_SIGNATURE_SCHEME_SECP256K1':
+    case 2:
+      return 'secp256k1';
     default:
       return undefined;
   }

@@ -120,4 +120,74 @@ describe('createSwigNestHandler', () => {
     });
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
   });
+
+  test('adapts a Nest swap request to the fetch proxy handler', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigNestHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      feePayer: 'payer_123',
+      resolveRequesterPubkey: () => 'requester_123',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          intentId: 'intent_swap_123',
+          transaction: 'base64-swap-tx',
+          transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+          network: 'NETWORK_DEVNET',
+        };
+      }),
+    });
+    const response = new TestNestResponse();
+
+    await handler(
+      {
+        body: {
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+          network: 'devnet',
+          inputMint: 'So11111111111111111111111111111111111111112',
+          outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          amount: '42',
+          slippageBps: 100,
+          wrapAndUnwrapSol: true,
+        },
+        headers: {
+          host: 'api.example.com',
+        },
+        method: 'POST',
+        originalUrl: '/swig/swap/jupiter',
+        protocol: 'https',
+      },
+      response,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body ?? '{}')).toEqual({
+      prepared: {
+        intentId: 'intent_swap_123',
+        transaction: 'base64-swap-tx',
+        transactionEncoding: 'base64',
+        network: 'devnet',
+      },
+    });
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/swap/jupiter',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigConfigAddress: 'swig_config_123',
+        walletAddress: 'wallet_123',
+        requesterPubkey: 'requester_123',
+        inputMint: 'So11111111111111111111111111111111111111112',
+        outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        amount: '42',
+        slippageBps: 100,
+        wrapAndUnwrapSol: true,
+      },
+    });
+  });
 });

@@ -196,16 +196,23 @@ describe('WalletsClient', () => {
         calls.push(request);
         return {
           intentId: 'intent_create_123',
-          transaction: 'base64-create-tx',
-          transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
-          recentBlockhash: 'blockhash_123',
-          expiresAt: '2026-05-13T00:00:00Z',
           wallet: {
             swigId: 'swig_123',
             swigConfigAddress: 'swig_config_123',
             walletAddress: 'wallet_123',
           },
+          transactions: [
+            {
+              intentId: 'intent_create_123',
+              transaction: 'base64-create-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+              recentBlockhash: 'blockhash_123',
+              expiresAt: '2026-05-13T00:00:00Z',
+              kind: 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET',
+            },
+          ],
         };
       }),
     });
@@ -227,12 +234,14 @@ describe('WalletsClient', () => {
     });
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
     expect(wallet.swigId).toBe('swig_123');
+    expect(wallet.creationTransactions).toHaveLength(1);
     expect(wallet.creationTransaction).toMatchObject({
       intentId: 'intent_create_123',
       transaction: 'base64-create-tx',
       transactionEncoding: 'base64',
       network: 'devnet',
       recentBlockhash: 'blockhash_123',
+      kind: 'create-swig-wallet',
     });
   });
 

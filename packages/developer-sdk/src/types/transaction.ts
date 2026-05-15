@@ -16,6 +16,20 @@ export type ProtoNetwork =
   | 'NETWORK_MAINNET';
 export type NetworkWire = Network | ProtoNetwork | number;
 
+export type PreparedTransactionKind =
+  | 'create-swig-wallet'
+  | 'add-authority'
+  | 'configure-recovery';
+export type ProtoPreparedTransactionKind =
+  | 'PREPARED_TRANSACTION_KIND_UNSPECIFIED'
+  | 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET'
+  | 'PREPARED_TRANSACTION_KIND_ADD_AUTHORITY'
+  | 'PREPARED_TRANSACTION_KIND_CONFIGURE_RECOVERY';
+export type PreparedTransactionKindWire =
+  | PreparedTransactionKind
+  | ProtoPreparedTransactionKind
+  | number;
+
 export interface PreparedTransaction {
   intentId: string;
   transaction: string;
@@ -24,6 +38,7 @@ export interface PreparedTransaction {
   expiresAt?: string;
   network?: Network;
   recentBlockhash?: string;
+  kind?: PreparedTransactionKind;
 }
 
 export interface PreparedTransactionWire {
@@ -40,6 +55,46 @@ export interface PreparedTransactionWire {
   network?: NetworkWire;
   recent_blockhash?: string;
   recentBlockhash?: string;
+  kind?: PreparedTransactionKindWire;
+}
+
+export interface AddAuthorityChallenge {
+  transactionIndex: number;
+  scheme: 'secp256r1' | 'secp256k1';
+  signer: string;
+  messageHash: string;
+  slot: number;
+  counter: number;
+}
+
+export interface AddAuthorityChallengeWire {
+  transaction_index?: number;
+  transactionIndex?: number;
+  scheme?:
+    | 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1'
+    | 'AUTHORITY_SIGNATURE_SCHEME_SECP256K1'
+    | number;
+  signer?: string;
+  message_hash?: string;
+  messageHash?: string;
+  slot?: number | string;
+  counter?: number;
+}
+
+export interface CreateWalletResponseWire extends PreparedTransactionWire {
+  wallet?: WalletAddressInfo;
+  transactions?: PreparedTransactionWire[];
+  add_authority_challenge?: AddAuthorityChallengeWire;
+  addAuthorityChallenge?: AddAuthorityChallengeWire;
+}
+
+export interface CreateWalletResult {
+  intentId: string;
+  wallet: WalletAddressInfo;
+  transactions: PreparedTransaction[];
+  creationTransaction?: PreparedTransaction;
+  addAuthorityChallenge?: AddAuthorityChallenge;
+  network?: Network;
 }
 
 export interface SponsorSignedTransactionArgs {
