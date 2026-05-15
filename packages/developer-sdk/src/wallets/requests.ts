@@ -21,7 +21,7 @@ export function createWalletRequest(
   return {
     network: toProtoNetwork(resolveNetwork(args.network, defaultNetwork)),
     feePayer: args.feePayer,
-    policyId: args.policyId,
+    ...(args.policyId ? { policyId: args.policyId } : {}),
     initialUser: args.initialUser,
     guardianPubkey: args.guardianPubkey,
   };

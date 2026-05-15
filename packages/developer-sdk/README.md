@@ -130,9 +130,17 @@ const signingFn = createSecp256r1PasskeySigningFn({
 
 // 1. Ask the backend to prepare the wallet creation transaction(s).
 const wallet = await swig.wallets.create({
-  policyId: 'policy_123',
   feePayer,
+  initialUser: {
+    secp256r1: {
+      publicKey: passkeyPublicKey,
+    },
+  },
 });
+
+// If you already have a saved policy template, pass `policyId` instead. When
+// `policyId` is omitted, the backend creates a no-recovery policy from
+// `initialUser` and uses it for this wallet creation.
 
 // Wallet creation can return multiple transactions for policies that also need
 // setup work such as add-authority or recovery configuration.
@@ -247,7 +255,7 @@ const swig = new SwigClient({
 
 ## Local transaction smoke
 
-With the backend local stack running on `localhost:8080` and Surfpool on `localhost:8899`, the package includes a smoke script that seeds a throwaway org/API key/no-recovery policy in local Postgres, calls the transaction API through the SDK, signs the prepared create, transfer, and Jupiter swap transactions, submits them to the local RPC, then exercises the NestJS proxy handler against the same local API:
+With the backend local stack running on `localhost:8080` and Surfpool on `localhost:8899`, the package includes a smoke script that seeds a throwaway org/API key in local Postgres, creates a wallet through the no-policy inline-initial-user path, calls the transaction API through the SDK, signs the prepared create, transfer, and Jupiter swap transactions, submits them to the local RPC, then exercises the NestJS proxy handler against the same local API:
 
 ```bash
 bun --filter '@swig-wallet/developer-sdk' build

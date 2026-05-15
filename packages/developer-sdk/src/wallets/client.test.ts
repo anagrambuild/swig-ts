@@ -245,6 +245,60 @@ describe('WalletsClient', () => {
     });
   });
 
+  test('prepares wallet creation without a policy id when an initial user is provided', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          intentId: 'intent_create_456',
+          network: 'NETWORK_DEVNET',
+          wallet: {
+            swigId: 'swig_456',
+            swigConfigAddress: 'swig_config_456',
+            walletAddress: 'wallet_456',
+          },
+          transactions: [
+            {
+              intentId: 'intent_create_456',
+              transaction: 'base64-create-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+              kind: 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET',
+            },
+          ],
+        };
+      }),
+    });
+
+    await swig.wallets.create({
+      feePayer: 'payer_123',
+      initialUser: {
+        ed25519: {
+          publicKey: 'initial_user_123',
+        },
+      },
+    });
+
+    expect(calls[0]).toMatchObject({
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        initialUser: {
+          ed25519: {
+            publicKey: 'initial_user_123',
+          },
+        },
+      },
+    });
+    expect(
+      (calls[0]?.body as Record<string, unknown>).policyId,
+    ).toBeUndefined();
+  });
+
   test('prepares SOL transfers through the local transaction endpoint', async () => {
     const calls: CapturedRequest[] = [];
     const swig = new SwigClient({

@@ -112,6 +112,67 @@ describe('createSwigFetchHandler', () => {
     });
   });
 
+  test('prepares wallet creation with an inline initial user when policyId is omitted', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigFetchHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      feePayer: 'payer_123',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          intentId: 'intent_create_inline_123',
+          wallet: {
+            swigId: 'swig_inline_123',
+            swigConfigAddress: 'swig_config_inline_123',
+            walletAddress: 'wallet_inline_123',
+          },
+          transactions: [
+            {
+              intentId: 'intent_create_inline_123',
+              transaction: 'base64-create-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+              kind: 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET',
+            },
+          ],
+          network: 'NETWORK_DEVNET',
+        };
+      }),
+    });
+
+    const response = await handler(
+      new Request('https://app.example/api/swig/wallet/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          network: 'devnet',
+          initialUser: {
+            ed25519: {
+              publicKey: 'initial_user_123',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/wallet/create',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        initialUser: {
+          ed25519: {
+            publicKey: 'initial_user_123',
+          },
+        },
+      },
+    });
+    expect(
+      (calls[0]?.body as Record<string, unknown>).policyId,
+    ).toBeUndefined();
+  });
+
   test('prepares SOL transfers through the API-key server client', async () => {
     const calls: CapturedRequest[] = [];
     const handler = createSwigFetchHandler({

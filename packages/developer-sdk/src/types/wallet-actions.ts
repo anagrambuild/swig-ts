@@ -13,7 +13,7 @@ export type WalletAuthority =
   | { secp256r1: { publicKey: string } };
 
 export interface CreateWalletArgs {
-  policyId: string;
+  policyId?: string;
   feePayer: string;
   initialUser?: WalletAuthority;
   guardianPubkey?: string;

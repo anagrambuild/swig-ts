@@ -123,12 +123,16 @@ async function prepareWalletCreation(
   config: CreateSwigFetchHandlerConfig,
 ) {
   const feePayer = await resolveFeePayer(context, config);
+  const policyId = readOptionalString(body, 'policyId');
+  const initialUser = readWalletAuthority(body.initialUser);
+  if (!policyId && !initialUser) {
+    throw new SwigRouteError('policyId or initialUser is required');
+  }
+
   const args: CreateWalletArgs = {
     feePayer,
-    policyId: readRequiredString(body, 'policyId'),
-    ...(readWalletAuthority(body.initialUser)
-      ? { initialUser: readWalletAuthority(body.initialUser) }
-      : {}),
+    ...(policyId ? { policyId } : {}),
+    ...(initialUser ? { initialUser } : {}),
     ...(readOptionalString(body, 'guardianPubkey')
       ? { guardianPubkey: readOptionalString(body, 'guardianPubkey') }
       : {}),
