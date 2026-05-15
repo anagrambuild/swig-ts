@@ -13,6 +13,11 @@ import {
   SwigClient,
   type PreparedTransaction,
 } from '@swig-wallet/developer-sdk';
+import {
+  createSwigNestHandler,
+  type SwigNestHandler,
+  type SwigNestResponseLike,
+} from '../src/server/nest.js';
 
 const apiBaseUrl = 'http://localhost:8080';
 const databaseUrl = 'postgres://swig:swig@localhost:55432/swig';
@@ -24,8 +29,6 @@ const apiKey = `sk_local_transaction_smoke_${runId}`;
 const userId = `local-smoke-user-${runId}`;
 const organizationId = `local-smoke-org-${runId}`;
 const apiKeyId = `local-smoke-api-key-${runId}`;
-const signerId = `local-smoke-signer-${runId}`;
-const permissionId = `local-smoke-permission-${runId}`;
 const policyId = `local-smoke-policy-${runId}`;
 const feePayer = Keypair.generate();
 const requester = Keypair.generate();
@@ -116,6 +119,57 @@ async function main() {
     [feePayer, requester],
   );
   console.log(`swap signature: ${swapSignature}`);
+
+  const nestHandler = createSwigNestHandler({
+    apiKey,
+    transactionApiUrl: apiBaseUrl,
+    feePayer: feePayer.publicKey.toBase58(),
+    resolveRequesterPubkey: () => requester.publicKey.toBase58(),
+  });
+  const nestTransferTransaction = await prepareWithNest(nestHandler, {
+    route: '/swig/transfer/sol',
+    body: {
+      wallet: {
+        swigId: wallet.swigId,
+        swigConfigAddress: wallet.swigConfigAddress,
+        walletAddress: wallet.walletAddress,
+      },
+      network: 'devnet',
+      destination: Keypair.generate().publicKey.toBase58(),
+      amount: '1000',
+    },
+  });
+  const nestTransferSignature = await signAndSendPreparedTransaction(
+    connection,
+    nestTransferTransaction,
+    [feePayer, requester],
+  );
+  console.log(`nest transfer signature: ${nestTransferSignature}`);
+
+  const nestSwapTransaction = await prepareWithNest(nestHandler, {
+    route: '/swig/swap/jupiter',
+    body: {
+      wallet: {
+        swigId: wallet.swigId,
+        swigConfigAddress: wallet.swigConfigAddress,
+        walletAddress: wallet.walletAddress,
+      },
+      network: 'devnet',
+      inputMint: solMint,
+      outputMint: usdcMint,
+      amount: String(swapAmountLamports),
+      slippageBps: swapSlippageBps,
+      wrapAndUnwrapSol: true,
+      maxAccounts: 20,
+      mode: 'fast',
+    },
+  });
+  const nestSwapSignature = await signAndSendPreparedTransaction(
+    connection,
+    nestSwapTransaction,
+    [feePayer, requester],
+  );
+  console.log(`nest swap signature: ${nestSwapSignature}`);
 }
 
 function seedLocalFixture() {
@@ -144,58 +198,16 @@ ON CONFLICT (key) DO UPDATE SET
   "organizationId" = EXCLUDED."organizationId",
   "userId" = EXCLUDED."userId";
 
-INSERT INTO signers (
+INSERT INTO "wallet_policy_templates" (
   id,
   "organizationId",
   name,
-  type,
-  "publicKey",
-  "createdById",
-  "lastUpdatedById",
-  "updatedAt"
-)
-VALUES (
-  ${sqlLiteral(signerId)},
-  ${sqlLiteral(organizationId)},
-  'Local Smoke Signer',
-  'ED25519',
-  ${sqlLiteral(requester.publicKey.toBase58())},
-  ${sqlLiteral(userId)},
-  ${sqlLiteral(userId)},
-  NOW()
-)
-ON CONFLICT (id) DO UPDATE SET
-  "updatedAt" = NOW(),
-  "publicKey" = EXCLUDED."publicKey";
-
-INSERT INTO permissions (
-  id,
-  "organizationId",
-  name,
-  actions,
-  "createdById",
-  "lastUpdatedById",
-  "updatedAt"
-)
-VALUES (
-  ${sqlLiteral(permissionId)},
-  ${sqlLiteral(organizationId)},
-  'Local Smoke Permission',
-  '[{"type":"All"}]'::jsonb,
-  ${sqlLiteral(userId)},
-  ${sqlLiteral(userId)},
-  NOW()
-)
-ON CONFLICT (id) DO UPDATE SET
-  "updatedAt" = NOW(),
-  actions = EXCLUDED.actions;
-
-INSERT INTO policies (
-  id,
-  "organizationId",
-  name,
-  "signerId",
-  "permissionId",
+  "initialUserLabel",
+  "initialAuthoritySource",
+  "initialAuthority",
+  "initialActions",
+  "guardianEnabled",
+  "guardianDelaySeconds",
   "createdById",
   "lastUpdatedById",
   "updatedAt"
@@ -203,17 +215,22 @@ INSERT INTO policies (
 VALUES (
   ${sqlLiteral(policyId)},
   ${sqlLiteral(organizationId)},
-  'Local Smoke Policy',
-  ${sqlLiteral(signerId)},
-  ${sqlLiteral(permissionId)},
+  'Local Smoke Wallet Policy',
+  'Local Smoke Signer',
+  2,
+  decode(${sqlLiteral(encodeEd25519WalletAuthorityHex(requester.publicKey.toBase58()))}, 'hex'),
+  '[{"type":"All"}]'::jsonb,
+  FALSE,
+  0,
   ${sqlLiteral(userId)},
   ${sqlLiteral(userId)},
   NOW()
 )
 ON CONFLICT (id) DO UPDATE SET
   "updatedAt" = NOW(),
-  "signerId" = EXCLUDED."signerId",
-  "permissionId" = EXCLUDED."permissionId";
+  "initialAuthority" = EXCLUDED."initialAuthority",
+  "initialActions" = EXCLUDED."initialActions",
+  "guardianEnabled" = EXCLUDED."guardianEnabled";
 
 COMMIT;
 `;
@@ -341,6 +358,55 @@ async function waitForAccount(connection: Connection, pubkey: PublicKey) {
   throw new Error(`Timed out waiting for account ${pubkey.toBase58()}`);
 }
 
+async function prepareWithNest(
+  handler: SwigNestHandler,
+  input: { route: string; body: Record<string, unknown> },
+): Promise<PreparedTransaction> {
+  const response = new SmokeNestResponse();
+  await handler(
+    {
+      body: input.body,
+      headers: {
+        host: 'localhost:3000',
+      },
+      method: 'POST',
+      originalUrl: input.route,
+      protocol: 'http',
+    },
+    response,
+  );
+
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw new Error(
+      `Nest handler failed with status ${response.statusCode}: ${response.body}`,
+    );
+  }
+
+  const parsed = JSON.parse(response.body ?? '{}') as {
+    prepared?: PreparedTransaction;
+  };
+  if (!parsed.prepared) {
+    throw new Error(`Nest handler response is missing prepared transaction`);
+  }
+  return parsed.prepared;
+}
+
+class SmokeNestResponse implements SwigNestResponseLike {
+  body?: string;
+  statusCode = 200;
+
+  send(body?: string) {
+    this.body = body;
+  }
+
+  setHeader() {}
+
+  status(statusCode: number) {
+    this.statusCode = statusCode;
+    return this;
+  }
+}
+
 function requirePrepared(
   prepared: PreparedTransaction | undefined,
 ): PreparedTransaction {
@@ -361,6 +427,34 @@ function requireWalletAddress(walletAddress: string | undefined): string {
 
 function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+function encodeEd25519WalletAuthorityHex(publicKey: string): string {
+  const authorityMessage = encodeProtoMessage([
+    [1, Buffer.from(publicKey, 'utf8')],
+  ]);
+  return encodeProtoMessage([[1, authorityMessage]]).toString('hex');
+}
+
+function encodeProtoMessage(fields: Array<[number, Buffer]>): Buffer {
+  return Buffer.concat(
+    fields.flatMap(([fieldNumber, value]) => [
+      encodeVarint((fieldNumber << 3) | 2),
+      encodeVarint(value.length),
+      value,
+    ]),
+  );
+}
+
+function encodeVarint(value: number): Buffer {
+  const bytes: number[] = [];
+  let current = value;
+  while (current >= 0x80) {
+    bytes.push((current & 0x7f) | 0x80);
+    current >>= 7;
+  }
+  bytes.push(current);
+  return Buffer.from(bytes);
 }
 
 function sqlLiteral(value: string): string {

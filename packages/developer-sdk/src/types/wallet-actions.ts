@@ -1,11 +1,22 @@
 import type { Amount, Network } from './common.js';
 import type { SolanaInstructionInput } from './instruction.js';
-import type { PreparedTransactionWire } from './transaction.js';
+import type {
+  AddAuthorityChallenge,
+  PreparedTransaction,
+  PreparedTransactionWire,
+} from './transaction.js';
 import type { WalletAddressInfo } from './wallet.js';
+
+export type WalletAuthority =
+  | { ed25519: { publicKey: string } }
+  | { secp256k1: { publicKey: string } }
+  | { secp256r1: { publicKey: string } };
 
 export interface CreateWalletArgs {
   policyId: string;
   feePayer: string;
+  initialUser?: WalletAuthority;
+  guardianPubkey?: string;
   network?: Network;
   idempotencyKey?: string;
 }
@@ -15,6 +26,9 @@ export interface CreateWalletResponse
   network?: Network;
   label?: string;
   externalId?: string;
+  transactions?: PreparedTransaction[];
+  creationTransaction?: PreparedTransaction;
+  addAuthorityChallenge?: AddAuthorityChallenge;
 }
 
 export interface BaseTransferArgs {

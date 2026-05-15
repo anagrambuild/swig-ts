@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   normalizeAmount,
+  normalizeCreateWalletResponse,
   normalizeInstruction,
   normalizePreparedTransaction,
   normalizeSubmittedTransaction,
@@ -23,6 +24,81 @@ describe('wallet normalizers', () => {
       transactionEncoding: 'base64',
       network: 'devnet',
       recentBlockhash: 'blockhash_123',
+    });
+  });
+
+  test('normalizes create wallet responses with multiple prepared transactions', () => {
+    expect(
+      normalizeCreateWalletResponse({
+        intentId: 'intent_create_123',
+        wallet: {
+          swigId: 'swig_123',
+          swigConfigAddress: 'swig_config_123',
+          walletAddress: 'wallet_123',
+        },
+        transactions: [
+          {
+            intentId: 'intent_create_123',
+            transaction: 'base64-create-tx',
+            transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+            kind: 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET',
+          },
+          {
+            intentId: 'intent_create_123',
+            transaction: 'base64-add-authority-tx',
+            transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+            kind: 'PREPARED_TRANSACTION_KIND_ADD_AUTHORITY',
+          },
+        ],
+        addAuthorityChallenge: {
+          transactionIndex: 1,
+          scheme: 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1',
+          signer: 'compressed-passkey',
+          messageHash: 'message-hash',
+          slot: '42',
+          counter: 1,
+        },
+        network: 'NETWORK_DEVNET',
+      }),
+    ).toEqual({
+      intentId: 'intent_create_123',
+      wallet: {
+        swigId: 'swig_123',
+        swigConfigAddress: 'swig_config_123',
+        walletAddress: 'wallet_123',
+      },
+      creationTransaction: {
+        intentId: 'intent_create_123',
+        transaction: 'base64-create-tx',
+        transactionEncoding: 'base64',
+        kind: 'create-swig-wallet',
+        network: 'devnet',
+      },
+      transactions: [
+        {
+          intentId: 'intent_create_123',
+          transaction: 'base64-create-tx',
+          transactionEncoding: 'base64',
+          kind: 'create-swig-wallet',
+          network: 'devnet',
+        },
+        {
+          intentId: 'intent_create_123',
+          transaction: 'base64-add-authority-tx',
+          transactionEncoding: 'base64',
+          kind: 'add-authority',
+          network: 'devnet',
+        },
+      ],
+      addAuthorityChallenge: {
+        transactionIndex: 1,
+        scheme: 'secp256r1',
+        signer: 'compressed-passkey',
+        messageHash: 'message-hash',
+        slot: 42,
+        counter: 1,
+      },
+      network: 'devnet',
     });
   });
 

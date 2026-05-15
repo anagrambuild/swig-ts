@@ -1,6 +1,7 @@
 import type { HttpClient } from '../core/index.js';
 import type {
   CreateWalletArgs,
+  CreateWalletResponseWire,
   ExecuteArgs,
   IdpWalletSession,
   Network,
@@ -12,7 +13,10 @@ import type {
   WalletReference,
 } from '../types/index.js';
 import { WalletHandle } from './handle.js';
-import { normalizePreparedTransaction } from './normalizers.js';
+import {
+  normalizeCreateWalletResponse,
+  normalizePreparedTransaction,
+} from './normalizers.js';
 import {
   createWalletRequest,
   executeRequest,
@@ -29,22 +33,18 @@ export class WalletsClient {
   ) {}
 
   create = async (args: CreateWalletArgs): Promise<WalletHandle> => {
-    const response = await this.http.post<PreparedTransactionWire>(
+    const response = await this.http.post<CreateWalletResponseWire>(
       '/transaction/wallet/create',
       createWalletRequest(args, this.defaultNetwork),
     );
-    const creationTransaction = normalizePreparedTransaction(response);
-    const wallet = creationTransaction.wallet;
-
-    if (!wallet) {
-      throw new Error('Create wallet response is missing wallet');
-    }
+    const created = normalizeCreateWalletResponse(response);
 
     return new WalletHandle(this, {
-      ...wallet,
-      network:
-        creationTransaction.network ?? args.network ?? this.defaultNetwork,
-      creationTransaction,
+      ...created.wallet,
+      network: created.network ?? args.network ?? this.defaultNetwork,
+      creationTransaction: created.creationTransaction,
+      creationTransactions: created.transactions,
+      addAuthorityChallenge: created.addAuthorityChallenge,
     });
   };
 

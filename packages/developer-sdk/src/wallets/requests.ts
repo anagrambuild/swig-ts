@@ -22,6 +22,8 @@ export function createWalletRequest(
     network: toProtoNetwork(resolveNetwork(args.network, defaultNetwork)),
     feePayer: args.feePayer,
     policyId: args.policyId,
+    initialUser: args.initialUser,
+    guardianPubkey: args.guardianPubkey,
   };
 }
 

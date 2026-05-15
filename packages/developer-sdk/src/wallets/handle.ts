@@ -1,4 +1,5 @@
 import type {
+  AddAuthorityChallenge,
   ExecuteArgs,
   Network,
   PreparedTransaction,
@@ -10,6 +11,8 @@ import type { WalletsClient } from './client.js';
 
 export interface WalletHandleInit extends WalletReference {
   creationTransaction?: PreparedTransaction;
+  creationTransactions?: PreparedTransaction[];
+  addAuthorityChallenge?: AddAuthorityChallenge;
 }
 
 export class WalletHandle {
@@ -19,6 +22,8 @@ export class WalletHandle {
   readonly network?: Network;
   readonly requesterPubkey?: string;
   readonly creationTransaction?: PreparedTransaction;
+  readonly creationTransactions: PreparedTransaction[];
+  readonly addAuthorityChallenge?: AddAuthorityChallenge;
 
   constructor(
     private readonly wallets: WalletsClient,
@@ -30,6 +35,10 @@ export class WalletHandle {
     this.network = init.network;
     this.requesterPubkey = init.requesterPubkey;
     this.creationTransaction = init.creationTransaction;
+    this.creationTransactions =
+      init.creationTransactions ??
+      (init.creationTransaction ? [init.creationTransaction] : []);
+    this.addAuthorityChallenge = init.addAuthorityChallenge;
   }
 
   transfer = (args: TransferArgs) => this.wallets.transfer(this, args);
