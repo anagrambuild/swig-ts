@@ -164,6 +164,7 @@ describe('WalletsClient', () => {
           outputMint: 'output_mint_123',
           amount: 1_000n,
           slippageBps: 75,
+          destinationAccount: 'destination_account_123',
           tipAmountLamports: '5000',
           computeUnitPricePercentile: 'high',
           maxAccounts: 32,
@@ -181,6 +182,7 @@ describe('WalletsClient', () => {
       outputMint: 'output_mint_123',
       amount: '1000',
       slippageBps: 75,
+      destinationAccount: 'destination_account_123',
       destinationTokenAccount: undefined,
       nativeDestinationAccount: undefined,
       wrapAndUnwrapSol: undefined,
@@ -406,6 +408,95 @@ describe('WalletsClient', () => {
     });
   });
 
+  test('prepares grouped wallet operations through the transaction API', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+          transactions: [
+            {
+              transaction: 'base64-grouped-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+              recentBlockhash: 'blockhash_grouped',
+            },
+          ],
+          network: 'NETWORK_DEVNET',
+        };
+      }),
+    });
+    const wallet = swig.wallets.use({
+      swigConfigAddress: 'swig_config_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+
+    const prepared = await wallet.prepare({
+      feePayer: 'payer_123',
+      operations: [
+        {
+          type: 'transferSol',
+          destination: 'destination_123',
+          amount: 42n,
+        },
+        {
+          type: 'transferToken',
+          mint: 'mint_123',
+          destinationOwner: 'owner_123',
+          amount: '2500',
+        },
+      ],
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/prepare',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+        operations: [
+          {
+            transferSol: {
+              destination: 'destination_123',
+              lamports: '42',
+            },
+          },
+          {
+            transferToken: {
+              mint: 'mint_123',
+              destinationOwner: 'owner_123',
+              amount: '2500',
+            },
+          },
+        ],
+      },
+    });
+    expect(prepared.transactions).toHaveLength(1);
+    expect(prepared.transactions[0]).toMatchObject({
+      transaction: 'base64-grouped-tx',
+      transactionEncoding: 'base64',
+      network: 'devnet',
+      recentBlockhash: 'blockhash_grouped',
+    });
+    expect(prepared.wallet).toEqual({
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      network: 'devnet',
+    });
+    expect(prepared.feePayerOnlyTransactions).toHaveLength(1);
+    expect(prepared.clientAuthorityTransactions).toEqual([]);
+  });
+
   test('prepares Jupiter swaps through the local transaction endpoint', async () => {
     const calls: CapturedRequest[] = [];
     const swig = new SwigClient({
@@ -438,6 +529,7 @@ describe('WalletsClient', () => {
       outputMint: 'output_mint_123',
       amount: 42n,
       slippageBps: 100,
+      destinationAccount: 'destination_account_123',
     });
 
     expect(calls).toHaveLength(1);
@@ -453,6 +545,7 @@ describe('WalletsClient', () => {
         outputMint: 'output_mint_123',
         amount: '42',
         slippageBps: 100,
+        destinationAccount: 'destination_account_123',
       },
     });
     expect(prepared).toMatchObject({

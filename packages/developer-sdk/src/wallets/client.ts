@@ -6,8 +6,11 @@ import type {
   ExecuteArgs,
   IdpWalletSession,
   Network,
+  PrepareArgs,
   PreparedTransaction,
+  PreparedTransactionsResult,
   PreparedTransactionWire,
+  PrepareTransactionsResponseWire,
   SwapArgs,
   TransferArgs,
   WalletHandleOptions,
@@ -17,11 +20,13 @@ import { WalletHandle } from './handle.js';
 import {
   normalizeCreateWalletResponse,
   normalizePreparedTransaction,
+  normalizePrepareTransactionsResponse,
 } from './normalizers.js';
 import {
   createWalletRequest,
   executeRequest,
   isTokenTransfer,
+  prepareRequest,
   swapRequest,
   transferSolRequest,
   transferTokenRequest,
@@ -91,6 +96,17 @@ export class WalletsClient {
     return isTokenTransfer(args)
       ? this.transferToken(wallet, args)
       : this.transferSol(wallet, args);
+  };
+
+  prepare = async (
+    wallet: WalletHandle,
+    args: PrepareArgs,
+  ): Promise<PreparedTransactionsResult> => {
+    const response = await this.http.post<PrepareTransactionsResponseWire>(
+      '/transaction/prepare',
+      prepareRequest(wallet, args, this.defaultNetwork),
+    );
+    return normalizePrepareTransactionsResponse(response);
   };
 
   transferSol = async (

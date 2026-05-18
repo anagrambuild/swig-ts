@@ -5,6 +5,7 @@ import {
   normalizeCreateWalletResponse,
   normalizeInstruction,
   normalizePreparedTransaction,
+  normalizePrepareTransactionsResponse,
   normalizeSubmittedTransaction,
 } from './normalizers.js';
 
@@ -161,6 +162,74 @@ describe('wallet normalizers', () => {
           signatureRequests: [],
         },
       ],
+      network: 'devnet',
+    });
+  });
+
+  test('normalizes grouped prepare responses', () => {
+    expect(
+      normalizePrepareTransactionsResponse({
+        wallet: {
+          swigConfigAddress: 'swig_config_123',
+          walletAddress: 'wallet_123',
+        },
+        transactions: [
+          {
+            transaction: 'base64-grouped-tx',
+            transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+            network: 'NETWORK_DEVNET',
+            signatureRequests: [
+              {
+                scheme: 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1',
+                signer: 'compressed-passkey',
+                messageHash: 'message-hash',
+                slot: '42',
+                counter: 1,
+              },
+            ],
+          },
+        ],
+        network: 'NETWORK_DEVNET',
+      }),
+    ).toEqual({
+      wallet: {
+        swigConfigAddress: 'swig_config_123',
+        walletAddress: 'wallet_123',
+        network: 'devnet',
+      },
+      transactions: [
+        {
+          transaction: 'base64-grouped-tx',
+          transactionEncoding: 'base64',
+          network: 'devnet',
+          signatureRequests: [
+            {
+              scheme: 'secp256r1',
+              signer: 'compressed-passkey',
+              messageHash: 'message-hash',
+              slot: 42,
+              counter: 1,
+            },
+          ],
+        },
+      ],
+      clientAuthorityTransactions: [
+        {
+          transaction: 'base64-grouped-tx',
+          transactionEncoding: 'base64',
+          network: 'devnet',
+          signatureRequests: [
+            {
+              scheme: 'secp256r1',
+              signer: 'compressed-passkey',
+              messageHash: 'message-hash',
+              slot: 42,
+              counter: 1,
+            },
+          ],
+        },
+      ],
+      feePayerOnlyTransactions: [],
       network: 'devnet',
     });
   });

@@ -100,6 +100,38 @@ it is returned. Submit each transaction in order after applying any required
 client authority signature. A prepared transaction needs a client authority
 signature when `signatureRequests.length > 0`.
 
+### Prepare Grouped Operations
+
+Use `wallet.prepare` when multiple operations should be built into one backend
+shaped transaction. The backend decides the final instruction layout and derives
+token accounts for token transfers.
+
+```typescript
+const prepared = await wallet.prepare({
+  feePayer,
+  operations: [
+    {
+      type: 'transferSol',
+      destination,
+      amount: 1_000_000n,
+    },
+    {
+      type: 'transferToken',
+      mint,
+      destinationOwner,
+      amount: 10_000n,
+    },
+  ],
+});
+
+return {
+  wallet: prepared.wallet,
+  transactions: prepared.transactions,
+  clientAuthorityTransactions: prepared.clientAuthorityTransactions,
+  feePayerOnlyTransactions: prepared.feePayerOnlyTransactions,
+};
+```
+
 ### Prepare SOL Transfer
 
 ```typescript
@@ -147,6 +179,7 @@ const preparedSwap = await wallet.swap.jupiter({
   outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   amount: 10_000n,
   slippageBps: 100,
+  destinationAccount,
   wrapAndUnwrapSol: true,
 });
 

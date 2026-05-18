@@ -2,6 +2,8 @@ import type {
   Amount,
   CreateWalletArgs,
   Network,
+  PrepareArgs,
+  PrepareOperation,
   SwapArgs,
   TransferTokenArgs,
   WalletAuthority,
@@ -11,6 +13,7 @@ import { SwigClient } from '../typescript/index.js';
 
 export type SwigProxyRoute =
   | 'wallet/create'
+  | 'prepare'
   | 'transfer/sol'
   | 'transfer/spl-token'
   | 'swap/jupiter';
@@ -53,6 +56,7 @@ class SwigRouteError extends Error {
 
 const swigProxyRoutes: SwigProxyRoute[] = [
   'wallet/create',
+  'prepare',
   'transfer/sol',
   'transfer/spl-token',
   'swap/jupiter',
@@ -95,6 +99,10 @@ async function handlePost(
       case 'wallet/create':
         return json({
           prepared: await prepareWalletCreation(swig, body, context, config),
+        });
+      case 'prepare':
+        return json({
+          prepared: await prepareGroupedOperations(swig, body, context, config),
         });
       case 'transfer/sol':
         return json({
@@ -152,6 +160,35 @@ async function prepareWalletCreation(
   }
 
   return createWalletResult(created);
+}
+
+async function prepareGroupedOperations(
+  swig: SwigClient,
+  body: Record<string, unknown>,
+  context: SwigRouteContext,
+  config: CreateSwigFetchHandlerConfig,
+) {
+  const wallet = requireWallet(context.wallet);
+  const requesterAuthority = await resolveRequesterAuthority(context, config);
+  const feePayer = await resolveFeePayer(context, config);
+  const handle = swig.wallets.use(
+    {
+      ...wallet,
+      requesterAuthority,
+    },
+    { network: context.network },
+  );
+  const args: PrepareArgs = {
+    feePayer,
+    requesterAuthority,
+    operations: readPrepareOperations(body.operations),
+    ...(context.network ? { network: context.network } : {}),
+    ...(readOptionalString(body, 'idempotencyKey')
+      ? { idempotencyKey: readOptionalString(body, 'idempotencyKey') }
+      : {}),
+  };
+
+  return handle.prepare(args);
 }
 
 function createWalletResult(
@@ -254,6 +291,11 @@ async function prepareJupiterSwap(
     amount: readAmount(body),
     ...(readOptionalNumber(body, 'slippageBps') !== undefined
       ? { slippageBps: readOptionalNumber(body, 'slippageBps') }
+      : {}),
+    ...(readOptionalString(body, 'destinationAccount')
+      ? {
+          destinationAccount: readOptionalString(body, 'destinationAccount'),
+        }
       : {}),
     ...(readOptionalString(body, 'destinationTokenAccount')
       ? {
@@ -443,6 +485,38 @@ function requireWallet(wallet: WalletReference | undefined): WalletReference {
     throw new SwigRouteError('wallet is required');
   }
   return wallet;
+}
+
+function readPrepareOperations(value: unknown): PrepareOperation[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new SwigRouteError('operations must be a non-empty array');
+  }
+
+  return value.map((operation, index) => {
+    if (!isRecord(operation)) {
+      throw new SwigRouteError(`operations[${index}] must be an object`);
+    }
+
+    switch (operation.type) {
+      case 'transferSol':
+        return {
+          type: 'transferSol',
+          destination: readRequiredString(operation, 'destination'),
+          amount: readAmount(operation),
+        };
+      case 'transferToken':
+        return {
+          type: 'transferToken',
+          mint: readRequiredString(operation, 'mint'),
+          destinationOwner: readRequiredString(operation, 'destinationOwner'),
+          amount: readAmount(operation),
+        };
+      default:
+        throw new SwigRouteError(
+          `operations[${index}].type must be transferSol or transferToken`,
+        );
+    }
+  });
 }
 
 function readAmount(body: Record<string, unknown>): Amount {

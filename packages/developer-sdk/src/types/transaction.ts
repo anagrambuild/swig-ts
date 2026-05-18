@@ -83,6 +83,20 @@ export interface CreateWalletResponseWire extends PreparedTransactionWire {
   transactions?: PreparedTransactionWire[];
 }
 
+export interface PrepareTransactionsResponseWire {
+  wallet?: WalletAddressInfo;
+  transactions?: PreparedTransactionWire[];
+  network?: NetworkWire;
+}
+
+export interface PreparedTransactionsResult {
+  wallet?: WalletAddressInfo & { network?: Network };
+  transactions: PreparedTransaction[];
+  clientAuthorityTransactions: PreparedTransaction[];
+  feePayerOnlyTransactions: PreparedTransaction[];
+  network?: Network;
+}
+
 export interface CreateWalletResult {
   wallet: WalletAddressInfo & { network?: Network };
   transactions: PreparedTransaction[];

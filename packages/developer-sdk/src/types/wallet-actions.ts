@@ -38,6 +38,27 @@ export interface TransferTokenArgs extends BaseTransferArgs {
 
 export type TransferArgs = TransferSolArgs | TransferTokenArgs;
 
+export type PrepareOperation =
+  | {
+      type: 'transferSol';
+      destination: string;
+      amount: Amount;
+    }
+  | {
+      type: 'transferToken';
+      mint: string;
+      destinationOwner: string;
+      amount: Amount;
+    };
+
+export interface PrepareArgs {
+  feePayer: string;
+  requesterAuthority?: WalletAuthority;
+  operations: PrepareOperation[];
+  network?: Network;
+  idempotencyKey?: string;
+}
+
 export interface SwapArgs {
   feePayer: string;
   requesterAuthority?: WalletAuthority;
@@ -45,6 +66,7 @@ export interface SwapArgs {
   outputMint: string;
   amount: Amount;
   slippageBps?: number;
+  destinationAccount?: string;
   destinationTokenAccount?: string;
   nativeDestinationAccount?: string;
   wrapAndUnwrapSol?: boolean;

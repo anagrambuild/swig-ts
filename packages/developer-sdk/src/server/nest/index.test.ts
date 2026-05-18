@@ -152,6 +152,7 @@ describe('createSwigNestHandler', () => {
           outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           amount: '42',
           slippageBps: 100,
+          destinationAccount: 'destination_account_123',
           wrapAndUnwrapSol: true,
         },
         headers: {
@@ -184,6 +185,7 @@ describe('createSwigNestHandler', () => {
         outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         amount: '42',
         slippageBps: 100,
+        destinationAccount: 'destination_account_123',
         wrapAndUnwrapSol: true,
       },
     });

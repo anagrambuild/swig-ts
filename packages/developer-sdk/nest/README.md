@@ -32,6 +32,7 @@ The handler expects routes like:
 
 ```text
 POST /swig/wallet/create
+POST /swig/prepare
 POST /swig/transfer/sol
 POST /swig/transfer/spl-token
 POST /swig/swap/jupiter
@@ -75,7 +76,11 @@ const { prepared } = await fetch('https://api.example.com/swig/transfer/sol', {
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({
     network: 'devnet',
-    wallet: { swigConfigAddress, walletAddress, requesterPubkey },
+    wallet: {
+      swigConfigAddress,
+      walletAddress,
+      requesterAuthority: { ed25519: { publicKey: userPublicKey } },
+    },
     destination,
     amount: '1000000',
   }),
@@ -92,8 +97,8 @@ If your app resolves the requester from auth context, do it server-side:
 
 ```typescript
 const swigHandler = createSwigNestHandler({
-  resolveRequesterPubkey: async ({ request, wallet }) => {
-    return wallet?.requesterPubkey ?? lookupRequesterFromRequest(request);
+  resolveRequesterAuthority: async ({ request, wallet }) => {
+    return wallet?.requesterAuthority ?? lookupRequesterFromRequest(request);
   },
 });
 ```

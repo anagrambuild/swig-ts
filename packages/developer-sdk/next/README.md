@@ -23,6 +23,7 @@ The helper handles:
 
 ```text
 POST /api/swig/wallet/create
+POST /api/swig/prepare
 POST /api/swig/transfer/sol
 POST /api/swig/transfer/spl-token
 POST /api/swig/swap/jupiter
@@ -66,7 +67,11 @@ const { prepared } = await fetch('/api/swig/transfer/sol', {
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({
     network: 'devnet',
-    wallet: { swigConfigAddress, walletAddress, requesterPubkey },
+    wallet: {
+      swigConfigAddress,
+      walletAddress,
+      requesterAuthority: { ed25519: { publicKey: userPublicKey } },
+    },
     destination,
     amount: '1000000',
   }),
@@ -79,13 +84,13 @@ const signed = await signPreparedTransaction(prepared, {
 
 ## Custom Requester Resolution
 
-If your app does not include `requesterPubkey` in the wallet reference, resolve
-it server-side:
+If your app does not include `requesterAuthority` in the wallet reference,
+resolve it server-side:
 
 ```typescript
 export const { POST } = createSwigRouteHandlers({
-  resolveRequesterPubkey: async ({ wallet, body }) => {
-    return wallet?.requesterPubkey ?? lookupRequesterForUser(body);
+  resolveRequesterAuthority: async ({ wallet, body }) => {
+    return wallet?.requesterAuthority ?? lookupRequesterForUser(body);
   },
 });
 ```

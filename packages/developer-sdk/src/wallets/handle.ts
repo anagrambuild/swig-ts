@@ -1,7 +1,9 @@
 import type {
   ExecuteArgs,
   Network,
+  PrepareArgs,
   PreparedTransaction,
+  PreparedTransactionsResult,
   SwapArgs,
   TransferArgs,
   TransferSolArgs,
@@ -43,6 +45,9 @@ export class WalletHandle {
     this.transfer = createWalletTransferClient(wallets, this);
     this.swap = createWalletSwapClient(wallets, this);
   }
+
+  prepare = (args: PrepareArgs): Promise<PreparedTransactionsResult> =>
+    this.wallets.prepare(this, args);
 
   execute = (args: ExecuteArgs) => this.wallets.execute(this, args);
 }
