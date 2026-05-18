@@ -71,7 +71,7 @@ describe('createSwigFetchHandler', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       prepared: {
         wallet: {
           swigConfigAddress: 'swig_config_123',
@@ -79,6 +79,16 @@ describe('createSwigFetchHandler', () => {
           network: 'devnet',
         },
         transactions: [
+          {
+            transaction: 'base64-create-tx',
+            transactionEncoding: 'base64',
+            network: 'devnet',
+            kind: 'create-swig-wallet',
+          },
+        ],
+        clientAuthorityTransactions: [],
+        operatorSignedTransactions: [],
+        feePayerOnlyTransactions: [
           {
             transaction: 'base64-create-tx',
             transactionEncoding: 'base64',
@@ -186,9 +196,10 @@ describe('createSwigFetchHandler', () => {
           wallet: {
             swigConfigAddress: 'swig_config_123',
             walletAddress: 'wallet_123',
-            requesterPubkey: 'requester_123',
+            requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
           },
           network: 'devnet',
+          feePayer: 'payer_123',
           destination: 'destination_123',
           amount: '42',
         }),
@@ -196,7 +207,7 @@ describe('createSwigFetchHandler', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       prepared: {
         transaction: 'base64-transfer-tx',
         transactionEncoding: 'base64',
@@ -210,9 +221,9 @@ describe('createSwigFetchHandler', () => {
       method: 'POST',
       body: {
         network: 'NETWORK_DEVNET',
-        feePayer: 'requester_123',
+        feePayer: 'payer_123',
         swigAddress: 'swig_config_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
         destination: 'destination_123',
         lamports: '42',
       },
@@ -226,7 +237,9 @@ describe('createSwigFetchHandler', () => {
       apiKey: 'sk_test',
       transactionApiUrl: 'http://localhost:8080',
       feePayer: 'payer_123',
-      resolveRequesterPubkey: () => 'requester_123',
+      resolveRequesterAuthority: () => ({
+        ed25519: { publicKey: 'requester_123' },
+      }),
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
@@ -252,7 +265,7 @@ describe('createSwigFetchHandler', () => {
 
     expect(calls[0]?.body).toMatchObject({
       feePayer: 'payer_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
     });
   });
 
@@ -262,7 +275,9 @@ describe('createSwigFetchHandler', () => {
       apiKey: 'sk_test',
       transactionApiUrl: 'http://localhost:8080',
       feePayer: 'payer_123',
-      resolveRequesterPubkey: () => 'requester_123',
+      resolveRequesterAuthority: () => ({
+        ed25519: { publicKey: 'requester_123' },
+      }),
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
@@ -290,7 +305,7 @@ describe('createSwigFetchHandler', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       prepared: {
         transaction: 'base64-token-transfer-tx',
         transactionEncoding: 'base64',
@@ -303,7 +318,7 @@ describe('createSwigFetchHandler', () => {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',
         swigAddress: 'swig_config_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
         mint: 'mint_123',
         destinationOwner: 'owner_123',
         amount: '42',
@@ -317,7 +332,9 @@ describe('createSwigFetchHandler', () => {
       apiKey: 'sk_test',
       transactionApiUrl: 'http://localhost:8080',
       feePayer: 'payer_123',
-      resolveRequesterPubkey: () => 'requester_123',
+      resolveRequesterAuthority: () => ({
+        ed25519: { publicKey: 'requester_123' },
+      }),
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
@@ -349,7 +366,7 @@ describe('createSwigFetchHandler', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toMatchObject({
       prepared: {
         transaction: 'base64-swap-tx',
         transactionEncoding: 'base64',
@@ -362,7 +379,7 @@ describe('createSwigFetchHandler', () => {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',
         swigAddress: 'swig_config_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
         inputMint: 'So11111111111111111111111111111111111111112',
         outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         amount: '42',

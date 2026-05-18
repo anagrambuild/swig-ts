@@ -10,9 +10,9 @@ The SDK is prepare-first:
 1. Your server creates a `SwigClient` with an API key.
 2. Your server prepares a wallet operation and receives one or more unsigned
    transactions.
-3. Your client signs the prepared transaction locally.
-4. Your app either sends the signed transaction directly or submits it to a
-   backend sponsor endpoint.
+3. Your client signs any transactions that require client authority.
+4. Your app submits the ordered transactions directly or through a backend
+   sponsor endpoint.
 
 ## Framework Proxy Routes
 
@@ -53,18 +53,20 @@ const swig = new SwigClient({
 ### Create Wallet
 
 ```typescript
-const wallet = await swig.wallets.create({
+const created = await swig.wallets.create({
   feePayer,
-  policyId,
+  initialUser: {
+    ed25519: {
+      publicKey: userPublicKey,
+    },
+  },
 });
 
-const preparedCreate = wallet.creationTransaction;
-
-if (!preparedCreate) {
-  throw new Error('Wallet creation response did not include a transaction');
-}
-
-return preparedCreate;
+return {
+  wallet: created.wallet,
+  transactions: created.transactions,
+  transactionsToSign: created.clientAuthorityTransactions,
+};
 ```
 
 If `policyId` is omitted, the backend can create a no-recovery policy from an
@@ -72,7 +74,7 @@ inline `initialUser`. For a passkey initial user, provide the secp256r1 public
 key:
 
 ```typescript
-const wallet = await swig.wallets.create({
+const created = await swig.wallets.create({
   feePayer,
   initialUser: {
     secp256r1: {
@@ -81,24 +83,38 @@ const wallet = await swig.wallets.create({
   },
 });
 
-return wallet.creationTransaction;
+return {
+  wallet: created.wallet,
+  transactions: created.transactions,
+  clientAuthorityTransactions: created.clientAuthorityTransactions,
+  operatorSignedTransactions: created.operatorSignedTransactions,
+  feePayerOnlyTransactions: created.feePayerOnlyTransactions,
+};
 ```
 
-Wallet creation can return multiple prepared transactions when policy setup
-requires additional work, such as add-authority or recovery configuration.
+Wallet creation returns `transactions` in the order they should be submitted.
+For recovery-enabled create flows, the create transaction is fee-payer only, the
+add-authority transaction is signed by the initial user, and the
+configure-recovery transaction is signed by the backend recovery operator before
+it is returned. Submit each transaction in order after applying any required
+client authority signature. A prepared transaction needs a client authority
+signature when `signatureRequests.length > 0`.
 
-### Prepare Transfer
+### Prepare SOL Transfer
 
 ```typescript
 const wallet = swig.wallets.use({
   swigConfigAddress,
   walletAddress,
-  requesterPubkey,
+  requesterAuthority: {
+    ed25519: {
+      publicKey: userPublicKey,
+    },
+  },
 });
 
 const preparedTransfer = await wallet.transfer.sol({
   feePayer,
-  requesterPubkey,
   destination,
   amount: 1_000_000n,
 });
@@ -106,13 +122,14 @@ const preparedTransfer = await wallet.transfer.sol({
 return preparedTransfer;
 ```
 
+### Prepare Token Transfer
+
 Token transfers derive backend-only fields such as token program, source ATA,
 destination ATA, and destination ATA creation:
 
 ```typescript
 const preparedTokenTransfer = await wallet.transfer.token({
   feePayer,
-  requesterPubkey,
   mint,
   destinationOwner,
   amount: 10_000n,
@@ -126,7 +143,6 @@ return preparedTokenTransfer;
 ```typescript
 const preparedSwap = await wallet.swap.jupiter({
   feePayer,
-  requesterPubkey,
   inputMint: 'So11111111111111111111111111111111111111112',
   outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   amount: 10_000n,
@@ -142,7 +158,35 @@ return preparedSwap;
 Client code should only sign prepared transactions. It should not hold the API
 key or call the Swig backend directly.
 
-### Prepared Transaction Signing
+### Solana Transaction Signing
+
+Use this for prepared transactions whose requester authority is Ed25519.
+
+```typescript
+import {
+  signPreparedTransaction,
+  type PreparedTransaction,
+} from '@swig-wallet/developer-sdk/client';
+import { VersionedTransaction } from '@solana/web3.js';
+
+declare const prepared: PreparedTransaction;
+
+const signed = await signPreparedTransaction(prepared, {
+  signTransaction: async (transaction) => {
+    const versioned = VersionedTransaction.deserialize(
+      Buffer.from(transaction.transaction, 'base64'),
+    );
+    versioned.sign([userKeypair]);
+    return Buffer.from(versioned.serialize()).toString('base64');
+  },
+});
+```
+
+### Passkey Transaction Signing
+
+Use this for any prepared transaction whose `signatureRequests` contains a
+`secp256r1` request. The same pattern applies to create, transfer, token
+transfer, and swap.
 
 ```typescript
 import {
@@ -163,10 +207,15 @@ const passkeySigningFn = createSecp256r1PasskeySigningFn({
 //   response.json(),
 // );
 declare const prepared: PreparedTransaction;
+const [signatureRequest] = prepared.signatureRequests;
 
 const signed = await signPreparedTransaction(prepared, {
   signTransaction: (transaction) =>
-    signPreparedSwigTransaction(transaction, passkeySigningFn),
+    signPreparedSwigTransaction(
+      transaction,
+      signatureRequest,
+      passkeySigningFn,
+    ),
 });
 ```
 
@@ -176,6 +225,11 @@ SDK stops at producing the signed prepared transaction payload.
 `signPreparedSwigTransaction` is intentionally app-provided for now. It should
 wrap the Swig passkey transaction signing flow for the specific transaction
 format returned by the backend.
+
+For wallet creation, sign only `created.clientAuthorityTransactions` on the
+client. Do not authority-sign `created.operatorSignedTransactions`; those
+already include the backend recovery operator signature and only need the final
+fee-payer or sponsor signature before submission.
 
 ## Public Entrypoints
 

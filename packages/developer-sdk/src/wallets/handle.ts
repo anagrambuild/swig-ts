@@ -1,5 +1,4 @@
 import type {
-  AddAuthorityChallenge,
   ExecuteArgs,
   Network,
   PreparedTransaction,
@@ -11,11 +10,7 @@ import type {
 } from '../types/index.js';
 import type { WalletsClient } from './client.js';
 
-export interface WalletHandleInit extends WalletReference {
-  creationTransaction?: PreparedTransaction;
-  creationTransactions?: PreparedTransaction[];
-  addAuthorityChallenge?: AddAuthorityChallenge;
-}
+export type WalletHandleInit = WalletReference;
 
 export type WalletTransferClient = {
   (args: TransferArgs): Promise<PreparedTransaction>;
@@ -33,10 +28,7 @@ export class WalletHandle {
   readonly swigConfigAddress: string;
   readonly walletAddress?: string;
   readonly network?: Network;
-  readonly requesterPubkey?: string;
-  readonly creationTransaction?: PreparedTransaction;
-  readonly creationTransactions: PreparedTransaction[];
-  readonly addAuthorityChallenge?: AddAuthorityChallenge;
+  readonly requesterAuthority?: WalletReference['requesterAuthority'];
   readonly transfer: WalletTransferClient;
   readonly swap: WalletSwapClient;
 
@@ -47,12 +39,7 @@ export class WalletHandle {
     this.swigConfigAddress = init.swigConfigAddress;
     this.walletAddress = init.walletAddress;
     this.network = init.network;
-    this.requesterPubkey = init.requesterPubkey;
-    this.creationTransaction = init.creationTransaction;
-    this.creationTransactions =
-      init.creationTransactions ??
-      (init.creationTransaction ? [init.creationTransaction] : []);
-    this.addAuthorityChallenge = init.addAuthorityChallenge;
+    this.requesterAuthority = init.requesterAuthority;
     this.transfer = createWalletTransferClient(wallets, this);
     this.swap = createWalletSwapClient(wallets, this);
   }

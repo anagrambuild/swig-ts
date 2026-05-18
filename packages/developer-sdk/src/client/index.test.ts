@@ -7,6 +7,7 @@ const prepared: PreparedTransaction = {
   transaction: 'base64-prepared-tx',
   transactionEncoding: 'base64',
   network: 'devnet',
+  signatureRequests: [],
 };
 
 describe('client signing helpers', () => {

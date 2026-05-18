@@ -38,6 +38,7 @@ export interface PreparedTransaction {
   network?: Network;
   recentBlockhash?: string;
   kind?: PreparedTransactionKind;
+  signatureRequests: ClientSignatureRequest[];
 }
 
 export interface PreparedTransactionWire {
@@ -53,10 +54,11 @@ export interface PreparedTransactionWire {
   recent_blockhash?: string;
   recentBlockhash?: string;
   kind?: PreparedTransactionKindWire;
+  signature_requests?: ClientSignatureRequestWire[];
+  signatureRequests?: ClientSignatureRequestWire[];
 }
 
-export interface AddAuthorityChallenge {
-  transactionIndex: number;
+export interface ClientSignatureRequest {
   scheme: 'secp256r1' | 'secp256k1';
   signer: string;
   messageHash: string;
@@ -64,9 +66,7 @@ export interface AddAuthorityChallenge {
   counter: number;
 }
 
-export interface AddAuthorityChallengeWire {
-  transaction_index?: number;
-  transactionIndex?: number;
+export interface ClientSignatureRequestWire {
   scheme?:
     | 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1'
     | 'AUTHORITY_SIGNATURE_SCHEME_SECP256K1'
@@ -81,15 +81,17 @@ export interface AddAuthorityChallengeWire {
 export interface CreateWalletResponseWire extends PreparedTransactionWire {
   wallet?: WalletAddressInfo;
   transactions?: PreparedTransactionWire[];
-  add_authority_challenge?: AddAuthorityChallengeWire;
-  addAuthorityChallenge?: AddAuthorityChallengeWire;
 }
 
 export interface CreateWalletResult {
-  wallet: WalletAddressInfo;
+  wallet: WalletAddressInfo & { network?: Network };
   transactions: PreparedTransaction[];
+  clientAuthorityTransactions: PreparedTransaction[];
+  operatorSignedTransactions: PreparedTransaction[];
+  feePayerOnlyTransactions: PreparedTransaction[];
   creationTransaction?: PreparedTransaction;
-  addAuthorityChallenge?: AddAuthorityChallenge;
+  addAuthorityTransaction?: PreparedTransaction;
+  configureRecoveryTransaction?: PreparedTransaction;
   network?: Network;
 }
 

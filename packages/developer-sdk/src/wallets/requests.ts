@@ -38,7 +38,7 @@ export function transferSolRequest(
     ),
     feePayer: args.feePayer,
     swigAddress: wallet.swigConfigAddress,
-    requesterPubkey: resolveRequesterPubkey(wallet, args),
+    requesterAuthority: resolveRequesterAuthority(wallet, args),
     destination: args.destination,
     lamports: normalizeAmount(args.amount),
   };
@@ -55,7 +55,7 @@ export function transferTokenRequest(
     ),
     feePayer: args.feePayer,
     swigAddress: wallet.swigConfigAddress,
-    requesterPubkey: resolveRequesterPubkey(wallet, args),
+    requesterAuthority: resolveRequesterAuthority(wallet, args),
     mint: args.mint,
     destinationOwner: args.destinationOwner,
     amount: normalizeAmount(args.amount),
@@ -73,7 +73,7 @@ export function swapRequest(
     ),
     feePayer: args.feePayer,
     swigAddress: wallet.swigConfigAddress,
-    requesterPubkey: resolveRequesterPubkey(wallet, args),
+    requesterAuthority: resolveRequesterAuthority(wallet, args),
     inputMint: args.inputMint,
     outputMint: args.outputMint,
     amount: normalizeAmount(args.amount),
@@ -120,13 +120,16 @@ function resolveNetwork(...networks: Array<Network | undefined>): Network {
   return network;
 }
 
-function resolveRequesterPubkey(
+function resolveRequesterAuthority(
   wallet: WalletHandle,
   args: TransferArgs | SwapArgs,
-): string {
-  const requesterPubkey = args.requesterPubkey ?? wallet.requesterPubkey;
-  if (!requesterPubkey) {
-    throw new Error('requesterPubkey is required');
+): NonNullable<
+  TransferArgs['requesterAuthority'] | SwapArgs['requesterAuthority']
+> {
+  const requesterAuthority =
+    args.requesterAuthority ?? wallet.requesterAuthority;
+  if (!requesterAuthority) {
+    throw new Error('requesterAuthority is required');
   }
-  return requesterPubkey;
+  return requesterAuthority;
 }

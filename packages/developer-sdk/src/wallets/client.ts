@@ -2,6 +2,7 @@ import type { HttpClient } from '../core/index.js';
 import type {
   CreateWalletArgs,
   CreateWalletResponseWire,
+  CreateWalletResult,
   ExecuteArgs,
   IdpWalletSession,
   Network,
@@ -32,20 +33,21 @@ export class WalletsClient {
     private readonly defaultNetwork?: Network,
   ) {}
 
-  create = async (args: CreateWalletArgs): Promise<WalletHandle> => {
+  create = async (args: CreateWalletArgs): Promise<CreateWalletResult> => {
     const response = await this.http.post<CreateWalletResponseWire>(
       '/transaction/wallet/create',
       createWalletRequest(args, this.defaultNetwork),
     );
     const created = normalizeCreateWalletResponse(response);
 
-    return new WalletHandle(this, {
-      ...created.wallet,
+    return {
+      ...created,
+      wallet: {
+        ...created.wallet,
+        network: created.network ?? args.network ?? this.defaultNetwork,
+      },
       network: created.network ?? args.network ?? this.defaultNetwork,
-      creationTransaction: created.creationTransaction,
-      creationTransactions: created.transactions,
-      addAuthorityChallenge: created.addAuthorityChallenge,
-    });
+    };
   };
 
   use = (
@@ -56,7 +58,7 @@ export class WalletsClient {
       return new WalletHandle(this, {
         swigConfigAddress: wallet,
         network: options.network ?? this.defaultNetwork,
-        requesterPubkey: options.requesterPubkey,
+        requesterAuthority: options.requesterAuthority,
       });
     }
 
@@ -64,7 +66,8 @@ export class WalletsClient {
       swigConfigAddress: wallet.swigConfigAddress,
       walletAddress: wallet.walletAddress,
       network: options.network ?? wallet.network ?? this.defaultNetwork,
-      requesterPubkey: options.requesterPubkey ?? wallet.requesterPubkey,
+      requesterAuthority:
+        options.requesterAuthority ?? wallet.requesterAuthority,
     });
   };
 
@@ -76,7 +79,8 @@ export class WalletsClient {
       swigConfigAddress: session.configAddress,
       walletAddress: session.walletAddress,
       network: options.network ?? this.defaultNetwork,
-      requesterPubkey: options.requesterPubkey ?? session.requesterPubkey,
+      requesterAuthority:
+        options.requesterAuthority ?? session.requesterAuthority,
     });
   };
 

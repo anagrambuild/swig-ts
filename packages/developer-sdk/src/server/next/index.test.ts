@@ -23,9 +23,10 @@ describe('createSwigRouteHandlers', () => {
         body: JSON.stringify({
           wallet: {
             swigConfigAddress: 'swig_config_123',
-            requesterPubkey: 'requester_123',
+            requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
           },
           network: 'devnet',
+          feePayer: 'payer_123',
           destination: 'destination_123',
           amount: '42',
         }),
