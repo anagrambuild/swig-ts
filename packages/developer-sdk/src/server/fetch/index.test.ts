@@ -269,6 +269,110 @@ describe('createSwigFetchHandler', () => {
     });
   });
 
+  test('prepares grouped operations through the API-key server client', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigFetchHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      feePayer: 'payer_123',
+      resolveRequesterAuthority: () => ({
+        ed25519: { publicKey: 'requester_123' },
+      }),
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+          transactions: [
+            {
+              transaction: 'base64-prepare-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+            },
+          ],
+          network: 'NETWORK_DEVNET',
+        };
+      }),
+    });
+
+    const response = await handler(
+      new Request('https://app.example/api/swig/prepare', {
+        method: 'POST',
+        body: JSON.stringify({
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+          network: 'devnet',
+          operations: [
+            {
+              type: 'transferSol',
+              destination: 'destination_123',
+              amount: '42',
+            },
+            {
+              type: 'transferToken',
+              mint: 'mint_123',
+              destinationOwner: 'owner_123',
+              amount: '2500',
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      prepared: {
+        wallet: {
+          swigConfigAddress: 'swig_config_123',
+          walletAddress: 'wallet_123',
+          network: 'devnet',
+        },
+        transactions: [
+          {
+            transaction: 'base64-prepare-tx',
+            transactionEncoding: 'base64',
+            network: 'devnet',
+          },
+        ],
+        feePayerOnlyTransactions: [
+          {
+            transaction: 'base64-prepare-tx',
+            transactionEncoding: 'base64',
+            network: 'devnet',
+          },
+        ],
+      },
+    });
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/prepare',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+        operations: [
+          {
+            transferSol: {
+              destination: 'destination_123',
+              lamports: '42',
+            },
+          },
+          {
+            transferToken: {
+              mint: 'mint_123',
+              destinationOwner: 'owner_123',
+              amount: '2500',
+            },
+          },
+        ],
+      },
+    });
+  });
+
   test('prepares token transfers through the API-key server client', async () => {
     const calls: CapturedRequest[] = [];
     const handler = createSwigFetchHandler({
@@ -358,6 +462,7 @@ describe('createSwigFetchHandler', () => {
           outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           amount: '42',
           slippageBps: 100,
+          destinationAccount: 'destination_account_123',
           wrapAndUnwrapSol: true,
           maxAccounts: 20,
           mode: 'fast',
@@ -384,6 +489,7 @@ describe('createSwigFetchHandler', () => {
         outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         amount: '42',
         slippageBps: 100,
+        destinationAccount: 'destination_account_123',
         wrapAndUnwrapSol: true,
         maxAccounts: 20,
         mode: 'fast',

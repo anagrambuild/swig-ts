@@ -2,6 +2,8 @@ import type {
   CreateWalletArgs,
   ExecuteArgs,
   Network,
+  PrepareArgs,
+  PrepareOperation,
   SwapArgs,
   TransferArgs,
   TransferSolArgs,
@@ -62,6 +64,22 @@ export function transferTokenRequest(
   };
 }
 
+export function prepareRequest(
+  wallet: WalletHandle,
+  args: PrepareArgs,
+  defaultNetwork?: Network,
+) {
+  return {
+    network: toProtoNetwork(
+      resolveNetwork(args.network, wallet.network, defaultNetwork),
+    ),
+    feePayer: args.feePayer,
+    swigAddress: wallet.swigConfigAddress,
+    requesterAuthority: resolveRequesterAuthority(wallet, args),
+    operations: args.operations.map(prepareOperationRequest),
+  };
+}
+
 export function swapRequest(
   wallet: WalletHandle,
   args: SwapArgs,
@@ -78,6 +96,7 @@ export function swapRequest(
     outputMint: args.outputMint,
     amount: normalizeAmount(args.amount),
     slippageBps: args.slippageBps,
+    destinationAccount: args.destinationAccount,
     destinationTokenAccount: args.destinationTokenAccount,
     nativeDestinationAccount: args.nativeDestinationAccount,
     wrapAndUnwrapSol: args.wrapAndUnwrapSol,
@@ -112,6 +131,26 @@ export function isTokenTransfer(args: TransferArgs): args is TransferTokenArgs {
   );
 }
 
+function prepareOperationRequest(operation: PrepareOperation) {
+  switch (operation.type) {
+    case 'transferSol':
+      return {
+        transferSol: {
+          destination: operation.destination,
+          lamports: normalizeAmount(operation.amount),
+        },
+      };
+    case 'transferToken':
+      return {
+        transferToken: {
+          mint: operation.mint,
+          destinationOwner: operation.destinationOwner,
+          amount: normalizeAmount(operation.amount),
+        },
+      };
+  }
+}
+
 function resolveNetwork(...networks: Array<Network | undefined>): Network {
   const network = networks.find((candidate) => candidate !== undefined);
   if (!network) {
@@ -122,9 +161,11 @@ function resolveNetwork(...networks: Array<Network | undefined>): Network {
 
 function resolveRequesterAuthority(
   wallet: WalletHandle,
-  args: TransferArgs | SwapArgs,
+  args: TransferArgs | SwapArgs | PrepareArgs,
 ): NonNullable<
-  TransferArgs['requesterAuthority'] | SwapArgs['requesterAuthority']
+  | TransferArgs['requesterAuthority']
+  | SwapArgs['requesterAuthority']
+  | PrepareArgs['requesterAuthority']
 > {
   const requesterAuthority =
     args.requesterAuthority ?? wallet.requesterAuthority;

@@ -9,7 +9,9 @@ import type {
   PreparedTransaction,
   PreparedTransactionKind,
   PreparedTransactionKindWire,
+  PreparedTransactionsResult,
   PreparedTransactionWire,
+  PrepareTransactionsResponseWire,
   SolanaInstruction,
   SolanaInstructionInput,
   SubmittedTransaction,
@@ -91,6 +93,38 @@ export function normalizeCreateWalletResponse(
     addAuthorityTransaction,
     configureRecoveryTransaction,
     network: topLevelNetwork ?? creationTransaction?.network,
+  };
+}
+
+export function normalizePrepareTransactionsResponse(
+  response: PrepareTransactionsResponseWire,
+): PreparedTransactionsResult {
+  const network = normalizeNetwork(response.network);
+  const transactions = Array.isArray(response.transactions)
+    ? response.transactions.map((transaction) =>
+        normalizePreparedTransaction({
+          ...transaction,
+          network: transaction.network ?? response.network,
+        }),
+      )
+    : [];
+  const wallet = response.wallet
+    ? {
+        ...response.wallet,
+        ...(network ? { network } : {}),
+      }
+    : undefined;
+
+  return {
+    ...(wallet ? { wallet } : {}),
+    transactions,
+    clientAuthorityTransactions: transactions.filter(
+      (transaction) => transaction.signatureRequests.length > 0,
+    ),
+    feePayerOnlyTransactions: transactions.filter(
+      (transaction) => transaction.signatureRequests.length === 0,
+    ),
+    network,
   };
 }
 
