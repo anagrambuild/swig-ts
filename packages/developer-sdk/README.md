@@ -139,45 +139,58 @@ return preparedSwap;
 Client code should only sign prepared transactions. It should not hold the API
 key or call the Swig backend directly.
 
-```typescript
-import {
-  createSecp256r1PasskeySigningFn,
-  signPreparedTransaction,
-} from '@swig-wallet/developer-sdk/client';
+### Passkey Message Signing
 
-const signingFn = createSecp256r1PasskeySigningFn({
+`createSecp256r1PasskeySigningFn` creates a WebAuthn-backed message signer.
+Most apps pass this into the transaction-level Swig signing helper, but it can
+also be called directly if you need the raw passkey signing result.
+
+```typescript
+import { createSecp256r1PasskeySigningFn } from '@swig-wallet/developer-sdk/client';
+
+const passkeySigningFn = createSecp256r1PasskeySigningFn({
   allowCredentials: [{ id: credentialId, type: 'public-key' }],
   userVerification: 'preferred',
 });
 
-const prepared = await fetch('/api/wallet/transfer', {
-  method: 'POST',
-  headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({
-    walletId,
-    destination,
-    amount: '1000000',
-  }),
-}).then((response) => response.json());
+const challenge = crypto.getRandomValues(new Uint8Array(32));
+const passkeySigningResult = await passkeySigningFn(challenge);
+
+// passkeySigningResult.signature
+// passkeySigningResult.prefix
+// passkeySigningResult.message
+```
+
+### Prepared Transaction Signing
+
+```typescript
+import {
+  createSecp256r1PasskeySigningFn,
+  signPreparedTransaction,
+  type PreparedTransaction,
+} from '@swig-wallet/developer-sdk/client';
+
+const passkeySigningFn = createSecp256r1PasskeySigningFn({
+  allowCredentials: [{ id: credentialId, type: 'public-key' }],
+  userVerification: 'preferred',
+});
+
+// The client SDK only signs. Your app owns fetching or passing in the prepared
+// payload returned by the server-side SDK.
+//
+// const prepared = await fetch('/your-app-prepare-route', ...).then((response) =>
+//   response.json(),
+// );
+declare const prepared: PreparedTransaction;
 
 const signed = await signPreparedTransaction(prepared, {
   signTransaction: (transaction) =>
-    signPreparedSwigTransaction(transaction, signingFn),
+    signPreparedSwigTransaction(transaction, passkeySigningFn),
 });
 ```
 
-After signing, either submit through your backend sponsor endpoint:
-
-```typescript
-await fetch('/api/wallet/sponsor', {
-  method: 'POST',
-  headers: { 'content-type': 'application/json' },
-  body: JSON.stringify(signed),
-});
-```
-
-Or decode and send the signed transaction from the client through your own
-Solana connection.
+After signing, pass `signed` to your app-owned send or sponsor flow. The client
+SDK stops at producing the signed prepared transaction payload.
 
 `signPreparedSwigTransaction` is intentionally app-provided for now. It should
 wrap the Swig passkey transaction signing flow for the specific transaction
