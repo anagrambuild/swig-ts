@@ -1,4 +1,5 @@
 import type { Network } from './common.js';
+import type { WalletAuthority } from './wallet-actions.js';
 
 export interface WalletAddressInfo {
   swigConfigAddress: string;
@@ -9,13 +10,13 @@ export interface WalletReference {
   swigConfigAddress: string;
   walletAddress?: string;
   network?: Network;
-  requesterPubkey?: string;
+  requesterAuthority?: WalletAuthority;
 }
 
 export interface IdpWalletSession {
   configAddress: string;
   walletAddress: string;
-  requesterPubkey?: string;
+  requesterAuthority?: WalletAuthority;
   authorityPublicKey?: string;
   /**
    * Deprecated. The transaction API resolves the requester's role on-chain.
@@ -25,5 +26,5 @@ export interface IdpWalletSession {
 
 export interface WalletHandleOptions {
   network?: Network;
-  requesterPubkey?: string;
+  requesterAuthority?: WalletAuthority;
 }

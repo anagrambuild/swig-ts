@@ -50,14 +50,16 @@ describe('WalletsClient', () => {
       {
         configAddress: 'swig_config_123',
         walletAddress: 'wallet_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
       },
       { network: 'devnet' },
     );
 
     expect(wallet.swigConfigAddress).toBe('swig_config_123');
     expect(wallet.walletAddress).toBe('wallet_123');
-    expect(wallet.requesterPubkey).toBe('requester_123');
+    expect(wallet.requesterAuthority).toEqual({
+      ed25519: { publicKey: 'requester_123' },
+    });
     expect(wallet.network).toBe('devnet');
   });
 
@@ -68,11 +70,13 @@ describe('WalletsClient', () => {
     );
 
     const wallet = wallets.use('swig_config_123', {
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
     });
 
     expect(wallet.swigConfigAddress).toBe('swig_config_123');
-    expect(wallet.requesterPubkey).toBe('requester_123');
+    expect(wallet.requesterAuthority).toEqual({
+      ed25519: { publicKey: 'requester_123' },
+    });
     expect(wallet.network).toBe('devnet');
   });
 
@@ -84,7 +88,7 @@ describe('WalletsClient', () => {
     const wallet = wallets.fromIdpSession({
       configAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
     });
 
     expect(
@@ -101,7 +105,7 @@ describe('WalletsClient', () => {
       network: 'NETWORK_MAINNET',
       feePayer: 'payer_123',
       swigAddress: 'swig_config_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
       destination: 'destination_123',
       lamports: '1000000',
     });
@@ -115,7 +119,7 @@ describe('WalletsClient', () => {
     const wallet = wallets.use({
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
     });
 
     expect(
@@ -133,7 +137,7 @@ describe('WalletsClient', () => {
       network: 'NETWORK_DEVNET',
       feePayer: 'payer_123',
       swigAddress: 'swig_config_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
       mint: 'mint_123',
       destinationOwner: 'owner_123',
       amount: '2500',
@@ -148,7 +152,7 @@ describe('WalletsClient', () => {
     const wallet = wallets.use({
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
     });
 
     expect(
@@ -172,7 +176,7 @@ describe('WalletsClient', () => {
       network: 'NETWORK_DEVNET',
       feePayer: 'payer_123',
       swigAddress: 'swig_config_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
       inputMint: 'input_mint_123',
       outputMint: 'output_mint_123',
       amount: '1000',
@@ -324,7 +328,7 @@ describe('WalletsClient', () => {
     const wallet = swig.wallets.use({
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
     });
 
     const prepared = await wallet.transfer.sol({
@@ -341,7 +345,7 @@ describe('WalletsClient', () => {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',
         swigAddress: 'swig_config_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
         destination: 'destination_123',
         lamports: '42',
       },
@@ -371,7 +375,7 @@ describe('WalletsClient', () => {
     });
     const wallet = swig.wallets.use({
       swigConfigAddress: 'swig_config_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
     });
 
     const prepared = await wallet.transfer.token({
@@ -389,7 +393,7 @@ describe('WalletsClient', () => {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',
         swigAddress: 'swig_config_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
         mint: 'mint_123',
         destinationOwner: 'owner_123',
         amount: '42',
@@ -425,7 +429,7 @@ describe('WalletsClient', () => {
     const wallet = swig.wallets.use({
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
-      requesterPubkey: 'requester_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
     });
 
     const prepared = await wallet.swap.jupiter({
@@ -444,7 +448,7 @@ describe('WalletsClient', () => {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',
         swigAddress: 'swig_config_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
         inputMint: 'input_mint_123',
         outputMint: 'output_mint_123',
         amount: '42',

@@ -1,7 +1,7 @@
 import type {
-  AddAuthorityChallenge,
-  AddAuthorityChallengeWire,
   Amount,
+  ClientSignatureRequest,
+  ClientSignatureRequestWire,
   CreateWalletResponseWire,
   CreateWalletResult,
   Network,
@@ -39,6 +39,9 @@ export function normalizePreparedTransaction(
     network: normalizeNetwork(response.network),
     recentBlockhash: response.recentBlockhash ?? response.recent_blockhash,
     kind: normalizePreparedTransactionKind(response.kind),
+    signatureRequests: normalizeSignatureRequests(
+      response.signatureRequests ?? response.signature_requests,
+    ),
   };
 }
 
@@ -74,7 +77,7 @@ export function normalizeCreateWalletResponse(
     wallet,
     transactions,
     clientAuthorityTransactions: transactions.filter(
-      (transaction) => transaction.kind === 'add-authority',
+      (transaction) => transaction.signatureRequests.length > 0,
     ),
     operatorSignedTransactions: transactions.filter(
       (transaction) => transaction.kind === 'configure-recovery',
@@ -87,9 +90,6 @@ export function normalizeCreateWalletResponse(
     creationTransaction,
     addAuthorityTransaction,
     configureRecoveryTransaction,
-    addAuthorityChallenge: normalizeAddAuthorityChallenge(
-      response.addAuthorityChallenge ?? response.add_authority_challenge,
-    ),
     network: topLevelNetwork ?? creationTransaction?.network,
   };
 }
@@ -186,47 +186,43 @@ function normalizePreparedTransactionKind(
   }
 }
 
-function normalizeAddAuthorityChallenge(
-  challenge?: AddAuthorityChallengeWire,
-): AddAuthorityChallenge | undefined {
-  if (!challenge) {
-    return undefined;
+function normalizeSignatureRequests(
+  requests?: ClientSignatureRequestWire[],
+): ClientSignatureRequest[] {
+  if (!requests) {
+    return [];
   }
 
-  const transactionIndex =
-    challenge.transactionIndex ?? challenge.transaction_index;
-  const messageHash = challenge.messageHash ?? challenge.message_hash;
-  const scheme = normalizeAuthoritySignatureScheme(challenge.scheme);
+  return requests.map((request) => {
+    const messageHash = request.messageHash ?? request.message_hash;
+    const scheme = normalizeAuthoritySignatureScheme(request.scheme);
 
-  if (
-    transactionIndex === undefined ||
-    !scheme ||
-    !challenge.signer ||
-    !messageHash ||
-    challenge.slot === undefined ||
-    challenge.counter === undefined
-  ) {
-    throw new Error(
-      'Create wallet response has invalid add_authority_challenge',
-    );
-  }
+    if (
+      !scheme ||
+      !request.signer ||
+      !messageHash ||
+      request.slot === undefined ||
+      request.counter === undefined
+    ) {
+      throw new Error('Prepared transaction has invalid signature request');
+    }
 
-  return {
-    transactionIndex,
-    scheme,
-    signer: challenge.signer,
-    messageHash,
-    slot:
-      typeof challenge.slot === 'string'
-        ? Number.parseInt(challenge.slot, 10)
-        : challenge.slot,
-    counter: challenge.counter,
-  };
+    return {
+      scheme,
+      signer: request.signer,
+      messageHash,
+      slot:
+        typeof request.slot === 'string'
+          ? Number.parseInt(request.slot, 10)
+          : request.slot,
+      counter: request.counter,
+    };
+  });
 }
 
 function normalizeAuthoritySignatureScheme(
-  scheme: AddAuthorityChallengeWire['scheme'],
-): AddAuthorityChallenge['scheme'] | undefined {
+  scheme: ClientSignatureRequestWire['scheme'],
+): ClientSignatureRequest['scheme'] | undefined {
   switch (scheme) {
     case 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1':
     case 1:

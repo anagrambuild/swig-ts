@@ -4,6 +4,7 @@ import type {
   Network,
   SwapArgs,
   TransferTokenArgs,
+  WalletAuthority,
   WalletReference,
 } from '../../types/index.js';
 import { SwigClient } from '../typescript/index.js';
@@ -33,9 +34,9 @@ export interface CreateSwigFetchHandlerConfig {
   feePayer?:
     | string
     | ((context: SwigRouteContext) => MaybePromise<string | undefined>);
-  resolveRequesterPubkey?: (
+  resolveRequesterAuthority?: (
     context: SwigRouteContext,
-  ) => MaybePromise<string | undefined>;
+  ) => MaybePromise<WalletAuthority | undefined>;
   fetch?: typeof fetch;
 }
 
@@ -165,7 +166,6 @@ function createWalletResult(
     creationTransaction: wallet.creationTransaction,
     addAuthorityTransaction: wallet.addAuthorityTransaction,
     configureRecoveryTransaction: wallet.configureRecoveryTransaction,
-    addAuthorityChallenge: wallet.addAuthorityChallenge,
     network: wallet.network,
   };
 }
@@ -177,19 +177,19 @@ async function prepareSolTransfer(
   config: CreateSwigFetchHandlerConfig,
 ) {
   const wallet = requireWallet(context.wallet);
-  const requesterPubkey = await resolveRequesterPubkey(context, config);
-  const feePayer = await resolveFeePayer(context, config, requesterPubkey);
+  const requesterAuthority = await resolveRequesterAuthority(context, config);
+  const feePayer = await resolveFeePayer(context, config);
   const handle = swig.wallets.use(
     {
       ...wallet,
-      requesterPubkey,
+      requesterAuthority,
     },
     { network: context.network },
   );
 
   return handle.transfer({
     feePayer,
-    requesterPubkey,
+    requesterAuthority,
     destination: readRequiredString(body, 'destination'),
     amount: readAmount(body),
     ...(context.network ? { network: context.network } : {}),
@@ -206,18 +206,18 @@ async function prepareTokenTransfer(
   config: CreateSwigFetchHandlerConfig,
 ) {
   const wallet = requireWallet(context.wallet);
-  const requesterPubkey = await resolveRequesterPubkey(context, config);
-  const feePayer = await resolveFeePayer(context, config, requesterPubkey);
+  const requesterAuthority = await resolveRequesterAuthority(context, config);
+  const feePayer = await resolveFeePayer(context, config);
   const handle = swig.wallets.use(
     {
       ...wallet,
-      requesterPubkey,
+      requesterAuthority,
     },
     { network: context.network },
   );
   const args: TransferTokenArgs = {
     feePayer,
-    requesterPubkey,
+    requesterAuthority,
     mint: readRequiredString(body, 'mint'),
     destinationOwner: readRequiredString(body, 'destinationOwner'),
     amount: readAmount(body),
@@ -237,18 +237,18 @@ async function prepareJupiterSwap(
   config: CreateSwigFetchHandlerConfig,
 ) {
   const wallet = requireWallet(context.wallet);
-  const requesterPubkey = await resolveRequesterPubkey(context, config);
-  const feePayer = await resolveFeePayer(context, config, requesterPubkey);
+  const requesterAuthority = await resolveRequesterAuthority(context, config);
+  const feePayer = await resolveFeePayer(context, config);
   const handle = swig.wallets.use(
     {
       ...wallet,
-      requesterPubkey,
+      requesterAuthority,
     },
     { network: context.network },
   );
   const args: SwapArgs = {
     feePayer,
-    requesterPubkey,
+    requesterAuthority,
     inputMint: readRequiredString(body, 'inputMint'),
     outputMint: readRequiredString(body, 'outputMint'),
     amount: readAmount(body),
@@ -308,27 +308,28 @@ async function prepareJupiterSwap(
   return handle.swap(args);
 }
 
-async function resolveRequesterPubkey(
+async function resolveRequesterAuthority(
   context: SwigRouteContext,
   config: CreateSwigFetchHandlerConfig,
-): Promise<string> {
-  const requesterPubkey =
-    context.wallet?.requesterPubkey ??
-    readOptionalString(context.body, 'requesterPubkey') ??
-    (await config.resolveRequesterPubkey?.(context)) ??
-    readEnv('SWIG_REQUESTER_PUBKEY', 'SWIG_AUTHORITY_PUBLIC_KEY');
+): Promise<WalletAuthority> {
+  const requesterAuthority =
+    context.wallet?.requesterAuthority ??
+    readWalletAuthority(
+      context.body.requesterAuthority,
+      'requesterAuthority',
+    ) ??
+    (await config.resolveRequesterAuthority?.(context));
 
-  if (!requesterPubkey) {
-    throw new SwigRouteError('requesterPubkey is required');
+  if (!requesterAuthority) {
+    throw new SwigRouteError('requesterAuthority is required');
   }
 
-  return requesterPubkey;
+  return requesterAuthority;
 }
 
 async function resolveFeePayer(
   context: SwigRouteContext,
   config: CreateSwigFetchHandlerConfig,
-  requesterPubkey?: string,
 ): Promise<string> {
   const configuredFeePayer =
     typeof config.feePayer === 'function'
@@ -341,8 +342,7 @@ async function resolveFeePayer(
       'SWIG_FEE_PAYER',
       'SWIG_TRANSFER_FEE_PAYER',
       'SWIG_TRANSACTION_FEE_PAYER',
-    ) ??
-    requesterPubkey;
+    );
 
   if (!feePayer) {
     throw new SwigRouteError('feePayer is required');
@@ -407,17 +407,23 @@ function readWallet(value: unknown): WalletReference | undefined {
   return {
     swigConfigAddress: readRequiredString(value, 'swigConfigAddress'),
     walletAddress: readOptionalString(value, 'walletAddress'),
-    requesterPubkey: readOptionalString(value, 'requesterPubkey'),
+    requesterAuthority: readWalletAuthority(
+      value.requesterAuthority,
+      'wallet.requesterAuthority',
+    ),
     network: readNetwork(value.network),
   };
 }
 
-function readWalletAuthority(value: unknown): CreateWalletArgs['initialUser'] {
+function readWalletAuthority(
+  value: unknown,
+  field = 'initialUser',
+): WalletAuthority | undefined {
   if (value === undefined) {
     return undefined;
   }
   if (!isRecord(value)) {
-    throw new SwigRouteError('initialUser must be an object');
+    throw new SwigRouteError(`${field} must be an object`);
   }
   for (const scheme of ['ed25519', 'secp256k1', 'secp256r1'] as const) {
     const authority = value[scheme];
@@ -426,10 +432,10 @@ function readWalletAuthority(value: unknown): CreateWalletArgs['initialUser'] {
     }
     const publicKey = readOptionalString(authority, 'publicKey');
     if (publicKey) {
-      return { [scheme]: { publicKey } } as CreateWalletArgs['initialUser'];
+      return { [scheme]: { publicKey } } as WalletAuthority;
     }
   }
-  throw new SwigRouteError('initialUser must include a supported authority');
+  throw new SwigRouteError(`${field} must include a supported authority`);
 }
 
 function requireWallet(wallet: WalletReference | undefined): WalletReference {

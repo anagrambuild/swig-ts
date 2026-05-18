@@ -22,6 +22,7 @@ describe('wallet normalizers', () => {
       transactionEncoding: 'base64',
       network: 'devnet',
       recentBlockhash: 'blockhash_123',
+      signatureRequests: [],
     });
   });
 
@@ -42,6 +43,15 @@ describe('wallet normalizers', () => {
             transaction: 'base64-add-authority-tx',
             transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
             kind: 'PREPARED_TRANSACTION_KIND_ADD_AUTHORITY',
+            signatureRequests: [
+              {
+                scheme: 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1',
+                signer: 'compressed-passkey',
+                messageHash: 'message-hash',
+                slot: '42',
+                counter: 1,
+              },
+            ],
           },
           {
             transaction: 'base64-configure-recovery-tx',
@@ -49,14 +59,6 @@ describe('wallet normalizers', () => {
             kind: 'PREPARED_TRANSACTION_KIND_CONFIGURE_RECOVERY',
           },
         ],
-        addAuthorityChallenge: {
-          transactionIndex: 1,
-          scheme: 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1',
-          signer: 'compressed-passkey',
-          messageHash: 'message-hash',
-          slot: '42',
-          counter: 1,
-        },
         network: 'NETWORK_DEVNET',
       }),
     ).toEqual({
@@ -69,18 +71,29 @@ describe('wallet normalizers', () => {
         transactionEncoding: 'base64',
         kind: 'create-swig-wallet',
         network: 'devnet',
+        signatureRequests: [],
       },
       addAuthorityTransaction: {
         transaction: 'base64-add-authority-tx',
         transactionEncoding: 'base64',
         kind: 'add-authority',
         network: 'devnet',
+        signatureRequests: [
+          {
+            scheme: 'secp256r1',
+            signer: 'compressed-passkey',
+            messageHash: 'message-hash',
+            slot: 42,
+            counter: 1,
+          },
+        ],
       },
       configureRecoveryTransaction: {
         transaction: 'base64-configure-recovery-tx',
         transactionEncoding: 'base64',
         kind: 'configure-recovery',
         network: 'devnet',
+        signatureRequests: [],
       },
       transactions: [
         {
@@ -88,18 +101,29 @@ describe('wallet normalizers', () => {
           transactionEncoding: 'base64',
           kind: 'create-swig-wallet',
           network: 'devnet',
+          signatureRequests: [],
         },
         {
           transaction: 'base64-add-authority-tx',
           transactionEncoding: 'base64',
           kind: 'add-authority',
           network: 'devnet',
+          signatureRequests: [
+            {
+              scheme: 'secp256r1',
+              signer: 'compressed-passkey',
+              messageHash: 'message-hash',
+              slot: 42,
+              counter: 1,
+            },
+          ],
         },
         {
           transaction: 'base64-configure-recovery-tx',
           transactionEncoding: 'base64',
           kind: 'configure-recovery',
           network: 'devnet',
+          signatureRequests: [],
         },
       ],
       clientAuthorityTransactions: [
@@ -108,6 +132,15 @@ describe('wallet normalizers', () => {
           transactionEncoding: 'base64',
           kind: 'add-authority',
           network: 'devnet',
+          signatureRequests: [
+            {
+              scheme: 'secp256r1',
+              signer: 'compressed-passkey',
+              messageHash: 'message-hash',
+              slot: 42,
+              counter: 1,
+            },
+          ],
         },
       ],
       operatorSignedTransactions: [
@@ -116,6 +149,7 @@ describe('wallet normalizers', () => {
           transactionEncoding: 'base64',
           kind: 'configure-recovery',
           network: 'devnet',
+          signatureRequests: [],
         },
       ],
       feePayerOnlyTransactions: [
@@ -124,16 +158,9 @@ describe('wallet normalizers', () => {
           transactionEncoding: 'base64',
           kind: 'create-swig-wallet',
           network: 'devnet',
+          signatureRequests: [],
         },
       ],
-      addAuthorityChallenge: {
-        transactionIndex: 1,
-        scheme: 'secp256r1',
-        signer: 'compressed-passkey',
-        messageHash: 'message-hash',
-        slot: 42,
-        counter: 1,
-      },
       network: 'devnet',
     });
   });

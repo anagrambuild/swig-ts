@@ -28,7 +28,7 @@ export class WalletHandle {
   readonly swigConfigAddress: string;
   readonly walletAddress?: string;
   readonly network?: Network;
-  readonly requesterPubkey?: string;
+  readonly requesterAuthority?: WalletReference['requesterAuthority'];
   readonly transfer: WalletTransferClient;
   readonly swap: WalletSwapClient;
 
@@ -39,7 +39,7 @@ export class WalletHandle {
     this.swigConfigAddress = init.swigConfigAddress;
     this.walletAddress = init.walletAddress;
     this.network = init.network;
-    this.requesterPubkey = init.requesterPubkey;
+    this.requesterAuthority = init.requesterAuthority;
     this.transfer = createWalletTransferClient(wallets, this);
     this.swap = createWalletSwapClient(wallets, this);
   }

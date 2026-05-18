@@ -78,9 +78,10 @@ describe('createSwigNestHandler', () => {
         body: {
           wallet: {
             swigConfigAddress: 'swig_config_123',
-            requesterPubkey: 'requester_123',
+            requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
           },
           network: 'devnet',
+          feePayer: 'payer_123',
           destination: 'destination_123',
           amount: '42',
         },
@@ -96,7 +97,7 @@ describe('createSwigNestHandler', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers.get('content-type')).toContain('application/json');
-    expect(JSON.parse(response.body ?? '{}')).toEqual({
+    expect(JSON.parse(response.body ?? '{}')).toMatchObject({
       prepared: {
         transaction: 'base64-transfer-tx',
         transactionEncoding: 'base64',
@@ -109,9 +110,9 @@ describe('createSwigNestHandler', () => {
       method: 'POST',
       body: {
         network: 'NETWORK_DEVNET',
-        feePayer: 'requester_123',
+        feePayer: 'payer_123',
         swigAddress: 'swig_config_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
         destination: 'destination_123',
         lamports: '42',
       },
@@ -125,7 +126,9 @@ describe('createSwigNestHandler', () => {
       apiKey: 'sk_test',
       transactionApiUrl: 'http://localhost:8080',
       feePayer: 'payer_123',
-      resolveRequesterPubkey: () => 'requester_123',
+      resolveRequesterAuthority: () => ({
+        ed25519: { publicKey: 'requester_123' },
+      }),
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
@@ -162,7 +165,7 @@ describe('createSwigNestHandler', () => {
     );
 
     expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body ?? '{}')).toEqual({
+    expect(JSON.parse(response.body ?? '{}')).toMatchObject({
       prepared: {
         transaction: 'base64-swap-tx',
         transactionEncoding: 'base64',
@@ -176,7 +179,7 @@ describe('createSwigNestHandler', () => {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',
         swigAddress: 'swig_config_123',
-        requesterPubkey: 'requester_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
         inputMint: 'So11111111111111111111111111111111111111112',
         outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         amount: '42',

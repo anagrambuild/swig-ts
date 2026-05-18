@@ -58,7 +58,7 @@ export class WalletsClient {
       return new WalletHandle(this, {
         swigConfigAddress: wallet,
         network: options.network ?? this.defaultNetwork,
-        requesterPubkey: options.requesterPubkey,
+        requesterAuthority: options.requesterAuthority,
       });
     }
 
@@ -66,7 +66,8 @@ export class WalletsClient {
       swigConfigAddress: wallet.swigConfigAddress,
       walletAddress: wallet.walletAddress,
       network: options.network ?? wallet.network ?? this.defaultNetwork,
-      requesterPubkey: options.requesterPubkey ?? wallet.requesterPubkey,
+      requesterAuthority:
+        options.requesterAuthority ?? wallet.requesterAuthority,
     });
   };
 
@@ -78,7 +79,8 @@ export class WalletsClient {
       swigConfigAddress: session.configAddress,
       walletAddress: session.walletAddress,
       network: options.network ?? this.defaultNetwork,
-      requesterPubkey: options.requesterPubkey ?? session.requesterPubkey,
+      requesterAuthority:
+        options.requesterAuthority ?? session.requesterAuthority,
     });
   };
 

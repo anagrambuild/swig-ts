@@ -64,7 +64,9 @@ async function main() {
     },
   });
   const wallet = swig.wallets.use(created.wallet, {
-    requesterPubkey: requester.publicKey.toBase58(),
+    requesterAuthority: {
+      ed25519: { publicKey: requester.publicKey.toBase58() },
+    },
   });
   const createTransaction = requirePrepared(created.creationTransaction);
   console.log(`swig config: ${created.wallet.swigConfigAddress}`);
@@ -88,7 +90,9 @@ async function main() {
 
   const transferTransaction = await wallet.transfer.sol({
     feePayer: feePayer.publicKey.toBase58(),
-    requesterPubkey: requester.publicKey.toBase58(),
+    requesterAuthority: {
+      ed25519: { publicKey: requester.publicKey.toBase58() },
+    },
     destination: destination.publicKey.toBase58(),
     amount: 1_000,
   });
@@ -105,7 +109,9 @@ async function main() {
 
   const swapTransaction = await wallet.swap.jupiter({
     feePayer: feePayer.publicKey.toBase58(),
-    requesterPubkey: requester.publicKey.toBase58(),
+    requesterAuthority: {
+      ed25519: { publicKey: requester.publicKey.toBase58() },
+    },
     inputMint: solMint,
     outputMint: usdcMint,
     amount: swapAmountLamports,
@@ -129,7 +135,9 @@ async function main() {
     apiKey,
     transactionApiUrl: apiBaseUrl,
     feePayer: feePayer.publicKey.toBase58(),
-    resolveRequesterPubkey: () => requester.publicKey.toBase58(),
+    resolveRequesterAuthority: () => ({
+      ed25519: { publicKey: requester.publicKey.toBase58() },
+    }),
   });
   const nestTransferTransaction = await prepareWithNest(nestHandler, {
     route: '/swig/transfer/sol',

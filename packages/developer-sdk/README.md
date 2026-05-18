@@ -55,12 +55,17 @@ const swig = new SwigClient({
 ```typescript
 const created = await swig.wallets.create({
   feePayer,
-  policyId,
+  initialUser: {
+    ed25519: {
+      publicKey: userPublicKey,
+    },
+  },
 });
 
 return {
   wallet: created.wallet,
   transactions: created.transactions,
+  transactionsToSign: created.clientAuthorityTransactions,
 };
 ```
 
@@ -84,7 +89,6 @@ return {
   clientAuthorityTransactions: created.clientAuthorityTransactions,
   operatorSignedTransactions: created.operatorSignedTransactions,
   feePayerOnlyTransactions: created.feePayerOnlyTransactions,
-  addAuthorityChallenge: created.addAuthorityChallenge,
 };
 ```
 
@@ -93,20 +97,24 @@ For recovery-enabled create flows, the create transaction is fee-payer only, the
 add-authority transaction is signed by the initial user, and the
 configure-recovery transaction is signed by the backend recovery operator before
 it is returned. Submit each transaction in order after applying any required
-client authority signature.
+client authority signature. A prepared transaction needs a client authority
+signature when `signatureRequests.length > 0`.
 
-### Prepare Transfer
+### Prepare SOL Transfer
 
 ```typescript
 const wallet = swig.wallets.use({
   swigConfigAddress,
   walletAddress,
-  requesterPubkey,
+  requesterAuthority: {
+    ed25519: {
+      publicKey: userPublicKey,
+    },
+  },
 });
 
 const preparedTransfer = await wallet.transfer.sol({
   feePayer,
-  requesterPubkey,
   destination,
   amount: 1_000_000n,
 });
@@ -114,13 +122,14 @@ const preparedTransfer = await wallet.transfer.sol({
 return preparedTransfer;
 ```
 
+### Prepare Token Transfer
+
 Token transfers derive backend-only fields such as token program, source ATA,
 destination ATA, and destination ATA creation:
 
 ```typescript
 const preparedTokenTransfer = await wallet.transfer.token({
   feePayer,
-  requesterPubkey,
   mint,
   destinationOwner,
   amount: 10_000n,
@@ -134,7 +143,6 @@ return preparedTokenTransfer;
 ```typescript
 const preparedSwap = await wallet.swap.jupiter({
   feePayer,
-  requesterPubkey,
   inputMint: 'So11111111111111111111111111111111111111112',
   outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   amount: 10_000n,
@@ -150,7 +158,35 @@ return preparedSwap;
 Client code should only sign prepared transactions. It should not hold the API
 key or call the Swig backend directly.
 
-### Prepared Transaction Signing
+### Solana Transaction Signing
+
+Use this for prepared transactions whose requester authority is Ed25519.
+
+```typescript
+import {
+  signPreparedTransaction,
+  type PreparedTransaction,
+} from '@swig-wallet/developer-sdk/client';
+import { VersionedTransaction } from '@solana/web3.js';
+
+declare const prepared: PreparedTransaction;
+
+const signed = await signPreparedTransaction(prepared, {
+  signTransaction: async (transaction) => {
+    const versioned = VersionedTransaction.deserialize(
+      Buffer.from(transaction.transaction, 'base64'),
+    );
+    versioned.sign([userKeypair]);
+    return Buffer.from(versioned.serialize()).toString('base64');
+  },
+});
+```
+
+### Passkey Transaction Signing
+
+Use this for any prepared transaction whose `signatureRequests` contains a
+`secp256r1` request. The same pattern applies to create, transfer, token
+transfer, and swap.
 
 ```typescript
 import {
@@ -171,10 +207,15 @@ const passkeySigningFn = createSecp256r1PasskeySigningFn({
 //   response.json(),
 // );
 declare const prepared: PreparedTransaction;
+const [signatureRequest] = prepared.signatureRequests;
 
 const signed = await signPreparedTransaction(prepared, {
   signTransaction: (transaction) =>
-    signPreparedSwigTransaction(transaction, passkeySigningFn),
+    signPreparedSwigTransaction(
+      transaction,
+      signatureRequest,
+      passkeySigningFn,
+    ),
 });
 ```
 
@@ -186,8 +227,8 @@ wrap the Swig passkey transaction signing flow for the specific transaction
 format returned by the backend.
 
 For wallet creation, sign only `created.clientAuthorityTransactions` on the
-client. Do not passkey-sign `created.operatorSignedTransactions`; those already
-include the backend recovery operator signature and only need the final
+client. Do not authority-sign `created.operatorSignedTransactions`; those
+already include the backend recovery operator signature and only need the final
 fee-payer or sponsor signature before submission.
 
 ## Public Entrypoints

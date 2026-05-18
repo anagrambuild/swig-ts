@@ -20,7 +20,7 @@ export type CreateWalletResponse = CreateWalletResult;
 
 export interface BaseTransferArgs {
   feePayer: string;
-  requesterPubkey?: string;
+  requesterAuthority?: WalletAuthority;
   amount: Amount;
   network?: Network;
   idempotencyKey?: string;
@@ -40,7 +40,7 @@ export type TransferArgs = TransferSolArgs | TransferTokenArgs;
 
 export interface SwapArgs {
   feePayer: string;
-  requesterPubkey?: string;
+  requesterAuthority?: WalletAuthority;
   inputMint: string;
   outputMint: string;
   amount: Amount;
