@@ -123,12 +123,16 @@ async function prepareWalletCreation(
   config: CreateSwigFetchHandlerConfig,
 ) {
   const feePayer = await resolveFeePayer(context, config);
+  const policyId = readOptionalString(body, 'policyId');
+  const initialUser = readWalletAuthority(body.initialUser);
+  if (!policyId && !initialUser) {
+    throw new SwigRouteError('policyId or initialUser is required');
+  }
+
   const args: CreateWalletArgs = {
     feePayer,
-    policyId: readRequiredString(body, 'policyId'),
-    ...(readWalletAuthority(body.initialUser)
-      ? { initialUser: readWalletAuthority(body.initialUser) }
-      : {}),
+    ...(policyId ? { policyId } : {}),
+    ...(initialUser ? { initialUser } : {}),
     ...(readOptionalString(body, 'guardianPubkey')
       ? { guardianPubkey: readOptionalString(body, 'guardianPubkey') }
       : {}),
@@ -220,35 +224,8 @@ async function prepareTokenTransfer(
     feePayer,
     requesterPubkey,
     mint: readRequiredString(body, 'mint'),
+    destinationOwner: readRequiredString(body, 'destinationOwner'),
     amount: readAmount(body),
-    ...(readOptionalString(body, 'destination')
-      ? { destination: readOptionalString(body, 'destination') }
-      : {}),
-    ...(readOptionalString(body, 'destinationOwner')
-      ? { destinationOwner: readOptionalString(body, 'destinationOwner') }
-      : {}),
-    ...(readOptionalString(body, 'sourceTokenAccount')
-      ? { sourceTokenAccount: readOptionalString(body, 'sourceTokenAccount') }
-      : {}),
-    ...(readOptionalString(body, 'destinationTokenAccount')
-      ? {
-          destinationTokenAccount: readOptionalString(
-            body,
-            'destinationTokenAccount',
-          ),
-        }
-      : {}),
-    ...(readOptionalString(body, 'tokenProgram')
-      ? { tokenProgram: readOptionalString(body, 'tokenProgram') }
-      : {}),
-    ...(readOptionalBoolean(body, 'createDestinationTokenAccount') !== undefined
-      ? {
-          createDestinationTokenAccount: readOptionalBoolean(
-            body,
-            'createDestinationTokenAccount',
-          ),
-        }
-      : {}),
     ...(context.network ? { network: context.network } : {}),
     ...(readOptionalString(body, 'idempotencyKey')
       ? { idempotencyKey: readOptionalString(body, 'idempotencyKey') }

@@ -29,7 +29,6 @@ const apiKey = `sk_local_transaction_smoke_${runId}`;
 const userId = `local-smoke-user-${runId}`;
 const organizationId = `local-smoke-org-${runId}`;
 const apiKeyId = `local-smoke-api-key-${runId}`;
-const policyId = `local-smoke-policy-${runId}`;
 const feePayer = Keypair.generate();
 const requester = Keypair.generate();
 const destination = Keypair.generate();
@@ -53,13 +52,16 @@ async function main() {
   console.log(`local transaction smoke: ${runId}`);
   console.log(`api: ${apiBaseUrl}`);
   console.log(`rpc: ${rpcUrl}`);
-  console.log(`policy: ${policyId}`);
   console.log(`fee payer: ${feePayer.publicKey.toBase58()}`);
   console.log(`requester: ${requester.publicKey.toBase58()}`);
 
   const wallet = await swig.wallets.create({
     feePayer: feePayer.publicKey.toBase58(),
-    policyId,
+    initialUser: {
+      ed25519: {
+        publicKey: requester.publicKey.toBase58(),
+      },
+    },
   });
   const createTransaction = requirePrepared(wallet.creationTransaction);
   console.log(`create intent: ${createTransaction.intentId}`);
@@ -79,7 +81,7 @@ async function main() {
     LAMPORTS_PER_SOL / 10,
   );
 
-  const transferTransaction = await wallet.transfer({
+  const transferTransaction = await wallet.transfer.sol({
     feePayer: feePayer.publicKey.toBase58(),
     requesterPubkey: requester.publicKey.toBase58(),
     destination: destination.publicKey.toBase58(),
@@ -97,7 +99,7 @@ async function main() {
   console.log(`transfer signature: ${transferSignature}`);
   console.log(`destination balance delta: ${after - before} lamports`);
 
-  const swapTransaction = await wallet.swap({
+  const swapTransaction = await wallet.swap.jupiter({
     feePayer: feePayer.publicKey.toBase58(),
     requesterPubkey: requester.publicKey.toBase58(),
     inputMint: solMint,
@@ -197,40 +199,6 @@ ON CONFLICT (key) DO UPDATE SET
   "updatedAt" = NOW(),
   "organizationId" = EXCLUDED."organizationId",
   "userId" = EXCLUDED."userId";
-
-INSERT INTO "wallet_policy_templates" (
-  id,
-  "organizationId",
-  name,
-  "initialUserLabel",
-  "initialAuthoritySource",
-  "initialAuthority",
-  "initialActions",
-  "guardianEnabled",
-  "guardianDelaySeconds",
-  "createdById",
-  "lastUpdatedById",
-  "updatedAt"
-)
-VALUES (
-  ${sqlLiteral(policyId)},
-  ${sqlLiteral(organizationId)},
-  'Local Smoke Wallet Policy',
-  'Local Smoke Signer',
-  2,
-  decode(${sqlLiteral(encodeEd25519WalletAuthorityHex(requester.publicKey.toBase58()))}, 'hex'),
-  '[{"type":"All"}]'::jsonb,
-  FALSE,
-  0,
-  ${sqlLiteral(userId)},
-  ${sqlLiteral(userId)},
-  NOW()
-)
-ON CONFLICT (id) DO UPDATE SET
-  "updatedAt" = NOW(),
-  "initialAuthority" = EXCLUDED."initialAuthority",
-  "initialActions" = EXCLUDED."initialActions",
-  "guardianEnabled" = EXCLUDED."guardianEnabled";
 
 COMMIT;
 `;
@@ -427,34 +395,6 @@ function requireWalletAddress(walletAddress: string | undefined): string {
 
 function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
-}
-
-function encodeEd25519WalletAuthorityHex(publicKey: string): string {
-  const authorityMessage = encodeProtoMessage([
-    [1, Buffer.from(publicKey, 'utf8')],
-  ]);
-  return encodeProtoMessage([[1, authorityMessage]]).toString('hex');
-}
-
-function encodeProtoMessage(fields: Array<[number, Buffer]>): Buffer {
-  return Buffer.concat(
-    fields.flatMap(([fieldNumber, value]) => [
-      encodeVarint((fieldNumber << 3) | 2),
-      encodeVarint(value.length),
-      value,
-    ]),
-  );
-}
-
-function encodeVarint(value: number): Buffer {
-  const bytes: number[] = [];
-  let current = value;
-  while (current >= 0x80) {
-    bytes.push((current & 0x7f) | 0x80);
-    current >>= 7;
-  }
-  bytes.push(current);
-  return Buffer.from(bytes);
 }
 
 function sqlLiteral(value: string): string {

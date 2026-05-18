@@ -85,17 +85,41 @@ export class WalletsClient {
     wallet: WalletHandle,
     args: TransferArgs,
   ): Promise<PreparedTransaction> => {
-    const path = isTokenTransfer(args)
-      ? '/transaction/transfer/spl-token'
-      : '/transaction/transfer/sol';
-    const body = isTokenTransfer(args)
-      ? transferTokenRequest(wallet, args, this.defaultNetwork)
-      : transferSolRequest(wallet, args, this.defaultNetwork);
-    const response = await this.http.post<PreparedTransactionWire>(path, body);
+    return isTokenTransfer(args)
+      ? this.transferToken(wallet, args)
+      : this.transferSol(wallet, args);
+  };
+
+  transferSol = async (
+    wallet: WalletHandle,
+    args: Extract<TransferArgs, { destination: string }>,
+  ): Promise<PreparedTransaction> => {
+    const response = await this.http.post<PreparedTransactionWire>(
+      '/transaction/transfer/sol',
+      transferSolRequest(wallet, args, this.defaultNetwork),
+    );
+    return normalizePreparedTransaction(response);
+  };
+
+  transferToken = async (
+    wallet: WalletHandle,
+    args: Extract<TransferArgs, { mint: string }>,
+  ): Promise<PreparedTransaction> => {
+    const response = await this.http.post<PreparedTransactionWire>(
+      '/transaction/transfer/spl-token',
+      transferTokenRequest(wallet, args, this.defaultNetwork),
+    );
     return normalizePreparedTransaction(response);
   };
 
   swap = async (
+    wallet: WalletHandle,
+    args: SwapArgs,
+  ): Promise<PreparedTransaction> => {
+    return this.jupiterSwap(wallet, args);
+  };
+
+  jupiterSwap = async (
     wallet: WalletHandle,
     args: SwapArgs,
   ): Promise<PreparedTransaction> => {

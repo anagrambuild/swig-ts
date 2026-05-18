@@ -23,6 +23,7 @@ The helper handles:
 POST /api/swig/wallet/create
 POST /api/swig/transfer/sol
 POST /api/swig/transfer/spl-token
+POST /api/swig/swap/jupiter
 ```
 
 ## Configuration
@@ -61,8 +62,16 @@ const swig = new SwigBrowserClient({
 });
 
 const prepared = await swig.wallets
-  .use({ swigConfigAddress, requesterPubkey })
+  .use(swigAddress, { requesterPubkey })
   .transfer.sol({ destination, amount: '1000000' });
+
+const tokenTransfer = await swig.wallets
+  .use(swigAddress, { requesterPubkey })
+  .transfer.token({ mint, destinationOwner, amount: '10000' });
+
+const swap = await swig.wallets
+  .use(swigAddress, { requesterPubkey })
+  .swap.jupiter({ inputMint, outputMint, amount: '10000', slippageBps: 100 });
 ```
 
 If you mount the route somewhere other than `/api/swig`, pass `proxyUrl`:

@@ -13,7 +13,7 @@ export type WalletAuthority =
   | { secp256r1: { publicKey: string } };
 
 export interface CreateWalletArgs {
-  policyId: string;
+  policyId?: string;
   feePayer: string;
   initialUser?: WalletAuthority;
   guardianPubkey?: string;
@@ -46,12 +46,7 @@ export interface TransferSolArgs extends BaseTransferArgs {
 
 export interface TransferTokenArgs extends BaseTransferArgs {
   mint: string;
-  destination?: string;
-  destinationOwner?: string;
-  sourceTokenAccount?: string;
-  destinationTokenAccount?: string;
-  tokenProgram?: string;
-  createDestinationTokenAccount?: boolean;
+  destinationOwner: string;
 }
 
 export type TransferArgs = TransferSolArgs | TransferTokenArgs;

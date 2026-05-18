@@ -67,7 +67,8 @@ const swig = new SwigBrowserClient({
 });
 ```
 
-Then the browser code can prepare transactions without knowing about that proxy:
+Then the browser code can prepare wallet creation and transactions without
+knowing about that proxy:
 
 ```typescript
 import { SwigBrowserClient } from '@swig-wallet/developer-sdk/browser';
@@ -76,12 +77,24 @@ const swig = new SwigBrowserClient({
   network: 'devnet',
 });
 
-const wallet = swig.wallets.use({
-  swigConfigAddress,
+const wallet = await swig.wallets.create({
+  initialUser: {
+    ed25519: {
+      publicKey: memberPubkey,
+    },
+  },
+});
+
+for (const prepared of wallet.creationTransactions) {
+  console.log(prepared.kind, prepared.intentId);
+}
+
+// Or use an existing wallet by Swig config address.
+const existingWallet = swig.wallets.use(swigAddress, {
   requesterPubkey: memberPubkey,
 });
 
-const prepared = await wallet.transfer.sol({
+const prepared = await existingWallet.transfer.sol({
   destination,
   amount: '1000000',
 });
@@ -130,9 +143,17 @@ const signingFn = createSecp256r1PasskeySigningFn({
 
 // 1. Ask the backend to prepare the wallet creation transaction(s).
 const wallet = await swig.wallets.create({
-  policyId: 'policy_123',
   feePayer,
+  initialUser: {
+    secp256r1: {
+      publicKey: passkeyPublicKey,
+    },
+  },
 });
+
+// If you already have a saved policy template, pass `policyId` instead. When
+// `policyId` is omitted, the backend creates a no-recovery policy from
+// `initialUser` and uses it for this wallet creation.
 
 // Wallet creation can return multiple transactions for policies that also need
 // setup work such as add-authority or recovery configuration.
@@ -168,7 +189,7 @@ console.log(createSubmission.signature);
 The same prepare -> passkey sign -> sponsor/send flow applies to wallet transfers:
 
 ```typescript
-const preparedTransfer = await wallet.transfer({
+const preparedTransfer = await wallet.transfer.sol({
   feePayer,
   requesterPubkey: memberPubkey,
   destination,
@@ -189,10 +210,31 @@ const transferSubmission = await swig.transactions.sponsor({
 console.log(transferSubmission.signature);
 ```
 
+The opinionated transfer helpers avoid backend-only fields. Token program,
+source ATA, destination ATA, and destination ATA creation are derived by the
+transaction API:
+
+```typescript
+const preparedSolTransfer = await wallet.transfer.sol({
+  feePayer,
+  requesterPubkey: memberPubkey,
+  destination,
+  amount: 1_000_000n,
+});
+
+const preparedTokenTransfer = await wallet.transfer.token({
+  feePayer,
+  requesterPubkey: memberPubkey,
+  mint,
+  destinationOwner,
+  amount: 10_000n,
+});
+```
+
 And swaps use the same wallet handle. The backend prepares a Jupiter swap transaction, the client signs locally, then the signed transaction is sent or sponsored:
 
 ```typescript
-const preparedSwap = await wallet.swap({
+const preparedSwap = await wallet.swap.jupiter({
   feePayer,
   requesterPubkey: memberPubkey,
   inputMint: 'So11111111111111111111111111111111111111112',
@@ -247,7 +289,7 @@ const swig = new SwigClient({
 
 ## Local transaction smoke
 
-With the backend local stack running on `localhost:8080` and Surfpool on `localhost:8899`, the package includes a smoke script that seeds a throwaway org/API key/no-recovery policy in local Postgres, calls the transaction API through the SDK, signs the prepared create, transfer, and Jupiter swap transactions, submits them to the local RPC, then exercises the NestJS proxy handler against the same local API:
+With the backend local stack running on `localhost:8080` and Surfpool on `localhost:8899`, the package includes a smoke script that seeds a throwaway org/API key in local Postgres, creates a wallet through the no-policy inline-initial-user path, calls the transaction API through the SDK, signs the prepared create, transfer, and Jupiter swap transactions, submits them to the local RPC, then exercises the NestJS proxy handler against the same local API:
 
 ```bash
 bun --filter '@swig-wallet/developer-sdk' build
