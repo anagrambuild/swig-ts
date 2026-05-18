@@ -183,6 +183,8 @@ const preparedSwap = await wallet.swap.jupiter({
   wrapAndUnwrapSol: true,
 });
 
+// destinationAccount is the recipient owner. The backend derives the output
+// token ATA for SPL outputs or the native destination for unwrapped SOL.
 return preparedSwap;
 ```
 

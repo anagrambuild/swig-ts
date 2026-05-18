@@ -67,8 +67,6 @@ export interface SwapArgs {
   amount: Amount;
   slippageBps?: number;
   destinationAccount?: string;
-  destinationTokenAccount?: string;
-  nativeDestinationAccount?: string;
   wrapAndUnwrapSol?: boolean;
   tipAmountLamports?: Amount;
   computeUnitPricePercentile?: string;
