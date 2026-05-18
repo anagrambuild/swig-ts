@@ -1,5 +1,19 @@
 import { defineConfig, type Options } from 'tsup';
 
+const entry = {
+  browser: 'src/browser.ts',
+  client: 'src/client/index.ts',
+  core: 'src/core.ts',
+  index: 'src/index.ts',
+  nest: 'src/nest.ts',
+  next: 'src/next.ts',
+  server: 'src/server/index.ts',
+  'server/fetch': 'src/server/fetch/index.ts',
+  'server/nest': 'src/server/nest/index.ts',
+  'server/next': 'src/server/next/index.ts',
+  'server/typescript': 'src/server/typescript/index.ts',
+};
+
 const commonCfg: Partial<Options> = {
   splitting: true,
   sourcemap: false,
@@ -11,29 +25,9 @@ const commonCfg: Partial<Options> = {
 export default defineConfig([
   {
     ...commonCfg,
-    entry: [
-      'src/index.ts',
-      'src/browser.ts',
-      'src/core.ts',
-      'src/server.ts',
-      'src/nest.ts',
-      'src/next.ts',
-      'src/server/fetch.ts',
-      'src/server/nest.ts',
-      'src/server/next.ts',
-    ],
+    entry,
     dts: {
-      entry: [
-        'src/index.ts',
-        'src/browser.ts',
-        'src/core.ts',
-        'src/server.ts',
-        'src/nest.ts',
-        'src/next.ts',
-        'src/server/fetch.ts',
-        'src/server/nest.ts',
-        'src/server/next.ts',
-      ],
+      entry,
     },
   },
 ]);

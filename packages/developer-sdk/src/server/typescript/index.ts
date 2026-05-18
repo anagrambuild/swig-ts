@@ -2,10 +2,10 @@ import {
   DEFAULT_BACKEND_URL,
   HttpClient,
   resolveRetryOptions,
-} from './core/index.js';
-import { TransactionsClient } from './transactions/index.js';
-import type { SwigClientConfig } from './types/index.js';
-import { WalletsClient } from './wallets/index.js';
+} from '../../core/index.js';
+import { TransactionsClient } from '../../transactions/index.js';
+import type { SwigClientConfig } from '../../types/index.js';
+import { WalletsClient } from '../../wallets/index.js';
 
 export class SwigClient {
   readonly #http: HttpClient;

@@ -4,4 +4,4 @@ export {
   type SwigNestHandler,
   type SwigNestRequestLike,
   type SwigNestResponseLike,
-} from './server/nest.js';
+} from './server/nest/index.js';

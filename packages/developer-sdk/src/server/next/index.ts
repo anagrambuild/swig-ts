@@ -2,11 +2,11 @@ import {
   createSwigFetchHandler,
   type CreateSwigFetchHandlerConfig,
   type SwigFetchHandler,
-} from './fetch.js';
+} from '../fetch/index.js';
 
 export type CreateSwigRouteHandlersConfig = CreateSwigFetchHandlerConfig;
 
-export type { SwigProxyRoute, SwigRouteContext } from './fetch.js';
+export type { SwigProxyRoute, SwigRouteContext } from '../fetch/index.js';
 
 export function createSwigRouteHandlers(
   config: CreateSwigRouteHandlersConfig = {},

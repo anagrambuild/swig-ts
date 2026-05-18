@@ -3,4 +3,4 @@ export {
   type CreateSwigRouteHandlersConfig,
   type SwigProxyRoute,
   type SwigRouteContext,
-} from './server/next.js';
+} from './server/next/index.js';

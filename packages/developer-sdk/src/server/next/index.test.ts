@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { createSwigRouteHandlers } from './next.js';
+import { createSwigRouteHandlers } from './index.js';
 
 describe('createSwigRouteHandlers', () => {
   test('wraps the fetch handler as a Next.js POST export', async () => {

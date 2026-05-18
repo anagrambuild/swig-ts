@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { SwigClient } from '../client.js';
+import { SwigClient } from '../server/typescript/index.js';
 import { WalletsClient } from './client.js';
 import {
   swapRequest,

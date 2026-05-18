@@ -27,6 +27,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "require": "./dist/client.cjs"
+    },
     "./browser": {
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.js",
@@ -51,6 +56,11 @@
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js",
       "require": "./dist/server.cjs"
+    },
+    "./server/typescript": {
+      "types": "./dist/server/typescript.d.ts",
+      "import": "./dist/server/typescript.js",
+      "require": "./dist/server/typescript.cjs"
     },
     "./server/fetch": {
       "types": "./dist/server/fetch.d.ts",

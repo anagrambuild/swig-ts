@@ -13,7 +13,7 @@ The SDK shape is intentionally prepare-first:
 
 ## Usage
 
-### Browser app with a server proxy
+### Server route
 
 Framework-specific setup guides:
 
@@ -58,58 +58,6 @@ export default {
 };
 ```
 
-Point the mobile app at that deployed proxy:
-
-```typescript
-const swig = new SwigBrowserClient({
-  proxyUrl: 'https://api.example.com/swig',
-  network: 'devnet',
-});
-```
-
-Then the browser code can prepare wallet creation and transactions without
-knowing about that proxy:
-
-```typescript
-import { SwigBrowserClient } from '@swig-wallet/developer-sdk/browser';
-
-const swig = new SwigBrowserClient({
-  network: 'devnet',
-});
-
-const wallet = await swig.wallets.create({
-  initialUser: {
-    ed25519: {
-      publicKey: memberPubkey,
-    },
-  },
-});
-
-for (const prepared of wallet.creationTransactions) {
-  console.log(prepared.kind, prepared.intentId);
-}
-
-// Or use an existing wallet by Swig config address.
-const existingWallet = swig.wallets.use(swigAddress, {
-  requesterPubkey: memberPubkey,
-});
-
-const prepared = await existingWallet.transfer.sol({
-  destination,
-  amount: '1000000',
-});
-```
-
-The browser client defaults to `/api/swig`. If your app mounts the route
-somewhere else, pass `proxyUrl`.
-
-```typescript
-const swig = new SwigBrowserClient({
-  proxyUrl: '/api/wallet',
-  network: 'devnet',
-});
-```
-
 The server helper reads these env vars by default:
 
 ```bash
@@ -123,22 +71,66 @@ to the production transaction API URL when no URL is set, and transfer
 preparation falls back to the requester public key as the fee payer when no fee
 payer is configured.
 
-### Server-side preparation
+### Client signing
+
+Client code should only sign prepared transactions. It should call your app's
+server route to create or prepare the transaction, then sign the returned
+payload locally:
 
 ```typescript
 import {
-  SwigClient,
   createSecp256r1PasskeySigningFn,
-} from '@swig-wallet/developer-sdk';
-
-const swig = new SwigClient({
-  apiKey: process.env.SWIG_API_KEY!,
-  network: 'mainnet',
-});
+  signPreparedTransaction,
+} from '@swig-wallet/developer-sdk/client';
 
 const signingFn = createSecp256r1PasskeySigningFn({
   allowCredentials: [{ id: credentialId, type: 'public-key' }],
   userVerification: 'preferred',
+});
+
+const { prepared } = await fetch('/api/swig/transfer/sol', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    network: 'devnet',
+    wallet: {
+      swigConfigAddress,
+      walletAddress,
+      requesterPubkey,
+    },
+    destination,
+    amount: '1000000',
+  }),
+}).then((response) => response.json());
+
+const signed = await signPreparedTransaction(prepared, {
+  signTransaction: (transaction) =>
+    signPreparedSwigTransaction(transaction, signingFn),
+});
+
+// Option A: submit through your backend sponsor endpoint.
+await fetch('/api/swig/sponsor', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify(signed),
+});
+
+// Option B: decode and send the signed transaction from the client.
+// await connection.sendRawTransaction(decodedSignedTransaction);
+```
+
+`signPreparedSwigTransaction` is intentionally app-provided for now. It should
+wrap the existing Swig passkey transaction signing flow for the specific
+transaction format returned by the backend.
+
+### Server-side preparation
+
+```typescript
+import { SwigClient } from '@swig-wallet/developer-sdk/server/typescript';
+
+const swig = new SwigClient({
+  apiKey: process.env.SWIG_API_KEY!,
+  network: 'mainnet',
 });
 
 // 1. Ask the backend to prepare the wallet creation transaction(s).
@@ -167,26 +159,11 @@ if (!preparedCreate) {
   throw new Error('Wallet creation response did not include a transaction');
 }
 
-// 2. Sign locally with passkey.
-const signedCreateTransaction = await signPreparedSwigTransaction(
-  preparedCreate.transaction,
-  signingFn,
-);
-
-// 3a. Option A: submit through the backend sponsor endpoint.
-const createSubmission = await swig.transactions.sponsor({
-  intentId: preparedCreate.intentId,
-  transaction: signedCreateTransaction,
-  transactionEncoding: preparedCreate.transactionEncoding,
-});
-
-console.log(createSubmission.signature);
-
-// 3b. Option B: the frontend can send the signed transaction itself instead.
-// await connection.sendRawTransaction(decodedSignedCreateTransaction);
+// Return this payload to the client for signing.
+return preparedCreate;
 ```
 
-The same prepare -> passkey sign -> sponsor/send flow applies to wallet transfers:
+The same prepare flow applies to wallet transfers:
 
 ```typescript
 const preparedTransfer = await wallet.transfer.sol({
@@ -196,18 +173,7 @@ const preparedTransfer = await wallet.transfer.sol({
   amount: 1_000_000n,
 });
 
-const signedTransferTransaction = await signPreparedSwigTransaction(
-  preparedTransfer.transaction,
-  signingFn,
-);
-
-const transferSubmission = await swig.transactions.sponsor({
-  intentId: preparedTransfer.intentId,
-  transaction: signedTransferTransaction,
-  transactionEncoding: preparedTransfer.transactionEncoding,
-});
-
-console.log(transferSubmission.signature);
+return preparedTransfer;
 ```
 
 The opinionated transfer helpers avoid backend-only fields. Token program,
@@ -231,7 +197,8 @@ const preparedTokenTransfer = await wallet.transfer.token({
 });
 ```
 
-And swaps use the same wallet handle. The backend prepares a Jupiter swap transaction, the client signs locally, then the signed transaction is sent or sponsored:
+And swaps use the same wallet handle. The backend prepares a Jupiter swap
+transaction, then the client signs locally:
 
 ```typescript
 const preparedSwap = await wallet.swap.jupiter({
@@ -244,18 +211,7 @@ const preparedSwap = await wallet.swap.jupiter({
   wrapAndUnwrapSol: true,
 });
 
-const signedSwapTransaction = await signPreparedSwigTransaction(
-  preparedSwap.transaction,
-  signingFn,
-);
-
-const swapSubmission = await swig.transactions.sponsor({
-  intentId: preparedSwap.intentId,
-  transaction: signedSwapTransaction,
-  transactionEncoding: preparedSwap.transactionEncoding,
-});
-
-console.log(swapSubmission.signature);
+return preparedSwap;
 ```
 
 If the wallet comes from `@swig-wallet/expo-idp-sdk`, use the persisted session directly:
@@ -273,9 +229,12 @@ const wallet = swig.wallets.fromIdpSession(session, {
 });
 ```
 
-The wallet handle supplies the Swig config address and system wallet address. Transfer preparation sends the requester's member public key, and the transaction service resolves the matching role on-chain. Signing is still a separate step: the prepared transaction must be signed by the IdP/passkey/session-authority flow before it is sent directly or submitted to `swig.transactions.sponsor`.
-
-`signPreparedSwigTransaction` is a placeholder for the transaction-level passkey signing helper that will sit on top of the existing Swig secp256r1 WebAuthn signing function. The key rule is that passkey signing happens after the backend prepares the transaction, because signing may change the final instructions.
+The wallet handle supplies the Swig config address and system wallet address.
+Transfer preparation sends the requester's member public key, and the
+transaction service resolves the matching role on-chain. Signing is still a
+separate client step: the prepared transaction must be signed by the
+IdP/passkey/session-authority flow before it is sent directly or submitted to
+`swig.transactions.sponsor`.
 
 By default the SDK talks to `https://backend.prod.infra.onswig.com`.
 Override it with `baseUrl`:
@@ -298,16 +257,21 @@ bun --filter '@swig-wallet/developer-sdk' smoke:local
 
 ## Source layout
 
-- `src/client.ts` wires the public `SwigClient` and default API configuration.
-- `src/browser.ts` owns browser-safe wallet handles that prepare through an app proxy.
+- `src/client` exposes client-only signing helpers.
+- `src/browser.ts` is a browser-compatible alias for the client signing helpers.
 - `src/core` owns HTTP transport, retry defaults, and SDK errors.
 - `src/next.ts` and `src/nest.ts` expose framework-focused proxy helpers.
 - `src/passkeys` wraps Swig passkey signing helpers.
-- `src/server/fetch.ts` provides the portable Fetch-standard proxy handler.
-- `src/server/nest.ts` adapts the Fetch handler to NestJS request/response handlers.
-- `src/server/next.ts` wraps the Fetch handler for Next.js catch-all routes.
+- `src/server` groups server-only SDK surfaces.
+- `src/server/typescript` exposes the direct HTTP API client as `SwigClient`.
+- `src/server/fetch` provides the portable Fetch-standard proxy handler.
+- `src/server/nest` adapts the Fetch handler to NestJS request/response handlers.
+- `src/server/next` wraps the Fetch handler for Next.js catch-all routes.
 - `src/transactions` owns signed transaction submission, including sponsored send.
 - `src/types` contains the public TypeScript contracts split by concern.
 - `src/wallets` owns wallet handles, wallet operation clients, request shaping, and response normalization.
 
-The intended flow is `SwigClient` -> `wallets.create` or `wallets.use` -> `wallet.transfer`. Each wallet action posts an intent-style request to the backend and returns a prepared transaction. The frontend signs it, then either sends through its own Solana path or calls `swig.transactions.sponsor`.
+The intended flow is server `SwigClient` -> `wallets.create` or `wallets.use`
+-> wallet action -> prepared transaction -> client signing helper. After
+signing, the app either sends through its own Solana path or calls a server
+sponsor endpoint.

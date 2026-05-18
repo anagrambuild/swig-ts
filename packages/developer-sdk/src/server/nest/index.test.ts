@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { createSwigNestHandler, type SwigNestResponseLike } from './nest.js';
+import { createSwigNestHandler, type SwigNestResponseLike } from './index.js';
 
 type CapturedRequest = {
   url: string;
