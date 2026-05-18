@@ -19,7 +19,6 @@ export class TransactionsClient {
     const response = await this.http.post<SubmittedTransactionWire>(
       '/v1/transactions/sponsor',
       {
-        intentId: args.intentId,
         transaction: args.transaction,
         transactionEncoding: args.transactionEncoding,
         network: args.network ?? this.defaultNetwork,

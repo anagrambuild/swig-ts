@@ -65,7 +65,6 @@ describe('createSwigNestHandler', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_transfer_123',
           transaction: 'base64-transfer-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
@@ -99,7 +98,6 @@ describe('createSwigNestHandler', () => {
     expect(response.headers.get('content-type')).toContain('application/json');
     expect(JSON.parse(response.body ?? '{}')).toEqual({
       prepared: {
-        intentId: 'intent_transfer_123',
         transaction: 'base64-transfer-tx',
         transactionEncoding: 'base64',
         network: 'devnet',
@@ -131,7 +129,6 @@ describe('createSwigNestHandler', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_swap_123',
           transaction: 'base64-swap-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
@@ -167,7 +164,6 @@ describe('createSwigNestHandler', () => {
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body ?? '{}')).toEqual({
       prepared: {
-        intentId: 'intent_swap_123',
         transaction: 'base64-swap-tx',
         transactionEncoding: 'base64',
         network: 'devnet',

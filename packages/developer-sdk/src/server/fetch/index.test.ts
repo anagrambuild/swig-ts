@@ -43,14 +43,12 @@ describe('createSwigFetchHandler', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_create_123',
           wallet: {
             swigConfigAddress: 'swig_config_123',
             walletAddress: 'wallet_123',
           },
           transactions: [
             {
-              intentId: 'intent_create_123',
               transaction: 'base64-create-tx',
               transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
               network: 'NETWORK_DEVNET',
@@ -75,7 +73,6 @@ describe('createSwigFetchHandler', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       prepared: {
-        intentId: 'intent_create_123',
         wallet: {
           swigConfigAddress: 'swig_config_123',
           walletAddress: 'wallet_123',
@@ -83,7 +80,6 @@ describe('createSwigFetchHandler', () => {
         },
         transactions: [
           {
-            intentId: 'intent_create_123',
             transaction: 'base64-create-tx',
             transactionEncoding: 'base64',
             network: 'devnet',
@@ -91,7 +87,6 @@ describe('createSwigFetchHandler', () => {
           },
         ],
         creationTransaction: {
-          intentId: 'intent_create_123',
           transaction: 'base64-create-tx',
           transactionEncoding: 'base64',
           network: 'devnet',
@@ -119,14 +114,12 @@ describe('createSwigFetchHandler', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_create_inline_123',
           wallet: {
             swigConfigAddress: 'swig_config_inline_123',
             walletAddress: 'wallet_inline_123',
           },
           transactions: [
             {
-              intentId: 'intent_create_inline_123',
               transaction: 'base64-create-tx',
               transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
               network: 'NETWORK_DEVNET',
@@ -178,7 +171,6 @@ describe('createSwigFetchHandler', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_transfer_123',
           transaction: 'base64-transfer-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
@@ -206,7 +198,6 @@ describe('createSwigFetchHandler', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       prepared: {
-        intentId: 'intent_transfer_123',
         transaction: 'base64-transfer-tx',
         transactionEncoding: 'base64',
         network: 'devnet',
@@ -239,7 +230,6 @@ describe('createSwigFetchHandler', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_transfer_123',
           transaction: 'base64-transfer-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
         };
@@ -276,7 +266,6 @@ describe('createSwigFetchHandler', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_token_transfer_123',
           transaction: 'base64-token-transfer-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
@@ -303,7 +292,6 @@ describe('createSwigFetchHandler', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       prepared: {
-        intentId: 'intent_token_transfer_123',
         transaction: 'base64-token-transfer-tx',
         transactionEncoding: 'base64',
         network: 'devnet',
@@ -333,7 +321,6 @@ describe('createSwigFetchHandler', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_swap_123',
           transaction: 'base64-swap-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
@@ -364,7 +351,6 @@ describe('createSwigFetchHandler', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       prepared: {
-        intentId: 'intent_swap_123',
         transaction: 'base64-swap-tx',
         transactionEncoding: 'base64',
         network: 'devnet',

@@ -21,11 +21,6 @@ import type {
 export function normalizePreparedTransaction(
   response: PreparedTransactionWire,
 ): PreparedTransaction {
-  const intentId = response.intentId ?? response.intent_id;
-  if (!intentId) {
-    throw new Error('Backend response is missing intent_id');
-  }
-
   const transaction =
     response.transaction ??
     response.unsignedTransaction ??
@@ -35,7 +30,6 @@ export function normalizePreparedTransaction(
   }
 
   return {
-    intentId,
     wallet: response.wallet,
     transaction,
     transactionEncoding: normalizeTransactionEncoding(
@@ -51,14 +45,11 @@ export function normalizePreparedTransaction(
 export function normalizeCreateWalletResponse(
   response: CreateWalletResponseWire,
 ): CreateWalletResult {
-  const topLevelIntentId = response.intentId ?? response.intent_id;
   const topLevelNetwork = normalizeNetwork(response.network);
   const transactions = Array.isArray(response.transactions)
     ? response.transactions.map((transaction) =>
         normalizePreparedTransaction({
           ...transaction,
-          intentId:
-            transaction.intentId ?? transaction.intent_id ?? topLevelIntentId,
           network: transaction.network ?? response.network,
         }),
       )
@@ -68,17 +59,12 @@ export function normalizeCreateWalletResponse(
       (transaction) => transaction.kind === 'create-swig-wallet',
     ) ?? transactions[0];
   const wallet = response.wallet ?? creationTransaction?.wallet;
-  const intentId = topLevelIntentId ?? creationTransaction?.intentId;
 
-  if (!intentId) {
-    throw new Error('Create wallet response is missing intent_id');
-  }
   if (!wallet) {
     throw new Error('Create wallet response is missing wallet');
   }
 
   return {
-    intentId,
     wallet,
     transactions,
     creationTransaction,
@@ -97,7 +83,6 @@ export function normalizeSubmittedTransaction(
   }
 
   return {
-    intentId: response.intentId ?? response.intent_id,
     signature: response.signature,
     status: response.status,
   };

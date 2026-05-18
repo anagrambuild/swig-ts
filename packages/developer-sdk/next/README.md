@@ -38,6 +38,8 @@ SWIG_TRANSACTION_API_URL=...
 SWIG_FEE_PAYER=...
 ```
 
+Create an API key from the [Swig dashboard](https://dashboard.onswig.com).
+
 `SWIG_TRANSACTION_API_URL` and `SWIG_FEE_PAYER` are optional. If no transaction
 API URL is provided, the SDK uses its production default. If no fee payer is
 configured for a transfer, the helper falls back to the requester public key.

@@ -9,7 +9,6 @@ export type {
 } from '../types/index.js';
 
 export interface SignedPreparedTransaction {
-  intentId: string;
   transaction: string;
   transactionEncoding?: PreparedTransaction['transactionEncoding'];
   network?: PreparedTransaction['network'];
@@ -29,7 +28,6 @@ export async function signPreparedTransaction(
   options: SignPreparedOptions,
 ): Promise<SignedPreparedTransaction> {
   return {
-    intentId: prepared.intentId,
     transaction: await options.signTransaction(prepared.transaction, prepared),
     transactionEncoding: prepared.transactionEncoding,
     network: prepared.network,

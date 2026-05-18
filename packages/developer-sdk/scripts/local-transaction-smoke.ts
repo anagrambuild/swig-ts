@@ -64,7 +64,6 @@ async function main() {
     },
   });
   const createTransaction = requirePrepared(wallet.creationTransaction);
-  console.log(`create intent: ${createTransaction.intentId}`);
   console.log(`swig config: ${wallet.swigConfigAddress}`);
   console.log(`wallet: ${requireWalletAddress(wallet.walletAddress)}`);
 
@@ -87,7 +86,6 @@ async function main() {
     destination: destination.publicKey.toBase58(),
     amount: 1_000,
   });
-  console.log(`transfer intent: ${transferTransaction.intentId}`);
 
   const before = await connection.getBalance(destination.publicKey);
   const transferSignature = await signAndSendPreparedTransaction(
@@ -110,7 +108,6 @@ async function main() {
     maxAccounts: 20,
     mode: 'fast',
   });
-  console.log(`swap intent: ${swapTransaction.intentId}`);
   console.log(
     `swap transaction bytes: ${Buffer.from(swapTransaction.transaction, 'base64').length}`,
   );
