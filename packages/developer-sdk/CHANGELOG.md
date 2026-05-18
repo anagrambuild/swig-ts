@@ -1,5 +1,12 @@
 # @swig-wallet/developer-sdk
 
+## 0.3.0
+
+### Minor Changes
+
+- 9defe86: Update developer SDK transaction flows for API-prepared wallet creation responses with optional policy IDs, inline initial users, multiple unsigned transactions, add-authority challenges, opinionated SOL/token transfer and Jupiter swap helpers, Jupiter swap proxy support, and local Surfpool smoke coverage.
+- 40d1218: Remove `swigId` from wallet handles, wallet references, and prepared wallet responses so SDK consumers use the Swig config address as the wallet identifier.
+
 ## 0.2.0
 
 ### Minor Changes
