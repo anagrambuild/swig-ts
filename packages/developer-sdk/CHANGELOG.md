@@ -1,5 +1,12 @@
 # @swig-wallet/developer-sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- 2c40fad: Return explicit ordered wallet creation transactions, expose per-transaction signature requests, and use requesterAuthority across create, transfer, token transfer, and swap preparation.
+- 3fd1a55: Remove internal intent IDs from prepared transaction and wallet creation SDK responses to match the transaction API.
+
 ## 0.3.0
 
 ### Minor Changes
