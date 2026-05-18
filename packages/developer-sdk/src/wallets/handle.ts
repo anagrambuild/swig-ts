@@ -81,7 +81,8 @@ function createWalletSwapClient(
   wallets: WalletsClient,
   wallet: WalletHandle,
 ): WalletSwapClient {
-  const swap = ((args: SwapArgs) => wallets.swap(wallet, args)) as WalletSwapClient;
+  const swap = ((args: SwapArgs) =>
+    wallets.swap(wallet, args)) as WalletSwapClient;
   swap.jupiter = (args: SwapArgs) => wallets.jupiterSwap(wallet, args);
 
   return swap;

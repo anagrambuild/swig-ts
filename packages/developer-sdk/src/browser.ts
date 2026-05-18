@@ -13,8 +13,8 @@ import type {
   WalletReference,
 } from './types/index.js';
 import {
-  normalizeCreateWalletResponse,
   normalizeAmount,
+  normalizeCreateWalletResponse,
   normalizePreparedTransaction,
 } from './wallets/normalizers.js';
 
@@ -41,13 +41,17 @@ export interface BrowserTransferSolArgs {
   idempotencyKey?: string;
 }
 
-export interface BrowserCreateWalletArgs
-  extends Omit<CreateWalletArgs, 'feePayer'> {
+export interface BrowserCreateWalletArgs extends Omit<
+  CreateWalletArgs,
+  'feePayer'
+> {
   feePayer?: string;
 }
 
-export interface BrowserTransferTokenArgs
-  extends Pick<TransferTokenArgs, 'mint' | 'destinationOwner' | 'amount'> {
+export interface BrowserTransferTokenArgs extends Pick<
+  TransferTokenArgs,
+  'mint' | 'destinationOwner' | 'amount'
+> {
   network?: Network;
   idempotencyKey?: string;
 }
@@ -221,7 +225,11 @@ export class BrowserWalletsClient {
     wallet: BrowserWalletHandle,
     args: BrowserTransferSolArgs,
   ): Promise<PreparedTransaction> => {
-    const network = resolveNetwork(args.network, wallet.network, this.defaultNetwork);
+    const network = resolveNetwork(
+      args.network,
+      wallet.network,
+      this.defaultNetwork,
+    );
 
     return this.http.postPrepared('/transfer/sol', {
       wallet: wallet.toReference(),
@@ -236,7 +244,11 @@ export class BrowserWalletsClient {
     wallet: BrowserWalletHandle,
     args: BrowserTransferTokenArgs,
   ): Promise<PreparedTransaction> => {
-    const network = resolveNetwork(args.network, wallet.network, this.defaultNetwork);
+    const network = resolveNetwork(
+      args.network,
+      wallet.network,
+      this.defaultNetwork,
+    );
 
     return this.http.postPrepared('/transfer/spl-token', {
       wallet: wallet.toReference(),
@@ -252,7 +264,11 @@ export class BrowserWalletsClient {
     wallet: BrowserWalletHandle,
     args: BrowserSwapJupiterArgs,
   ): Promise<PreparedTransaction> => {
-    const network = resolveNetwork(args.network, wallet.network, this.defaultNetwork);
+    const network = resolveNetwork(
+      args.network,
+      wallet.network,
+      this.defaultNetwork,
+    );
 
     return this.http.postPrepared('/swap/jupiter', {
       wallet: wallet.toReference(),
@@ -366,7 +382,9 @@ class BrowserHttpClient {
     body: PreparedRequestBody,
   ): Promise<PreparedTransaction> => {
     return normalizePreparedTransaction(
-      unwrapPreparedResponse(await this.postJson<PreparedResponseBody>(path, body)),
+      unwrapPreparedResponse(
+        await this.postJson<PreparedResponseBody>(path, body),
+      ),
     );
   };
 
