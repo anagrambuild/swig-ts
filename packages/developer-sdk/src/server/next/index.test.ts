@@ -10,7 +10,6 @@ describe('createSwigRouteHandlers', () => {
       fetch: (async () =>
         new Response(
           JSON.stringify({
-            intentId: 'intent_transfer_123',
             transaction: 'base64-transfer-tx',
             transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           }),
@@ -36,7 +35,6 @@ describe('createSwigRouteHandlers', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       prepared: {
-        intentId: 'intent_transfer_123',
         transaction: 'base64-transfer-tx',
       },
     });

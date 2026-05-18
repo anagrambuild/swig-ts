@@ -197,7 +197,6 @@ describe('WalletsClient', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_create_123',
           network: 'NETWORK_DEVNET',
           wallet: {
             swigConfigAddress: 'swig_config_123',
@@ -205,7 +204,6 @@ describe('WalletsClient', () => {
           },
           transactions: [
             {
-              intentId: 'intent_create_123',
               transaction: 'base64-create-tx',
               transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
               network: 'NETWORK_DEVNET',
@@ -236,7 +234,6 @@ describe('WalletsClient', () => {
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
     expect(wallet.creationTransactions).toHaveLength(1);
     expect(wallet.creationTransaction).toMatchObject({
-      intentId: 'intent_create_123',
       transaction: 'base64-create-tx',
       transactionEncoding: 'base64',
       network: 'devnet',
@@ -254,7 +251,6 @@ describe('WalletsClient', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_create_456',
           network: 'NETWORK_DEVNET',
           wallet: {
             swigConfigAddress: 'swig_config_456',
@@ -262,7 +258,6 @@ describe('WalletsClient', () => {
           },
           transactions: [
             {
-              intentId: 'intent_create_456',
               transaction: 'base64-create-tx',
               transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
               network: 'NETWORK_DEVNET',
@@ -307,7 +302,6 @@ describe('WalletsClient', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_transfer_123',
           transaction: 'base64-transfer-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
@@ -345,7 +339,6 @@ describe('WalletsClient', () => {
       },
     });
     expect(prepared).toMatchObject({
-      intentId: 'intent_transfer_123',
       transaction: 'base64-transfer-tx',
       transactionEncoding: 'base64',
       network: 'devnet',
@@ -362,7 +355,6 @@ describe('WalletsClient', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_token_transfer_123',
           transaction: 'base64-token-transfer-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
@@ -396,7 +388,6 @@ describe('WalletsClient', () => {
       },
     });
     expect(prepared).toMatchObject({
-      intentId: 'intent_token_transfer_123',
       transaction: 'base64-token-transfer-tx',
       transactionEncoding: 'base64',
       network: 'devnet',
@@ -412,7 +403,6 @@ describe('WalletsClient', () => {
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
-          intentId: 'intent_swap_123',
           transaction: 'base64-swap-tx',
           transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
           network: 'NETWORK_DEVNET',
@@ -454,7 +444,6 @@ describe('WalletsClient', () => {
       },
     });
     expect(prepared).toMatchObject({
-      intentId: 'intent_swap_123',
       transaction: 'base64-swap-tx',
       transactionEncoding: 'base64',
       network: 'devnet',

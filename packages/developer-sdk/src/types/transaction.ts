@@ -31,7 +31,6 @@ export type PreparedTransactionKindWire =
   | number;
 
 export interface PreparedTransaction {
-  intentId: string;
   transaction: string;
   transactionEncoding?: TransactionEncoding;
   wallet?: WalletAddressInfo;
@@ -42,8 +41,6 @@ export interface PreparedTransaction {
 }
 
 export interface PreparedTransactionWire {
-  intent_id?: string;
-  intentId?: string;
   transaction?: string;
   unsigned_transaction?: string;
   unsignedTransaction?: string;
@@ -89,7 +86,6 @@ export interface CreateWalletResponseWire extends PreparedTransactionWire {
 }
 
 export interface CreateWalletResult {
-  intentId: string;
   wallet: WalletAddressInfo;
   transactions: PreparedTransaction[];
   creationTransaction?: PreparedTransaction;
@@ -98,7 +94,6 @@ export interface CreateWalletResult {
 }
 
 export interface SponsorSignedTransactionArgs {
-  intentId?: string;
   transaction: string;
   transactionEncoding?: TransactionEncoding;
   network?: Network;
@@ -107,14 +102,11 @@ export interface SponsorSignedTransactionArgs {
 }
 
 export interface SubmittedTransaction {
-  intentId?: string;
   signature: string;
   status?: 'submitted' | 'confirmed';
 }
 
 export interface SubmittedTransactionWire {
-  intent_id?: string;
-  intentId?: string;
   signature?: string;
   status?: 'submitted' | 'confirmed';
 }

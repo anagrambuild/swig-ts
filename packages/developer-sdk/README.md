@@ -8,8 +8,8 @@ prepared transaction from a client.
 The SDK is prepare-first:
 
 1. Your server creates a `SwigClient` with an API key.
-2. Your server prepares a wallet operation and receives a prepared transaction
-   with an intent ID.
+2. Your server prepares a wallet operation and receives one or more unsigned
+   transactions.
 3. Your client signs the prepared transaction locally.
 4. Your app either sends the signed transaction directly or submits it to a
    backend sponsor endpoint.
@@ -27,6 +27,8 @@ prepared transactions, use the framework route helpers:
 Use the TypeScript server SDK when you want control over the route shape, auth
 context, request validation, response format, or any transaction massage before
 returning a prepared payload to the client.
+
+Create an API key from the [Swig dashboard](https://dashboard.onswig.com).
 
 ```typescript
 import { SwigClient } from '@swig-wallet/developer-sdk/server/typescript';
@@ -66,7 +68,8 @@ return preparedCreate;
 ```
 
 If `policyId` is omitted, the backend can create a no-recovery policy from an
-inline `initialUser`:
+inline `initialUser`. For a passkey initial user, provide the secp256r1 public
+key:
 
 ```typescript
 const wallet = await swig.wallets.create({
@@ -138,28 +141,6 @@ return preparedSwap;
 
 Client code should only sign prepared transactions. It should not hold the API
 key or call the Swig backend directly.
-
-### Passkey Message Signing
-
-`createSecp256r1PasskeySigningFn` creates a WebAuthn-backed message signer.
-Most apps pass this into the transaction-level Swig signing helper, but it can
-also be called directly if you need the raw passkey signing result.
-
-```typescript
-import { createSecp256r1PasskeySigningFn } from '@swig-wallet/developer-sdk/client';
-
-const passkeySigningFn = createSecp256r1PasskeySigningFn({
-  allowCredentials: [{ id: credentialId, type: 'public-key' }],
-  userVerification: 'preferred',
-});
-
-const challenge = crypto.getRandomValues(new Uint8Array(32));
-const passkeySigningResult = await passkeySigningFn(challenge);
-
-// passkeySigningResult.signature
-// passkeySigningResult.prefix
-// passkeySigningResult.message
-```
 
 ### Prepared Transaction Signing
 

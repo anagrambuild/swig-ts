@@ -12,14 +12,12 @@ describe('wallet normalizers', () => {
   test('normalizes snake_case prepared transaction responses', () => {
     expect(
       normalizePreparedTransaction({
-        intent_id: 'intent_123',
         unsigned_transaction: 'base64-tx',
         transaction_encoding: 'TRANSACTION_ENCODING_BASE64',
         network: 'NETWORK_DEVNET',
         recent_blockhash: 'blockhash_123',
       }),
     ).toEqual({
-      intentId: 'intent_123',
       transaction: 'base64-tx',
       transactionEncoding: 'base64',
       network: 'devnet',
@@ -30,20 +28,17 @@ describe('wallet normalizers', () => {
   test('normalizes create wallet responses with multiple prepared transactions', () => {
     expect(
       normalizeCreateWalletResponse({
-        intentId: 'intent_create_123',
         wallet: {
           swigConfigAddress: 'swig_config_123',
           walletAddress: 'wallet_123',
         },
         transactions: [
           {
-            intentId: 'intent_create_123',
             transaction: 'base64-create-tx',
             transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
             kind: 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET',
           },
           {
-            intentId: 'intent_create_123',
             transaction: 'base64-add-authority-tx',
             transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
             kind: 'PREPARED_TRANSACTION_KIND_ADD_AUTHORITY',
@@ -60,13 +55,11 @@ describe('wallet normalizers', () => {
         network: 'NETWORK_DEVNET',
       }),
     ).toEqual({
-      intentId: 'intent_create_123',
       wallet: {
         swigConfigAddress: 'swig_config_123',
         walletAddress: 'wallet_123',
       },
       creationTransaction: {
-        intentId: 'intent_create_123',
         transaction: 'base64-create-tx',
         transactionEncoding: 'base64',
         kind: 'create-swig-wallet',
@@ -74,14 +67,12 @@ describe('wallet normalizers', () => {
       },
       transactions: [
         {
-          intentId: 'intent_create_123',
           transaction: 'base64-create-tx',
           transactionEncoding: 'base64',
           kind: 'create-swig-wallet',
           network: 'devnet',
         },
         {
-          intentId: 'intent_create_123',
           transaction: 'base64-add-authority-tx',
           transactionEncoding: 'base64',
           kind: 'add-authority',
@@ -128,12 +119,10 @@ describe('wallet normalizers', () => {
   test('normalizes sponsored submission responses', () => {
     expect(
       normalizeSubmittedTransaction({
-        intent_id: 'intent_123',
         signature: 'signature_123',
         status: 'submitted',
       }),
     ).toEqual({
-      intentId: 'intent_123',
       signature: 'signature_123',
       status: 'submitted',
     });

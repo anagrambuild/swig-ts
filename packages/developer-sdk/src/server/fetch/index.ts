@@ -156,12 +156,7 @@ async function prepareWalletCreation(
 function createWalletResult(
   wallet: Awaited<ReturnType<SwigClient['wallets']['create']>>,
 ) {
-  const intentId =
-    wallet.creationTransaction?.intentId ??
-    wallet.creationTransactions[0]?.intentId;
-
   return {
-    intentId,
     wallet: {
       swigConfigAddress: wallet.swigConfigAddress,
       walletAddress: wallet.walletAddress,
