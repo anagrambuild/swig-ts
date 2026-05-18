@@ -1,4 +1,3 @@
-import { SwigClient } from '../client.js';
 import type {
   Amount,
   CreateWalletArgs,
@@ -6,7 +5,8 @@ import type {
   SwapArgs,
   TransferTokenArgs,
   WalletReference,
-} from '../types/index.js';
+} from '../../types/index.js';
+import { SwigClient } from '../typescript/index.js';
 
 export type SwigProxyRoute =
   | 'wallet/create'

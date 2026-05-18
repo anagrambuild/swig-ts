@@ -2,9 +2,11 @@
 
 NestJS adapter for the Swig developer SDK transaction-preparation proxy.
 
-Use this when your client app imports `SwigBrowserClient` and your API server is
-a NestJS app. The Nest adapter keeps your Swig developer API key on the server
-while giving the client the same simple wallet operation calls.
+Use this when your client app needs a NestJS route to prepare transactions. The
+Nest adapter keeps your Swig developer API key on the server; the client calls
+the route, signs the prepared transaction with
+`@swig-wallet/developer-sdk/client`, then sends directly or submits to a sponsor
+endpoint.
 
 ## Controller Setup
 
@@ -61,27 +63,25 @@ const swigHandler = createSwigNestHandler({
 
 ## Client Usage
 
-Point your client at the Nest route:
+Point your client at the Nest route and sign the prepared payload:
 
 ```typescript
-import { SwigBrowserClient } from '@swig-wallet/developer-sdk/browser';
+import { signPreparedTransaction } from '@swig-wallet/developer-sdk/client';
 
-const swig = new SwigBrowserClient({
-  proxyUrl: 'https://api.example.com/swig',
-  network: 'devnet',
+const { prepared } = await fetch('https://api.example.com/swig/transfer/sol', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    network: 'devnet',
+    wallet: { swigConfigAddress, walletAddress, requesterPubkey },
+    destination,
+    amount: '1000000',
+  }),
+}).then((response) => response.json());
+
+const signed = await signPreparedTransaction(prepared, {
+  signTransaction: (transaction) => signPreparedSwigTransaction(transaction),
 });
-
-const prepared = await swig.wallets
-  .use(swigAddress, { requesterPubkey })
-  .transfer.sol({ destination, amount: '1000000' });
-
-const tokenTransfer = await swig.wallets
-  .use(swigAddress, { requesterPubkey })
-  .transfer.token({ mint, destinationOwner, amount: '10000' });
-
-const swap = await swig.wallets
-  .use(swigAddress, { requesterPubkey })
-  .swap.jupiter({ inputMint, outputMint, amount: '10000', slippageBps: 100 });
 ```
 
 ## Custom Requester Resolution

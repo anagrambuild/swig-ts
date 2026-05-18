@@ -2,9 +2,11 @@
 
 Next.js adapter for the Swig developer SDK transaction-preparation proxy.
 
-Use this when your browser app imports `SwigBrowserClient` and you want the SDK
-to prepare transactions through a local Next.js route without exposing your Swig
-developer API key to the browser.
+Use this when your browser app needs a local Next.js route to prepare
+transactions without exposing your Swig developer API key to the browser. The
+browser should call this route, sign the prepared transaction with
+`@swig-wallet/developer-sdk/client`, then send directly or submit to a sponsor
+endpoint.
 
 ## Route Setup
 
@@ -50,36 +52,26 @@ export const { POST } = createSwigRouteHandlers({
 });
 ```
 
-## Browser Usage
+## Client Usage
 
-Once the route is installed, browser code can use the default hidden proxy:
-
-```typescript
-import { SwigBrowserClient } from '@swig-wallet/developer-sdk/browser';
-
-const swig = new SwigBrowserClient({
-  network: 'devnet',
-});
-
-const prepared = await swig.wallets
-  .use(swigAddress, { requesterPubkey })
-  .transfer.sol({ destination, amount: '1000000' });
-
-const tokenTransfer = await swig.wallets
-  .use(swigAddress, { requesterPubkey })
-  .transfer.token({ mint, destinationOwner, amount: '10000' });
-
-const swap = await swig.wallets
-  .use(swigAddress, { requesterPubkey })
-  .swap.jupiter({ inputMint, outputMint, amount: '10000', slippageBps: 100 });
-```
-
-If you mount the route somewhere other than `/api/swig`, pass `proxyUrl`:
+Once the route is installed, browser code can call it directly:
 
 ```typescript
-const swig = new SwigBrowserClient({
-  proxyUrl: '/api/wallet',
-  network: 'devnet',
+import { signPreparedTransaction } from '@swig-wallet/developer-sdk/client';
+
+const { prepared } = await fetch('/api/swig/transfer/sol', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    network: 'devnet',
+    wallet: { swigConfigAddress, walletAddress, requesterPubkey },
+    destination,
+    amount: '1000000',
+  }),
+}).then((response) => response.json());
+
+const signed = await signPreparedTransaction(prepared, {
+  signTransaction: (transaction) => signPreparedSwigTransaction(transaction),
 });
 ```
 

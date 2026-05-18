@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { createSwigFetchHandler } from './fetch.js';
+import { createSwigFetchHandler } from './index.js';
 
 type CapturedRequest = {
   url: string;

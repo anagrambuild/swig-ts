@@ -1,7 +1,7 @@
 import {
   createSwigFetchHandler,
   type CreateSwigFetchHandlerConfig,
-} from './fetch.js';
+} from '../fetch/index.js';
 
 export type CreateSwigNestHandlerConfig = CreateSwigFetchHandlerConfig;
 

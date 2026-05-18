@@ -17,7 +17,7 @@ import {
   createSwigNestHandler,
   type SwigNestHandler,
   type SwigNestResponseLike,
-} from '../src/server/nest.js';
+} from '../src/server/nest/index.js';
 
 const apiBaseUrl = 'http://localhost:8080';
 const databaseUrl = 'postgres://swig:swig@localhost:55432/swig';
