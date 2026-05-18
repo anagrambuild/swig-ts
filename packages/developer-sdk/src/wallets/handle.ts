@@ -30,7 +30,6 @@ export type WalletSwapClient = {
 };
 
 export class WalletHandle {
-  readonly swigId?: string;
   readonly swigConfigAddress: string;
   readonly walletAddress?: string;
   readonly network?: Network;
@@ -45,7 +44,6 @@ export class WalletHandle {
     private readonly wallets: WalletsClient,
     init: WalletHandleInit,
   ) {
-    this.swigId = init.swigId;
     this.swigConfigAddress = init.swigConfigAddress;
     this.walletAddress = init.walletAddress;
     this.network = init.network;

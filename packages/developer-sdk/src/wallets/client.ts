@@ -61,7 +61,6 @@ export class WalletsClient {
     }
 
     return new WalletHandle(this, {
-      swigId: wallet.swigId,
       swigConfigAddress: wallet.swigConfigAddress,
       walletAddress: wallet.walletAddress,
       network: options.network ?? wallet.network ?? this.defaultNetwork,

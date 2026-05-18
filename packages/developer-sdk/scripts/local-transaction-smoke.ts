@@ -132,7 +132,6 @@ async function main() {
     route: '/swig/transfer/sol',
     body: {
       wallet: {
-        swigId: wallet.swigId,
         swigConfigAddress: wallet.swigConfigAddress,
         walletAddress: wallet.walletAddress,
       },
@@ -152,7 +151,6 @@ async function main() {
     route: '/swig/swap/jupiter',
     body: {
       wallet: {
-        swigId: wallet.swigId,
         swigConfigAddress: wallet.swigConfigAddress,
         walletAddress: wallet.walletAddress,
       },
