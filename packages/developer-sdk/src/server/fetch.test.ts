@@ -223,8 +223,7 @@ describe('createSwigFetchHandler', () => {
       body: {
         network: 'NETWORK_DEVNET',
         feePayer: 'requester_123',
-        swigConfigAddress: 'swig_config_123',
-        walletAddress: 'wallet_123',
+        swigAddress: 'swig_config_123',
         requesterPubkey: 'requester_123',
         destination: 'destination_123',
         lamports: '42',
@@ -267,6 +266,63 @@ describe('createSwigFetchHandler', () => {
     expect(calls[0]?.body).toMatchObject({
       feePayer: 'payer_123',
       requesterPubkey: 'requester_123',
+    });
+  });
+
+  test('prepares token transfers through the API-key server client', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigFetchHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      feePayer: 'payer_123',
+      resolveRequesterPubkey: () => 'requester_123',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          intentId: 'intent_token_transfer_123',
+          transaction: 'base64-token-transfer-tx',
+          transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+          network: 'NETWORK_DEVNET',
+        };
+      }),
+    });
+
+    const response = await handler(
+      new Request('https://app.example/api/swig/transfer/spl-token', {
+        method: 'POST',
+        body: JSON.stringify({
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+          network: 'devnet',
+          mint: 'mint_123',
+          destinationOwner: 'owner_123',
+          amount: '42',
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      prepared: {
+        intentId: 'intent_token_transfer_123',
+        transaction: 'base64-token-transfer-tx',
+        transactionEncoding: 'base64',
+        network: 'devnet',
+      },
+    });
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/transfer/spl-token',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        requesterPubkey: 'requester_123',
+        mint: 'mint_123',
+        destinationOwner: 'owner_123',
+        amount: '42',
+      },
     });
   });
 
@@ -322,8 +378,7 @@ describe('createSwigFetchHandler', () => {
       body: {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',
-        swigConfigAddress: 'swig_config_123',
-        walletAddress: 'wallet_123',
+        swigAddress: 'swig_config_123',
         requesterPubkey: 'requester_123',
         inputMint: 'So11111111111111111111111111111111111111112',
         outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',

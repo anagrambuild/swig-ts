@@ -46,12 +46,7 @@ export interface TransferSolArgs extends BaseTransferArgs {
 
 export interface TransferTokenArgs extends BaseTransferArgs {
   mint: string;
-  destination?: string;
-  destinationOwner?: string;
-  sourceTokenAccount?: string;
-  destinationTokenAccount?: string;
-  tokenProgram?: string;
-  createDestinationTokenAccount?: boolean;
+  destinationOwner: string;
 }
 
 export type TransferArgs = TransferSolArgs | TransferTokenArgs;

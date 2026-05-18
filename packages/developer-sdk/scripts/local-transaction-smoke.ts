@@ -81,7 +81,7 @@ async function main() {
     LAMPORTS_PER_SOL / 10,
   );
 
-  const transferTransaction = await wallet.transfer({
+  const transferTransaction = await wallet.transfer.sol({
     feePayer: feePayer.publicKey.toBase58(),
     requesterPubkey: requester.publicKey.toBase58(),
     destination: destination.publicKey.toBase58(),
@@ -99,7 +99,7 @@ async function main() {
   console.log(`transfer signature: ${transferSignature}`);
   console.log(`destination balance delta: ${after - before} lamports`);
 
-  const swapTransaction = await wallet.swap({
+  const swapTransaction = await wallet.swap.jupiter({
     feePayer: feePayer.publicKey.toBase58(),
     requesterPubkey: requester.publicKey.toBase58(),
     inputMint: solMint,

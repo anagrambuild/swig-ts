@@ -112,7 +112,7 @@ describe('createSwigNestHandler', () => {
       body: {
         network: 'NETWORK_DEVNET',
         feePayer: 'requester_123',
-        swigConfigAddress: 'swig_config_123',
+        swigAddress: 'swig_config_123',
         requesterPubkey: 'requester_123',
         destination: 'destination_123',
         lamports: '42',
@@ -179,8 +179,7 @@ describe('createSwigNestHandler', () => {
       body: {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',
-        swigConfigAddress: 'swig_config_123',
-        walletAddress: 'wallet_123',
+        swigAddress: 'swig_config_123',
         requesterPubkey: 'requester_123',
         inputMint: 'So11111111111111111111111111111111111111112',
         outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',

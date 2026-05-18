@@ -32,6 +32,7 @@ The handler expects routes like:
 POST /swig/wallet/create
 POST /swig/transfer/sol
 POST /swig/transfer/spl-token
+POST /swig/swap/jupiter
 ```
 
 ## Configuration
@@ -71,8 +72,16 @@ const swig = new SwigBrowserClient({
 });
 
 const prepared = await swig.wallets
-  .use({ swigConfigAddress, requesterPubkey })
+  .use(swigAddress, { requesterPubkey })
   .transfer.sol({ destination, amount: '1000000' });
+
+const tokenTransfer = await swig.wallets
+  .use(swigAddress, { requesterPubkey })
+  .transfer.token({ mint, destinationOwner, amount: '10000' });
+
+const swap = await swig.wallets
+  .use(swigAddress, { requesterPubkey })
+  .swap.jupiter({ inputMint, outputMint, amount: '10000', slippageBps: 100 });
 ```
 
 ## Custom Requester Resolution

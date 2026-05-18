@@ -67,7 +67,8 @@ const swig = new SwigBrowserClient({
 });
 ```
 
-Then the browser code can prepare transactions without knowing about that proxy:
+Then the browser code can prepare wallet creation and transactions without
+knowing about that proxy:
 
 ```typescript
 import { SwigBrowserClient } from '@swig-wallet/developer-sdk/browser';
@@ -76,12 +77,24 @@ const swig = new SwigBrowserClient({
   network: 'devnet',
 });
 
-const wallet = swig.wallets.use({
-  swigConfigAddress,
+const wallet = await swig.wallets.create({
+  initialUser: {
+    ed25519: {
+      publicKey: memberPubkey,
+    },
+  },
+});
+
+for (const prepared of wallet.creationTransactions) {
+  console.log(prepared.kind, prepared.intentId);
+}
+
+// Or use an existing wallet by Swig config address.
+const existingWallet = swig.wallets.use(swigAddress, {
   requesterPubkey: memberPubkey,
 });
 
-const prepared = await wallet.transfer.sol({
+const prepared = await existingWallet.transfer.sol({
   destination,
   amount: '1000000',
 });
@@ -176,7 +189,7 @@ console.log(createSubmission.signature);
 The same prepare -> passkey sign -> sponsor/send flow applies to wallet transfers:
 
 ```typescript
-const preparedTransfer = await wallet.transfer({
+const preparedTransfer = await wallet.transfer.sol({
   feePayer,
   requesterPubkey: memberPubkey,
   destination,
@@ -197,10 +210,31 @@ const transferSubmission = await swig.transactions.sponsor({
 console.log(transferSubmission.signature);
 ```
 
+The opinionated transfer helpers avoid backend-only fields. Token program,
+source ATA, destination ATA, and destination ATA creation are derived by the
+transaction API:
+
+```typescript
+const preparedSolTransfer = await wallet.transfer.sol({
+  feePayer,
+  requesterPubkey: memberPubkey,
+  destination,
+  amount: 1_000_000n,
+});
+
+const preparedTokenTransfer = await wallet.transfer.token({
+  feePayer,
+  requesterPubkey: memberPubkey,
+  mint,
+  destinationOwner,
+  amount: 10_000n,
+});
+```
+
 And swaps use the same wallet handle. The backend prepares a Jupiter swap transaction, the client signs locally, then the signed transaction is sent or sponsored:
 
 ```typescript
-const preparedSwap = await wallet.swap({
+const preparedSwap = await wallet.swap.jupiter({
   feePayer,
   requesterPubkey: memberPubkey,
   inputMint: 'So11111111111111111111111111111111111111112',
