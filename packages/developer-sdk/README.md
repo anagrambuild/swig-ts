@@ -10,9 +10,9 @@ The SDK is prepare-first:
 1. Your server creates a `SwigClient` with an API key.
 2. Your server prepares a wallet operation and receives one or more unsigned
    transactions.
-3. Your client signs the prepared transaction locally.
-4. Your app either sends the signed transaction directly or submits it to a
-   backend sponsor endpoint.
+3. Your client signs any transactions that require client authority.
+4. Your app submits the ordered transactions directly or through a backend
+   sponsor endpoint.
 
 ## Framework Proxy Routes
 
@@ -53,18 +53,15 @@ const swig = new SwigClient({
 ### Create Wallet
 
 ```typescript
-const wallet = await swig.wallets.create({
+const created = await swig.wallets.create({
   feePayer,
   policyId,
 });
 
-const preparedCreate = wallet.creationTransaction;
-
-if (!preparedCreate) {
-  throw new Error('Wallet creation response did not include a transaction');
-}
-
-return preparedCreate;
+return {
+  wallet: created.wallet,
+  transactions: created.transactions,
+};
 ```
 
 If `policyId` is omitted, the backend can create a no-recovery policy from an
@@ -72,7 +69,7 @@ inline `initialUser`. For a passkey initial user, provide the secp256r1 public
 key:
 
 ```typescript
-const wallet = await swig.wallets.create({
+const created = await swig.wallets.create({
   feePayer,
   initialUser: {
     secp256r1: {
@@ -81,11 +78,22 @@ const wallet = await swig.wallets.create({
   },
 });
 
-return wallet.creationTransaction;
+return {
+  wallet: created.wallet,
+  transactions: created.transactions,
+  clientAuthorityTransactions: created.clientAuthorityTransactions,
+  operatorSignedTransactions: created.operatorSignedTransactions,
+  feePayerOnlyTransactions: created.feePayerOnlyTransactions,
+  addAuthorityChallenge: created.addAuthorityChallenge,
+};
 ```
 
-Wallet creation can return multiple prepared transactions when policy setup
-requires additional work, such as add-authority or recovery configuration.
+Wallet creation returns `transactions` in the order they should be submitted.
+For recovery-enabled create flows, the create transaction is fee-payer only, the
+add-authority transaction is signed by the initial user, and the
+configure-recovery transaction is signed by the backend recovery operator before
+it is returned. Submit each transaction in order after applying any required
+client authority signature.
 
 ### Prepare Transfer
 
@@ -176,6 +184,11 @@ SDK stops at producing the signed prepared transaction payload.
 `signPreparedSwigTransaction` is intentionally app-provided for now. It should
 wrap the Swig passkey transaction signing flow for the specific transaction
 format returned by the backend.
+
+For wallet creation, sign only `created.clientAuthorityTransactions` on the
+client. Do not passkey-sign `created.operatorSignedTransactions`; those already
+include the backend recovery operator signature and only need the final
+fee-payer or sponsor signature before submission.
 
 ## Public Entrypoints
 

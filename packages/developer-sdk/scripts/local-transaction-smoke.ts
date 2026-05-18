@@ -55,7 +55,7 @@ async function main() {
   console.log(`fee payer: ${feePayer.publicKey.toBase58()}`);
   console.log(`requester: ${requester.publicKey.toBase58()}`);
 
-  const wallet = await swig.wallets.create({
+  const created = await swig.wallets.create({
     feePayer: feePayer.publicKey.toBase58(),
     initialUser: {
       ed25519: {
@@ -63,9 +63,12 @@ async function main() {
       },
     },
   });
-  const createTransaction = requirePrepared(wallet.creationTransaction);
-  console.log(`swig config: ${wallet.swigConfigAddress}`);
-  console.log(`wallet: ${requireWalletAddress(wallet.walletAddress)}`);
+  const wallet = swig.wallets.use(created.wallet, {
+    requesterPubkey: requester.publicKey.toBase58(),
+  });
+  const createTransaction = requirePrepared(created.creationTransaction);
+  console.log(`swig config: ${created.wallet.swigConfigAddress}`);
+  console.log(`wallet: ${requireWalletAddress(created.wallet.walletAddress)}`);
 
   const createSignature = await signAndSendPreparedTransaction(
     connection,
@@ -73,10 +76,13 @@ async function main() {
     [feePayer],
   );
   console.log(`create signature: ${createSignature}`);
-  await waitForAccount(connection, new PublicKey(wallet.swigConfigAddress));
+  await waitForAccount(
+    connection,
+    new PublicKey(created.wallet.swigConfigAddress),
+  );
   await airdropIfNeeded(
     connection,
-    new PublicKey(requireWalletAddress(wallet.walletAddress)),
+    new PublicKey(requireWalletAddress(created.wallet.walletAddress)),
     LAMPORTS_PER_SOL / 10,
   );
 

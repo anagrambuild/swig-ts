@@ -58,6 +58,12 @@ export function normalizeCreateWalletResponse(
     transactions.find(
       (transaction) => transaction.kind === 'create-swig-wallet',
     ) ?? transactions[0];
+  const addAuthorityTransaction = transactions.find(
+    (transaction) => transaction.kind === 'add-authority',
+  );
+  const configureRecoveryTransaction = transactions.find(
+    (transaction) => transaction.kind === 'configure-recovery',
+  );
   const wallet = response.wallet ?? creationTransaction?.wallet;
 
   if (!wallet) {
@@ -67,7 +73,20 @@ export function normalizeCreateWalletResponse(
   return {
     wallet,
     transactions,
+    clientAuthorityTransactions: transactions.filter(
+      (transaction) => transaction.kind === 'add-authority',
+    ),
+    operatorSignedTransactions: transactions.filter(
+      (transaction) => transaction.kind === 'configure-recovery',
+    ),
+    feePayerOnlyTransactions: transactions.filter(
+      (transaction) =>
+        transaction.kind !== 'add-authority' &&
+        transaction.kind !== 'configure-recovery',
+    ),
     creationTransaction,
+    addAuthorityTransaction,
+    configureRecoveryTransaction,
     addAuthorityChallenge: normalizeAddAuthorityChallenge(
       response.addAuthorityChallenge ?? response.add_authority_challenge,
     ),

@@ -141,29 +141,30 @@ async function prepareWalletCreation(
       ? { idempotencyKey: readOptionalString(body, 'idempotencyKey') }
       : {}),
   };
-  const wallet = await swig.wallets.create(args);
+  const created = await swig.wallets.create(args);
 
-  if (!wallet.creationTransaction) {
+  if (created.transactions.length === 0) {
     throw new SwigRouteError(
       'Wallet creation response is missing transaction',
       502,
     );
   }
 
-  return createWalletResult(wallet);
+  return createWalletResult(created);
 }
 
 function createWalletResult(
   wallet: Awaited<ReturnType<SwigClient['wallets']['create']>>,
 ) {
   return {
-    wallet: {
-      swigConfigAddress: wallet.swigConfigAddress,
-      walletAddress: wallet.walletAddress,
-      network: wallet.network,
-    },
-    transactions: wallet.creationTransactions,
+    wallet: wallet.wallet,
+    transactions: wallet.transactions,
+    clientAuthorityTransactions: wallet.clientAuthorityTransactions,
+    operatorSignedTransactions: wallet.operatorSignedTransactions,
+    feePayerOnlyTransactions: wallet.feePayerOnlyTransactions,
     creationTransaction: wallet.creationTransaction,
+    addAuthorityTransaction: wallet.addAuthorityTransaction,
+    configureRecoveryTransaction: wallet.configureRecoveryTransaction,
     addAuthorityChallenge: wallet.addAuthorityChallenge,
     network: wallet.network,
   };

@@ -1,11 +1,6 @@
 import type { Amount, Network } from './common.js';
 import type { SolanaInstructionInput } from './instruction.js';
-import type {
-  AddAuthorityChallenge,
-  PreparedTransaction,
-  PreparedTransactionWire,
-} from './transaction.js';
-import type { WalletAddressInfo } from './wallet.js';
+import type { CreateWalletResult } from './transaction.js';
 
 export type WalletAuthority =
   | { ed25519: { publicKey: string } }
@@ -21,15 +16,7 @@ export interface CreateWalletArgs {
   idempotencyKey?: string;
 }
 
-export interface CreateWalletResponse
-  extends WalletAddressInfo, PreparedTransactionWire {
-  network?: Network;
-  label?: string;
-  externalId?: string;
-  transactions?: PreparedTransaction[];
-  creationTransaction?: PreparedTransaction;
-  addAuthorityChallenge?: AddAuthorityChallenge;
-}
+export type CreateWalletResponse = CreateWalletResult;
 
 export interface BaseTransferArgs {
   feePayer: string;

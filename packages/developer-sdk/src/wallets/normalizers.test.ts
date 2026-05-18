@@ -43,6 +43,11 @@ describe('wallet normalizers', () => {
             transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
             kind: 'PREPARED_TRANSACTION_KIND_ADD_AUTHORITY',
           },
+          {
+            transaction: 'base64-configure-recovery-tx',
+            transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+            kind: 'PREPARED_TRANSACTION_KIND_CONFIGURE_RECOVERY',
+          },
         ],
         addAuthorityChallenge: {
           transactionIndex: 1,
@@ -65,6 +70,18 @@ describe('wallet normalizers', () => {
         kind: 'create-swig-wallet',
         network: 'devnet',
       },
+      addAuthorityTransaction: {
+        transaction: 'base64-add-authority-tx',
+        transactionEncoding: 'base64',
+        kind: 'add-authority',
+        network: 'devnet',
+      },
+      configureRecoveryTransaction: {
+        transaction: 'base64-configure-recovery-tx',
+        transactionEncoding: 'base64',
+        kind: 'configure-recovery',
+        network: 'devnet',
+      },
       transactions: [
         {
           transaction: 'base64-create-tx',
@@ -76,6 +93,36 @@ describe('wallet normalizers', () => {
           transaction: 'base64-add-authority-tx',
           transactionEncoding: 'base64',
           kind: 'add-authority',
+          network: 'devnet',
+        },
+        {
+          transaction: 'base64-configure-recovery-tx',
+          transactionEncoding: 'base64',
+          kind: 'configure-recovery',
+          network: 'devnet',
+        },
+      ],
+      clientAuthorityTransactions: [
+        {
+          transaction: 'base64-add-authority-tx',
+          transactionEncoding: 'base64',
+          kind: 'add-authority',
+          network: 'devnet',
+        },
+      ],
+      operatorSignedTransactions: [
+        {
+          transaction: 'base64-configure-recovery-tx',
+          transactionEncoding: 'base64',
+          kind: 'configure-recovery',
+          network: 'devnet',
+        },
+      ],
+      feePayerOnlyTransactions: [
+        {
+          transaction: 'base64-create-tx',
+          transactionEncoding: 'base64',
+          kind: 'create-swig-wallet',
           network: 'devnet',
         },
       ],

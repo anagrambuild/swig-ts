@@ -2,6 +2,7 @@ import type { HttpClient } from '../core/index.js';
 import type {
   CreateWalletArgs,
   CreateWalletResponseWire,
+  CreateWalletResult,
   ExecuteArgs,
   IdpWalletSession,
   Network,
@@ -32,20 +33,21 @@ export class WalletsClient {
     private readonly defaultNetwork?: Network,
   ) {}
 
-  create = async (args: CreateWalletArgs): Promise<WalletHandle> => {
+  create = async (args: CreateWalletArgs): Promise<CreateWalletResult> => {
     const response = await this.http.post<CreateWalletResponseWire>(
       '/transaction/wallet/create',
       createWalletRequest(args, this.defaultNetwork),
     );
     const created = normalizeCreateWalletResponse(response);
 
-    return new WalletHandle(this, {
-      ...created.wallet,
+    return {
+      ...created,
+      wallet: {
+        ...created.wallet,
+        network: created.network ?? args.network ?? this.defaultNetwork,
+      },
       network: created.network ?? args.network ?? this.defaultNetwork,
-      creationTransaction: created.creationTransaction,
-      creationTransactions: created.transactions,
-      addAuthorityChallenge: created.addAuthorityChallenge,
-    });
+    };
   };
 
   use = (

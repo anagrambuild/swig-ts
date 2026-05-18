@@ -216,7 +216,7 @@ describe('WalletsClient', () => {
       }),
     });
 
-    const wallet = await swig.wallets.create({
+    const created = await swig.wallets.create({
       feePayer: 'payer_123',
       policyId: 'policy_123',
     });
@@ -232,14 +232,22 @@ describe('WalletsClient', () => {
       },
     });
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
-    expect(wallet.creationTransactions).toHaveLength(1);
-    expect(wallet.creationTransaction).toMatchObject({
+    expect(created.wallet).toEqual({
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      network: 'devnet',
+    });
+    expect(created.transactions).toHaveLength(1);
+    expect(created.creationTransaction).toMatchObject({
       transaction: 'base64-create-tx',
       transactionEncoding: 'base64',
       network: 'devnet',
       recentBlockhash: 'blockhash_123',
       kind: 'create-swig-wallet',
     });
+    expect(created.feePayerOnlyTransactions).toHaveLength(1);
+    expect(created.clientAuthorityTransactions).toEqual([]);
+    expect(created.operatorSignedTransactions).toEqual([]);
   });
 
   test('prepares wallet creation without a policy id when an initial user is provided', async () => {

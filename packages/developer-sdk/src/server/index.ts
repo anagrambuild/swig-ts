@@ -10,6 +10,7 @@ export type {
   Amount,
   CreateWalletArgs,
   CreateWalletResponse,
+  CreateWalletResult,
   ExecuteArgs,
   IdpWalletSession,
   JsonObject,

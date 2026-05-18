@@ -86,6 +86,16 @@ describe('createSwigFetchHandler', () => {
             kind: 'create-swig-wallet',
           },
         ],
+        clientAuthorityTransactions: [],
+        operatorSignedTransactions: [],
+        feePayerOnlyTransactions: [
+          {
+            transaction: 'base64-create-tx',
+            transactionEncoding: 'base64',
+            network: 'devnet',
+            kind: 'create-swig-wallet',
+          },
+        ],
         creationTransaction: {
           transaction: 'base64-create-tx',
           transactionEncoding: 'base64',
