@@ -297,22 +297,6 @@ async function prepareJupiterSwap(
           destinationAccount: readOptionalString(body, 'destinationAccount'),
         }
       : {}),
-    ...(readOptionalString(body, 'destinationTokenAccount')
-      ? {
-          destinationTokenAccount: readOptionalString(
-            body,
-            'destinationTokenAccount',
-          ),
-        }
-      : {}),
-    ...(readOptionalString(body, 'nativeDestinationAccount')
-      ? {
-          nativeDestinationAccount: readOptionalString(
-            body,
-            'nativeDestinationAccount',
-          ),
-        }
-      : {}),
     ...(readOptionalBoolean(body, 'wrapAndUnwrapSol') !== undefined
       ? { wrapAndUnwrapSol: readOptionalBoolean(body, 'wrapAndUnwrapSol') }
       : {}),

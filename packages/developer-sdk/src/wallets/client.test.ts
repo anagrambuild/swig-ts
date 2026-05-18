@@ -183,8 +183,6 @@ describe('WalletsClient', () => {
       amount: '1000',
       slippageBps: 75,
       destinationAccount: 'destination_account_123',
-      destinationTokenAccount: undefined,
-      nativeDestinationAccount: undefined,
       wrapAndUnwrapSol: undefined,
       tipAmountLamports: '5000',
       computeUnitPricePercentile: 'high',

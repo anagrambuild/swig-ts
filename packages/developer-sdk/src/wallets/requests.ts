@@ -97,8 +97,6 @@ export function swapRequest(
     amount: normalizeAmount(args.amount),
     slippageBps: args.slippageBps,
     destinationAccount: args.destinationAccount,
-    destinationTokenAccount: args.destinationTokenAccount,
-    nativeDestinationAccount: args.nativeDestinationAccount,
     wrapAndUnwrapSol: args.wrapAndUnwrapSol,
     tipAmountLamports:
       args.tipAmountLamports === undefined
