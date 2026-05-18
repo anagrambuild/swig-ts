@@ -32,7 +32,6 @@ describe('wallet normalizers', () => {
       normalizeCreateWalletResponse({
         intentId: 'intent_create_123',
         wallet: {
-          swigId: 'swig_123',
           swigConfigAddress: 'swig_config_123',
           walletAddress: 'wallet_123',
         },
@@ -63,7 +62,6 @@ describe('wallet normalizers', () => {
     ).toEqual({
       intentId: 'intent_create_123',
       wallet: {
-        swigId: 'swig_123',
         swigConfigAddress: 'swig_config_123',
         walletAddress: 'wallet_123',
       },

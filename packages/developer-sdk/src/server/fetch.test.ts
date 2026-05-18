@@ -45,7 +45,6 @@ describe('createSwigFetchHandler', () => {
         return {
           intentId: 'intent_create_123',
           wallet: {
-            swigId: 'swig_123',
             swigConfigAddress: 'swig_config_123',
             walletAddress: 'wallet_123',
           },
@@ -78,7 +77,6 @@ describe('createSwigFetchHandler', () => {
       prepared: {
         intentId: 'intent_create_123',
         wallet: {
-          swigId: 'swig_123',
           swigConfigAddress: 'swig_config_123',
           walletAddress: 'wallet_123',
           network: 'devnet',
@@ -123,7 +121,6 @@ describe('createSwigFetchHandler', () => {
         return {
           intentId: 'intent_create_inline_123',
           wallet: {
-            swigId: 'swig_inline_123',
             swigConfigAddress: 'swig_config_inline_123',
             walletAddress: 'wallet_inline_123',
           },

@@ -163,7 +163,6 @@ function createWalletResult(
   return {
     intentId,
     wallet: {
-      swigId: wallet.swigId,
       swigConfigAddress: wallet.swigConfigAddress,
       walletAddress: wallet.walletAddress,
       network: wallet.network,
@@ -410,7 +409,6 @@ function readWallet(value: unknown): WalletReference | undefined {
   }
 
   return {
-    swigId: readOptionalString(value, 'swigId'),
     swigConfigAddress: readRequiredString(value, 'swigConfigAddress'),
     walletAddress: readOptionalString(value, 'walletAddress'),
     requesterPubkey: readOptionalString(value, 'requesterPubkey'),

@@ -198,7 +198,6 @@ export class BrowserWalletsClient {
     }
 
     return new BrowserWalletHandle(this, {
-      swigId: wallet.swigId,
       swigConfigAddress: wallet.swigConfigAddress,
       walletAddress: wallet.walletAddress,
       network: options.network ?? wallet.network ?? this.defaultNetwork,
@@ -294,7 +293,6 @@ export class BrowserWalletsClient {
 }
 
 export class BrowserWalletHandle {
-  readonly swigId?: string;
   readonly swigConfigAddress: string;
   readonly walletAddress?: string;
   readonly network?: Network;
@@ -306,7 +304,6 @@ export class BrowserWalletHandle {
   readonly swap: BrowserWalletSwapClient;
 
   constructor(wallets: BrowserWalletsClient, init: BrowserWalletHandleInit) {
-    this.swigId = init.swigId;
     this.swigConfigAddress = init.swigConfigAddress;
     this.walletAddress = init.walletAddress;
     this.network = init.network;
@@ -321,7 +318,6 @@ export class BrowserWalletHandle {
   }
 
   toReference = (): WalletReference => ({
-    swigId: this.swigId,
     swigConfigAddress: this.swigConfigAddress,
     walletAddress: this.walletAddress,
     network: this.network,

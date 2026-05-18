@@ -113,7 +113,6 @@ describe('WalletsClient', () => {
       'devnet',
     );
     const wallet = wallets.use({
-      swigId: 'swig_123',
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
       requesterPubkey: 'requester_123',
@@ -147,7 +146,6 @@ describe('WalletsClient', () => {
       'devnet',
     );
     const wallet = wallets.use({
-      swigId: 'swig_123',
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
       requesterPubkey: 'requester_123',
@@ -202,7 +200,6 @@ describe('WalletsClient', () => {
           intentId: 'intent_create_123',
           network: 'NETWORK_DEVNET',
           wallet: {
-            swigId: 'swig_123',
             swigConfigAddress: 'swig_config_123',
             walletAddress: 'wallet_123',
           },
@@ -237,7 +234,6 @@ describe('WalletsClient', () => {
       },
     });
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
-    expect(wallet.swigId).toBe('swig_123');
     expect(wallet.creationTransactions).toHaveLength(1);
     expect(wallet.creationTransaction).toMatchObject({
       intentId: 'intent_create_123',
@@ -261,7 +257,6 @@ describe('WalletsClient', () => {
           intentId: 'intent_create_456',
           network: 'NETWORK_DEVNET',
           wallet: {
-            swigId: 'swig_456',
             swigConfigAddress: 'swig_config_456',
             walletAddress: 'wallet_456',
           },
@@ -318,7 +313,6 @@ describe('WalletsClient', () => {
           network: 'NETWORK_DEVNET',
           recentBlockhash: 'blockhash_456',
           wallet: {
-            swigId: 'swig_123',
             swigConfigAddress: 'swig_config_123',
             walletAddress: 'wallet_123',
           },
@@ -326,7 +320,6 @@ describe('WalletsClient', () => {
       }),
     });
     const wallet = swig.wallets.use({
-      swigId: 'swig_123',
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
       requesterPubkey: 'requester_123',
@@ -425,7 +418,6 @@ describe('WalletsClient', () => {
           network: 'NETWORK_DEVNET',
           recentBlockhash: 'blockhash_789',
           wallet: {
-            swigId: 'swig_123',
             swigConfigAddress: 'swig_config_123',
             walletAddress: 'wallet_123',
           },
@@ -433,7 +425,6 @@ describe('WalletsClient', () => {
       }),
     });
     const wallet = swig.wallets.use({
-      swigId: 'swig_123',
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
       requesterPubkey: 'requester_123',
