@@ -15,6 +15,7 @@ export type {
   Network,
   PreparedTransaction,
   PreparedTransactionWire,
+  PreparedTransactionsResult,
   RetryOptions,
   SolanaAccountMeta,
   SolanaInstruction,
