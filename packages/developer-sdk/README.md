@@ -209,7 +209,7 @@ declare const prepared: PreparedTransaction;
 const signed = await signPreparedTransaction(prepared, {
   signTransaction: async (transaction) => {
     const versioned = VersionedTransaction.deserialize(
-      Buffer.from(transaction.transaction, 'base64'),
+      Buffer.from(transaction, 'base64'),
     );
     versioned.sign([userKeypair]);
     return Buffer.from(versioned.serialize()).toString('base64');
@@ -221,12 +221,14 @@ const signed = await signPreparedTransaction(prepared, {
 
 Use this for any prepared transaction whose `signatureRequests` contains a
 `secp256r1` request. The same pattern applies to create, transfer, token
-transfer, and swap.
+transfer, and swap. See `examples/passkey/server.ts` and
+`examples/passkey/client.ts` for the split server/client flow.
 
 ```typescript
 import {
   createSecp256r1PasskeySigningFn,
-  signPreparedTransaction,
+  signPreparedSwigTransaction,
+  signPreparedSwigTransactions,
   type PreparedTransaction,
 } from '@swig-wallet/developer-sdk/client';
 
@@ -242,24 +244,21 @@ const passkeySigningFn = createSecp256r1PasskeySigningFn({
 //   response.json(),
 // );
 declare const prepared: PreparedTransaction;
-const [signatureRequest] = prepared.signatureRequests;
 
-const signed = await signPreparedTransaction(prepared, {
-  signTransaction: (transaction) =>
-    signPreparedSwigTransaction(
-      transaction,
-      signatureRequest,
-      passkeySigningFn,
-    ),
+const signed = await signPreparedSwigTransaction(prepared, {
+  secp256r1: passkeySigningFn,
 });
+
+declare const created: { clientAuthorityTransactions: PreparedTransaction[] };
+const signedCreateTransactions = await signPreparedSwigTransactions(
+  created.clientAuthorityTransactions,
+  { secp256r1: passkeySigningFn },
+);
 ```
 
-After signing, pass `signed` to your app-owned send or sponsor flow. The client
-SDK stops at producing the signed prepared transaction payload.
-
-`signPreparedSwigTransaction` is intentionally app-provided for now. It should
-wrap the Swig passkey transaction signing flow for the specific transaction
-format returned by the backend.
+After signing, pass `signed` to your app-owned send or sponsor flow. On your
+server, `swig.transactions.sponsor(signed)` handles the deployed paymaster route
+and base58 payload encoding expected by the backend.
 
 For wallet creation, sign only `created.clientAuthorityTransactions` on the
 client. Do not authority-sign `created.operatorSignedTransactions`; those

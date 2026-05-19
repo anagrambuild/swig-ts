@@ -88,10 +88,11 @@
     "next"
   ],
   "dependencies": {
-    "@swig-wallet/lib": "workspace:*"
+    "@solana/web3.js": "^1.98.0",
+    "@swig-wallet/lib": "workspace:*",
+    "bs58": "^6.0.0"
   },
   "devDependencies": {
-    "@solana/web3.js": "^1.98.0",
     "@types/bun": "^1.2.5",
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",

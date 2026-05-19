@@ -1,3 +1,4 @@
+import bs58 from 'bs58';
 import type { HttpClient } from '../core/index.js';
 import type {
   Network,
@@ -17,10 +18,11 @@ export class TransactionsClient {
     args: SponsorSignedTransactionArgs,
   ): Promise<SubmittedTransaction> => {
     const response = await this.http.post<SubmittedTransactionWire>(
-      '/v1/transactions/sponsor',
+      '/paymaster/sponsor',
       {
-        transaction: args.transaction,
-        transactionEncoding: args.transactionEncoding,
+        base58_encoded_transaction: bs58.encode(
+          base64ToBytes(args.transaction),
+        ),
         network: args.network ?? this.defaultNetwork,
         metadata: args.metadata,
         idempotencyKey: args.idempotencyKey,
@@ -29,4 +31,15 @@ export class TransactionsClient {
 
     return normalizeSubmittedTransaction(response);
   };
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
 }

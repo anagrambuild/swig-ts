@@ -7,6 +7,14 @@ export type {
   PreparedTransaction,
   TransactionEncoding,
 } from '../types/index.js';
+export {
+  signPreparedSwigTransaction,
+  signPreparedSwigTransactions,
+} from './swig-signing.js';
+export type {
+  Secp256r1SigningFns,
+  SignPreparedSwigTransactionOptions,
+} from './swig-signing.js';
 
 export interface SignedPreparedTransaction {
   transaction: string;
