@@ -1,5 +1,14 @@
 # @swig-wallet/developer-sdk
 
+## 0.4.1
+
+### Patch Changes
+
+- bdd0862: Add grouped wallet operation preparation through `wallet.prepare` and the framework proxy, plus a `destinationAccount` swap override.
+- 3e331aa: Add client helpers for signing prepared secp256r1 Swig transactions and route transaction sponsorship through the deployed paymaster endpoint.
+- b673767: Fix passkey signing to preserve raw WebAuthn `clientDataJSON` in the secp256r1 authority payload.
+- eb6b9c4: Simplify Jupiter swap destination arguments to a single recipient owner account.
+
 ## 0.4.0
 
 ### Minor Changes
