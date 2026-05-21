@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 
 import { p256 } from '@noble/curves/p256';
+import { sha256 } from '@noble/hashes/sha2';
 import {
   createAssociatedTokenAccountInstruction,
   createMint,
@@ -386,7 +387,9 @@ async function runRecoverySmoke(connection: Connection) {
         publicKey: initialAuthority.publicKeyHex,
       },
     },
-    guardianPubkey: guardian.publicKey.toBase58(),
+    recovery: {
+      guardianPubkey: guardian.publicKey.toBase58(),
+    },
   });
   const recoveryWalletAddress = new PublicKey(
     requireWalletAddress(created.wallet.walletAddress),
@@ -414,9 +417,19 @@ async function runRecoverySmoke(connection: Connection) {
     new PublicKey(created.wallet.swigConfigAddress),
   );
 
+  if (!created.recoverySetup) {
+    throw new Error('Recovery-enabled policy did not return a setup plan');
+  }
+  const recoverySetup = await wallet.recovery.prepareSetup({
+    feePayer: recoveryFeePayer.publicKey.toBase58(),
+    guardianPubkey: created.recoverySetup.guardianPubkey,
+    delaySeconds: created.recoverySetup.delaySeconds,
+    targetRoleId: created.recoverySetup.targetRoleId,
+  });
+
   const addRecoverySignature = await signSwigAndSendPreparedTransaction(
     connection,
-    requirePrepared(created.addAuthorityTransaction),
+    requirePrepared(recoverySetup.addAuthorityTransaction),
     initialAuthority.signingFn,
     [recoveryFeePayer],
   );
@@ -424,7 +437,7 @@ async function runRecoverySmoke(connection: Connection) {
 
   const configureRecoverySignature = await signAndSendPreparedTransaction(
     connection,
-    requirePrepared(created.configureRecoveryTransaction),
+    requirePrepared(recoverySetup.configureRecoveryTransaction),
     [recoveryFeePayer],
   );
   console.log(`recovery configure signature: ${configureRecoverySignature}`);
@@ -741,7 +754,9 @@ function createP256Authority(): {
   return {
     publicKeyHex: bytesToHex(publicKey),
     signingFn: async (message) => ({
-      signature: p256.sign(message, privateKey).toCompactRawBytes(),
+      signature: p256
+        .sign(sha256(message), privateKey, { lowS: true })
+        .toCompactRawBytes(),
     }),
   };
 }

@@ -7,8 +7,10 @@ export {
 } from './typescript/index.js';
 
 export type {
+  AddRecoveryAuthorityArgs,
   Amount,
   CancelRecoveryArgs,
+  ConfigureRecoveryArgs,
   CreateWalletArgs,
   CreateWalletResponse,
   CreateWalletResult,
@@ -18,8 +20,14 @@ export type {
   JsonObject,
   JsonValue,
   Network,
+  Policy,
+  PolicyAuthority,
+  PrepareRecoverySetupArgs,
+  PreparedRecoverySetupResult,
   PreparedTransaction,
   PreparedTransactionWire,
+  PreparedTransactionsResult,
+  RecoverySetupPlan,
   RetryOptions,
   SponsorSignedTransactionArgs,
   StartRecoveryArgs,

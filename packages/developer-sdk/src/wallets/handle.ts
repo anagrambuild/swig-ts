@@ -4,8 +4,10 @@ import type {
   ExecuteRecoveryArgs,
   Network,
   PrepareArgs,
+  PreparedRecoverySetupResult,
   PreparedTransaction,
   PreparedTransactionsResult,
+  PrepareRecoverySetupArgs,
   StartRecoveryArgs,
   SwapArgs,
   TransferArgs,
@@ -30,6 +32,9 @@ export type WalletSwapClient = {
 };
 
 export type WalletRecoveryClient = {
+  prepareSetup(
+    args: PrepareRecoverySetupArgs,
+  ): Promise<PreparedRecoverySetupResult>;
   start(args: StartRecoveryArgs): Promise<PreparedTransaction>;
   cancel(args: CancelRecoveryArgs): Promise<PreparedTransaction>;
   execute(args: ExecuteRecoveryArgs): Promise<PreparedTransaction>;
@@ -94,6 +99,8 @@ function createWalletRecoveryClient(
   wallet: WalletHandle,
 ): WalletRecoveryClient {
   return {
+    prepareSetup: (args: PrepareRecoverySetupArgs) =>
+      wallets.prepareRecoverySetup(wallet, args),
     start: (args: StartRecoveryArgs) => wallets.startRecovery(wallet, args),
     cancel: (args: CancelRecoveryArgs) => wallets.cancelRecovery(wallet, args),
     execute: (args: ExecuteRecoveryArgs) =>

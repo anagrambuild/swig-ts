@@ -3,7 +3,9 @@ import { describe, expect, test } from 'bun:test';
 import { SwigClient } from '../server/typescript/index.js';
 import { WalletsClient } from './client.js';
 import {
+  addRecoveryAuthorityRequest,
   cancelRecoveryRequest,
+  configureRecoveryRequest,
   executeRecoveryRequest,
   startRecoveryRequest,
   swapRequest,
@@ -224,6 +226,39 @@ describe('WalletsClient', () => {
       newAuthority: 'new_authority_123',
     });
     expect(
+      addRecoveryAuthorityRequest(
+        wallet,
+        {
+          feePayer: 'payer_123',
+        },
+        'devnet',
+      ),
+    ).toEqual({
+      network: 'NETWORK_DEVNET',
+      feePayer: 'payer_123',
+      swigAddress: 'swig_config_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+    expect(
+      configureRecoveryRequest(
+        wallet,
+        {
+          feePayer: 'payer_123',
+          guardianPubkey: 'guardian_123',
+          delaySeconds: 86_400,
+          targetRoleId: 0,
+        },
+        'devnet',
+      ),
+    ).toEqual({
+      network: 'NETWORK_DEVNET',
+      feePayer: 'payer_123',
+      swigAddress: 'swig_config_123',
+      guardianPubkey: 'guardian_123',
+      delaySeconds: 86_400,
+      targetRoleId: 0,
+    });
+    expect(
       cancelRecoveryRequest(
         wallet,
         {
@@ -262,6 +297,22 @@ describe('WalletsClient', () => {
       network: 'devnet',
       fetch: jsonFetch((request) => {
         calls.push(request);
+        if (request.method === 'GET') {
+          return {
+            id: 'policy_123',
+            name: 'Default policy',
+            description: null,
+            authority: {
+              type: 'Ed25519',
+              publicKey: 'initial_user_123',
+            },
+            actions: [{ type: 'All' }],
+            guardianEnabled: false,
+            guardianAuthority: null,
+            guardianDelaySeconds: 86_400,
+          };
+        }
+
         return {
           network: 'NETWORK_DEVNET',
           wallet: {
@@ -287,8 +338,12 @@ describe('WalletsClient', () => {
       policyId: 'policy_123',
     });
 
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
     expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/wallet/policies/policy_123',
+      method: 'GET',
+    });
+    expect(calls[1]).toMatchObject({
       url: 'http://localhost:8080/transaction/wallet/create',
       method: 'POST',
       body: {
@@ -298,6 +353,7 @@ describe('WalletsClient', () => {
       },
     });
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
+    expect(calls[1]?.headers.get('authorization')).toBe('Bearer sk_test');
     expect(created.wallet).toEqual({
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
@@ -314,6 +370,135 @@ describe('WalletsClient', () => {
     expect(created.feePayerOnlyTransactions).toHaveLength(1);
     expect(created.clientAuthorityTransactions).toEqual([]);
     expect(created.operatorSignedTransactions).toEqual([]);
+  });
+
+  test('returns a recovery setup plan from a recovery-enabled policy', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        if (request.method === 'GET') {
+          return {
+            id: 'policy_recovery_123',
+            name: 'Recovery policy',
+            description: null,
+            authority: {
+              type: 'Secp256r1',
+              publicKey: 'passkey_public_key_123',
+            },
+            actions: [{ type: 'All' }],
+            guardianEnabled: true,
+            guardianAuthority: {
+              type: 'Ed25519',
+              publicKey: 'guardian_123',
+            },
+            guardianDelaySeconds: 86_400,
+          };
+        }
+
+        return {
+          network: 'NETWORK_DEVNET',
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+          transactions: [
+            {
+              transaction: 'base64-create-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+              kind: 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET',
+            },
+          ],
+        };
+      }),
+    });
+
+    const created = await swig.wallets.create({
+      feePayer: 'payer_123',
+      policyId: 'policy_recovery_123',
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(created.transactions).toHaveLength(1);
+    expect(created.recoverySetup).toEqual({
+      requesterAuthority: {
+        secp256r1: {
+          publicKey: 'passkey_public_key_123',
+        },
+      },
+      guardianPubkey: 'guardian_123',
+      delaySeconds: 86_400,
+      targetRoleId: 0,
+    });
+  });
+
+  test('uses create recovery options when the policy guardian is provided at creation', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        if (request.method === 'GET') {
+          return {
+            id: 'policy_recovery_at_creation_123',
+            name: 'Recovery policy',
+            description: null,
+            authority: null,
+            actions: [{ type: 'All' }],
+            guardianEnabled: true,
+            guardianAuthority: null,
+            guardianDelaySeconds: '1',
+          };
+        }
+
+        return {
+          network: 'NETWORK_DEVNET',
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+          transactions: [
+            {
+              transaction: 'base64-create-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+              kind: 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET',
+            },
+          ],
+        };
+      }),
+    });
+
+    const created = await swig.wallets.create({
+      feePayer: 'payer_123',
+      policyId: 'policy_recovery_at_creation_123',
+      initialUser: {
+        secp256r1: {
+          publicKey: 'passkey_public_key_123',
+        },
+      },
+      recovery: {
+        guardianPubkey: 'guardian_123',
+      },
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(created.recoverySetup).toEqual({
+      requesterAuthority: {
+        secp256r1: {
+          publicKey: 'passkey_public_key_123',
+        },
+      },
+      guardianPubkey: 'guardian_123',
+      delaySeconds: 1,
+      targetRoleId: 0,
+    });
   });
 
   test('prepares wallet creation without a policy id when an initial user is provided', async () => {
@@ -613,6 +798,95 @@ describe('WalletsClient', () => {
       transactionEncoding: 'base64',
       network: 'devnet',
       recentBlockhash: 'blockhash_789',
+    });
+  });
+
+  test('prepares recovery setup through the explicit setup endpoints', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        if (request.url.endsWith('/transaction/recovery/configure')) {
+          return {
+            transaction: 'base64-configure-recovery-tx',
+            transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+            network: 'NETWORK_DEVNET',
+            kind: 'PREPARED_TRANSACTION_KIND_CONFIGURE_RECOVERY',
+            wallet: {
+              swigConfigAddress: 'swig_config_123',
+              walletAddress: 'wallet_123',
+            },
+          };
+        }
+
+        return {
+          transaction: 'base64-add-authority-tx',
+          transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+          network: 'NETWORK_DEVNET',
+          kind: 'PREPARED_TRANSACTION_KIND_ADD_AUTHORITY',
+          signatureRequests: [
+            {
+              scheme: 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1',
+              signer: 'passkey_public_key_123',
+              messageHash: 'hash_123',
+              slot: 123,
+              counter: 1,
+            },
+          ],
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+        };
+      }),
+    });
+    const wallet = swig.wallets.use({
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      requesterAuthority: { secp256r1: { publicKey: 'passkey_123' } },
+    });
+
+    const prepared = await wallet.recovery.prepareSetup({
+      feePayer: 'payer_123',
+      guardianPubkey: 'guardian_123',
+      delaySeconds: 86_400,
+    });
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/wallet/recovery-authority/add',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        requesterAuthority: { secp256r1: { publicKey: 'passkey_123' } },
+      },
+    });
+    expect(calls[1]).toMatchObject({
+      url: 'http://localhost:8080/transaction/recovery/configure',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        guardianPubkey: 'guardian_123',
+        delaySeconds: 86_400,
+      },
+    });
+    expect(prepared.transactions).toHaveLength(2);
+    expect(prepared.clientAuthorityTransactions).toHaveLength(1);
+    expect(prepared.operatorSignedTransactions).toHaveLength(1);
+    expect(prepared.addAuthorityTransaction).toMatchObject({
+      transaction: 'base64-add-authority-tx',
+      kind: 'add-authority',
+    });
+    expect(prepared.configureRecoveryTransaction).toMatchObject({
+      transaction: 'base64-configure-recovery-tx',
+      kind: 'configure-recovery',
     });
   });
 

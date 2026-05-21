@@ -42,6 +42,22 @@ describe('createSwigFetchHandler', () => {
       feePayer: 'payer_123',
       fetch: jsonFetch((request) => {
         calls.push(request);
+        if (request.method === 'GET') {
+          return {
+            id: 'policy_123',
+            name: 'Default policy',
+            description: null,
+            authority: {
+              type: 'Ed25519',
+              publicKey: 'initial_user_123',
+            },
+            actions: [{ type: 'All' }],
+            guardianEnabled: false,
+            guardianAuthority: null,
+            guardianDelaySeconds: 86_400,
+          };
+        }
+
         return {
           wallet: {
             swigConfigAddress: 'swig_config_123',
@@ -106,6 +122,10 @@ describe('createSwigFetchHandler', () => {
       },
     });
     expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/wallet/policies/policy_123',
+      method: 'GET',
+    });
+    expect(calls[1]).toMatchObject({
       url: 'http://localhost:8080/transaction/wallet/create',
       body: {
         network: 'NETWORK_DEVNET',
@@ -171,6 +191,90 @@ describe('createSwigFetchHandler', () => {
     expect(
       (calls[0]?.body as Record<string, unknown>).policyId,
     ).toBeUndefined();
+  });
+
+  test('passes recovery options through wallet creation', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigFetchHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      feePayer: 'payer_123',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        if (request.method === 'GET') {
+          return {
+            id: 'policy_123',
+            name: 'Recovery policy',
+            description: null,
+            authority: null,
+            actions: [{ type: 'All' }],
+            guardianEnabled: true,
+            guardianAuthority: null,
+            guardianDelaySeconds: '1',
+          };
+        }
+
+        return {
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+          transactions: [
+            {
+              transaction: 'base64-create-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+              kind: 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET',
+            },
+          ],
+          network: 'NETWORK_DEVNET',
+        };
+      }),
+    });
+
+    const response = await handler(
+      new Request('https://app.example/api/swig/wallet/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          network: 'devnet',
+          policyId: 'policy_123',
+          initialUser: {
+            secp256r1: {
+              publicKey: 'passkey_public_key_123',
+            },
+          },
+          recovery: {
+            guardianPubkey: 'guardian_123',
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      prepared: {
+        recoverySetup: {
+          requesterAuthority: {
+            secp256r1: {
+              publicKey: 'passkey_public_key_123',
+            },
+          },
+          guardianPubkey: 'guardian_123',
+          delaySeconds: 1,
+          targetRoleId: 0,
+        },
+      },
+    });
+    expect(calls[1]?.body).toMatchObject({
+      network: 'NETWORK_DEVNET',
+      feePayer: 'payer_123',
+      policyId: 'policy_123',
+      initialUser: {
+        secp256r1: {
+          publicKey: 'passkey_public_key_123',
+        },
+      },
+    });
   });
 
   test('prepares SOL transfers through the API-key server client', async () => {

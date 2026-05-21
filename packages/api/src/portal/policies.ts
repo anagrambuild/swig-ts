@@ -19,7 +19,7 @@ export class PoliciesApi {
 
   async get(policyId: string): Promise<ApiResponse<Policy>> {
     const baseUrl = this.#requirePortalUrl();
-    const url = `${baseUrl}/api/v1/policies/${encodeURIComponent(policyId)}`;
+    const url = `${baseUrl}/wallet/policies/${encodeURIComponent(policyId)}`;
     return request<Policy>(
       url,
       {

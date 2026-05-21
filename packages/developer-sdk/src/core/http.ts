@@ -21,6 +21,12 @@ export class HttpClient {
     this.#fetch = config.fetch;
   }
 
+  get = async <TResponse>(path: string): Promise<TResponse> => {
+    return this.#request<TResponse>(path, {
+      method: 'GET',
+    });
+  };
+
   post = async <TResponse>(path: string, body: unknown): Promise<TResponse> => {
     return this.#request<TResponse>(path, {
       method: 'POST',
