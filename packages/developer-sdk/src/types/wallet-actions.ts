@@ -11,7 +11,11 @@ export interface CreateWalletArgs {
   policyId?: string;
   feePayer: string;
   initialUser?: WalletAuthority;
-  guardianPubkey?: string;
+  recovery?: {
+    guardianPubkey?: string;
+    delaySeconds?: number;
+    targetRoleId?: number;
+  };
   network?: Network;
   idempotencyKey?: string;
 }
@@ -82,6 +86,19 @@ export interface BaseRecoveryArgs {
   network?: Network;
   idempotencyKey?: string;
 }
+
+export interface AddRecoveryAuthorityArgs extends BaseRecoveryArgs {
+  requesterAuthority?: WalletAuthority;
+}
+
+export interface ConfigureRecoveryArgs extends BaseRecoveryArgs {
+  guardianPubkey: string;
+  delaySeconds?: number;
+  targetRoleId?: number;
+}
+
+export interface PrepareRecoverySetupArgs
+  extends AddRecoveryAuthorityArgs, ConfigureRecoveryArgs {}
 
 export interface StartRecoveryArgs extends BaseRecoveryArgs {
   guardianPubkey: string;

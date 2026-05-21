@@ -1,4 +1,5 @@
 import type { JsonObject, Network } from './common.js';
+import type { WalletAuthority } from './wallet-actions.js';
 import type { WalletAddressInfo } from './wallet.js';
 
 export type TransactionEncoding = 'base64';
@@ -97,6 +98,13 @@ export interface PreparedTransactionsResult {
   network?: Network;
 }
 
+export interface RecoverySetupPlan {
+  requesterAuthority: WalletAuthority;
+  guardianPubkey: string;
+  delaySeconds: number;
+  targetRoleId?: number;
+}
+
 export interface CreateWalletResult {
   wallet: WalletAddressInfo & { network?: Network };
   transactions: PreparedTransaction[];
@@ -104,6 +112,18 @@ export interface CreateWalletResult {
   operatorSignedTransactions: PreparedTransaction[];
   feePayerOnlyTransactions: PreparedTransaction[];
   creationTransaction?: PreparedTransaction;
+  addAuthorityTransaction?: PreparedTransaction;
+  configureRecoveryTransaction?: PreparedTransaction;
+  recoverySetup?: RecoverySetupPlan;
+  network?: Network;
+}
+
+export interface PreparedRecoverySetupResult {
+  wallet?: WalletAddressInfo & { network?: Network };
+  transactions: PreparedTransaction[];
+  clientAuthorityTransactions: PreparedTransaction[];
+  operatorSignedTransactions: PreparedTransaction[];
+  feePayerOnlyTransactions: PreparedTransaction[];
   addAuthorityTransaction?: PreparedTransaction;
   configureRecoveryTransaction?: PreparedTransaction;
   network?: Network;

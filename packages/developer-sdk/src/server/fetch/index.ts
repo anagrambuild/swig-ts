@@ -134,6 +134,7 @@ async function prepareWalletCreation(
   const feePayer = await resolveFeePayer(context, config);
   const policyId = readOptionalString(body, 'policyId');
   const initialUser = readWalletAuthority(body.initialUser);
+  const recovery = readRecoveryOptions(body.recovery);
   if (!policyId && !initialUser) {
     throw new SwigRouteError('policyId or initialUser is required');
   }
@@ -142,9 +143,7 @@ async function prepareWalletCreation(
     feePayer,
     ...(policyId ? { policyId } : {}),
     ...(initialUser ? { initialUser } : {}),
-    ...(readOptionalString(body, 'guardianPubkey')
-      ? { guardianPubkey: readOptionalString(body, 'guardianPubkey') }
-      : {}),
+    ...(recovery ? { recovery } : {}),
     ...(context.network ? { network: context.network } : {}),
     ...(readOptionalString(body, 'idempotencyKey')
       ? { idempotencyKey: readOptionalString(body, 'idempotencyKey') }
@@ -203,6 +202,7 @@ function createWalletResult(
     creationTransaction: wallet.creationTransaction,
     addAuthorityTransaction: wallet.addAuthorityTransaction,
     configureRecoveryTransaction: wallet.configureRecoveryTransaction,
+    recoverySetup: wallet.recoverySetup,
     network: wallet.network,
   };
 }
@@ -462,6 +462,27 @@ function readWalletAuthority(
     }
   }
   throw new SwigRouteError(`${field} must include a supported authority`);
+}
+
+function readRecoveryOptions(
+  value: unknown,
+): CreateWalletArgs['recovery'] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new SwigRouteError('recovery must be an object');
+  }
+
+  const guardianPubkey = readOptionalString(value, 'guardianPubkey');
+  const delaySeconds = readOptionalNumber(value, 'delaySeconds');
+  const targetRoleId = readOptionalNumber(value, 'targetRoleId');
+
+  return {
+    ...(guardianPubkey ? { guardianPubkey } : {}),
+    ...(delaySeconds !== undefined ? { delaySeconds } : {}),
+    ...(targetRoleId !== undefined ? { targetRoleId } : {}),
+  };
 }
 
 function requireWallet(wallet: WalletReference | undefined): WalletReference {

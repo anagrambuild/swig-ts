@@ -1,5 +1,7 @@
 import type {
+  AddRecoveryAuthorityArgs,
   CancelRecoveryArgs,
+  ConfigureRecoveryArgs,
   CreateWalletArgs,
   ExecuteArgs,
   ExecuteRecoveryArgs,
@@ -28,7 +30,6 @@ export function createWalletRequest(
     feePayer: args.feePayer,
     ...(args.policyId ? { policyId: args.policyId } : {}),
     initialUser: args.initialUser,
-    guardianPubkey: args.guardianPubkey,
   };
 }
 
@@ -128,6 +129,38 @@ export function startRecoveryRequest(
   };
 }
 
+export function addRecoveryAuthorityRequest(
+  wallet: WalletHandle,
+  args: AddRecoveryAuthorityArgs,
+  defaultNetwork?: Network,
+) {
+  return {
+    network: toProtoNetwork(
+      resolveNetwork(args.network, wallet.network, defaultNetwork),
+    ),
+    feePayer: args.feePayer,
+    swigAddress: wallet.swigConfigAddress,
+    requesterAuthority: resolveRequesterAuthority(wallet, args),
+  };
+}
+
+export function configureRecoveryRequest(
+  wallet: WalletHandle,
+  args: ConfigureRecoveryArgs,
+  defaultNetwork?: Network,
+) {
+  return {
+    network: toProtoNetwork(
+      resolveNetwork(args.network, wallet.network, defaultNetwork),
+    ),
+    feePayer: args.feePayer,
+    swigAddress: wallet.swigConfigAddress,
+    guardianPubkey: args.guardianPubkey,
+    delaySeconds: args.delaySeconds,
+    targetRoleId: args.targetRoleId,
+  };
+}
+
 export function cancelRecoveryRequest(
   wallet: WalletHandle,
   args: CancelRecoveryArgs,
@@ -208,12 +241,18 @@ function resolveNetwork(...networks: Array<Network | undefined>): Network {
 
 function resolveRequesterAuthority(
   wallet: WalletHandle,
-  args: TransferArgs | SwapArgs | PrepareArgs | CancelRecoveryArgs,
+  args:
+    | TransferArgs
+    | SwapArgs
+    | PrepareArgs
+    | CancelRecoveryArgs
+    | AddRecoveryAuthorityArgs,
 ): NonNullable<
   | TransferArgs['requesterAuthority']
   | SwapArgs['requesterAuthority']
   | PrepareArgs['requesterAuthority']
   | CancelRecoveryArgs['requesterAuthority']
+  | AddRecoveryAuthorityArgs['requesterAuthority']
 > {
   const requesterAuthority =
     args.requesterAuthority ?? wallet.requesterAuthority;

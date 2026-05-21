@@ -1,6 +1,8 @@
 import type { HttpClient } from '../core/index.js';
 import type {
+  AddRecoveryAuthorityArgs,
   CancelRecoveryArgs,
+  ConfigureRecoveryArgs,
   CreateWalletArgs,
   CreateWalletResponseWire,
   CreateWalletResult,
@@ -8,14 +10,19 @@ import type {
   ExecuteRecoveryArgs,
   IdpWalletSession,
   Network,
+  Policy,
   PrepareArgs,
+  PreparedRecoverySetupResult,
   PreparedTransaction,
   PreparedTransactionsResult,
   PreparedTransactionWire,
+  PrepareRecoverySetupArgs,
   PrepareTransactionsResponseWire,
+  RecoverySetupPlan,
   StartRecoveryArgs,
   SwapArgs,
   TransferArgs,
+  WalletAuthority,
   WalletHandleOptions,
   WalletReference,
 } from '../types/index.js';
@@ -26,7 +33,9 @@ import {
   normalizePrepareTransactionsResponse,
 } from './normalizers.js';
 import {
+  addRecoveryAuthorityRequest,
   cancelRecoveryRequest,
+  configureRecoveryRequest,
   createWalletRequest,
   executeRecoveryRequest,
   executeRequest,
@@ -45,20 +54,35 @@ export class WalletsClient {
   ) {}
 
   create = async (args: CreateWalletArgs): Promise<CreateWalletResult> => {
+    const policy = args.policyId
+      ? await this.getPolicy(args.policyId)
+      : undefined;
     const response = await this.http.post<CreateWalletResponseWire>(
       '/transaction/wallet/create',
       createWalletRequest(args, this.defaultNetwork),
     );
     const created = normalizeCreateWalletResponse(response);
+    const network = created.network ?? args.network ?? this.defaultNetwork;
 
     return {
       ...created,
       wallet: {
         ...created.wallet,
-        network: created.network ?? args.network ?? this.defaultNetwork,
+        network,
       },
-      network: created.network ?? args.network ?? this.defaultNetwork,
+      ...(policy
+        ? {
+            recoverySetup: recoverySetupPlanFromPolicy(policy, args),
+          }
+        : {}),
+      network,
     };
+  };
+
+  getPolicy = async (policyId: string): Promise<Policy> => {
+    return this.http.get<Policy>(
+      `/wallet/policies/${encodeURIComponent(policyId)}`,
+    );
   };
 
   use = (
@@ -166,6 +190,47 @@ export class WalletsClient {
     return normalizePreparedTransaction(response);
   };
 
+  addRecoveryAuthority = async (
+    wallet: WalletHandle,
+    args: AddRecoveryAuthorityArgs,
+  ): Promise<PreparedTransaction> => {
+    const response = await this.http.post<PreparedTransactionWire>(
+      '/transaction/wallet/recovery-authority/add',
+      addRecoveryAuthorityRequest(wallet, args, this.defaultNetwork),
+    );
+    return normalizePreparedTransaction(response);
+  };
+
+  configureRecovery = async (
+    wallet: WalletHandle,
+    args: ConfigureRecoveryArgs,
+  ): Promise<PreparedTransaction> => {
+    const response = await this.http.post<PreparedTransactionWire>(
+      '/transaction/recovery/configure',
+      configureRecoveryRequest(wallet, args, this.defaultNetwork),
+    );
+    return normalizePreparedTransaction(response);
+  };
+
+  prepareRecoverySetup = async (
+    wallet: WalletHandle,
+    args: PrepareRecoverySetupArgs,
+  ): Promise<PreparedRecoverySetupResult> => {
+    const addAuthorityTransaction = await this.addRecoveryAuthority(
+      wallet,
+      args,
+    );
+    const configureRecoveryTransaction = await this.configureRecovery(
+      wallet,
+      args,
+    );
+    return recoverySetupResult(
+      [addAuthorityTransaction, configureRecoveryTransaction],
+      wallet,
+      args.network ?? wallet.network ?? this.defaultNetwork,
+    );
+  };
+
   cancelRecovery = async (
     wallet: WalletHandle,
     args: CancelRecoveryArgs,
@@ -197,5 +262,119 @@ export class WalletsClient {
       executeRequest(wallet, args, this.defaultNetwork),
     );
     return normalizePreparedTransaction(response);
+  };
+}
+
+function recoverySetupPlanFromPolicy(
+  policy: Policy,
+  args: CreateWalletArgs,
+): RecoverySetupPlan | undefined {
+  const requesterAuthority =
+    args.initialUser ?? walletAuthorityFromPolicy(policy.authority);
+  const guardianPubkey =
+    args.recovery?.guardianPubkey ??
+    publicKeyFromPolicyAuthority(policy.guardianAuthority);
+
+  if (!policy.guardianEnabled || !requesterAuthority || !guardianPubkey) {
+    return undefined;
+  }
+
+  return {
+    requesterAuthority,
+    guardianPubkey,
+    delaySeconds:
+      args.recovery?.delaySeconds ??
+      normalizePolicyDelaySeconds(policy.guardianDelaySeconds),
+    targetRoleId: args.recovery?.targetRoleId ?? 0,
+  };
+}
+
+function normalizePolicyDelaySeconds(delaySeconds: unknown): number {
+  if (typeof delaySeconds === 'number' && Number.isFinite(delaySeconds)) {
+    return delaySeconds;
+  }
+  if (typeof delaySeconds === 'string' && /^[0-9]+$/.test(delaySeconds)) {
+    const parsed = Number(delaySeconds);
+    if (Number.isSafeInteger(parsed)) {
+      return parsed;
+    }
+  }
+  return 86_400;
+}
+
+function walletAuthorityFromPolicy(
+  authority: Policy['authority'],
+): WalletAuthority | undefined {
+  if (!authority) {
+    return undefined;
+  }
+
+  if (
+    'ed25519' in authority ||
+    'secp256k1' in authority ||
+    'secp256r1' in authority
+  ) {
+    return authority;
+  }
+
+  switch (authority.type) {
+    case 'Ed25519':
+      return { ed25519: { publicKey: authority.publicKey } };
+    case 'Secp256k1':
+      return { secp256k1: { publicKey: authority.publicKey } };
+    case 'Secp256r1':
+      return { secp256r1: { publicKey: authority.publicKey } };
+  }
+}
+
+function publicKeyFromPolicyAuthority(
+  authority: Policy['guardianAuthority'],
+): string | undefined {
+  if (!authority) {
+    return undefined;
+  }
+  if ('publicKey' in authority) {
+    return authority.publicKey;
+  }
+  if ('ed25519' in authority) {
+    return authority.ed25519.publicKey;
+  }
+  if ('secp256k1' in authority) {
+    return authority.secp256k1.publicKey;
+  }
+  return authority.secp256r1.publicKey;
+}
+
+function recoverySetupResult(
+  transactions: PreparedTransaction[],
+  wallet: WalletHandle,
+  network?: Network,
+): PreparedRecoverySetupResult {
+  const addAuthorityTransaction = transactions.find(
+    (transaction) => transaction.kind === 'add-authority',
+  );
+  const configureRecoveryTransaction = transactions.find(
+    (transaction) => transaction.kind === 'configure-recovery',
+  );
+  const walletInfo =
+    addAuthorityTransaction?.wallet ?? configureRecoveryTransaction?.wallet;
+
+  return {
+    ...(walletInfo ? { wallet: { ...walletInfo, network } } : {}),
+    transactions,
+    clientAuthorityTransactions: transactions.filter(
+      (transaction) => transaction.signatureRequests.length > 0,
+    ),
+    operatorSignedTransactions: transactions.filter(
+      (transaction) => transaction.kind === 'configure-recovery',
+    ),
+    feePayerOnlyTransactions: transactions.filter(
+      (transaction) =>
+        transaction.signatureRequests.length === 0 &&
+        transaction.kind !== 'configure-recovery',
+    ),
+    ...(addAuthorityTransaction ? { addAuthorityTransaction } : {}),
+    ...(configureRecoveryTransaction ? { configureRecoveryTransaction } : {}),
+    network: network ?? wallet.network,
   };
 }
