@@ -3,6 +3,9 @@ import { describe, expect, test } from 'bun:test';
 import { SwigClient } from '../server/typescript/index.js';
 import { WalletsClient } from './client.js';
 import {
+  cancelRecoveryRequest,
+  executeRecoveryRequest,
+  startRecoveryRequest,
   swapRequest,
   transferSolRequest,
   transferTokenRequest,
@@ -189,6 +192,65 @@ describe('WalletsClient', () => {
       maxAccounts: 32,
       mode: 'fast',
       blockhashSlotsToExpiry: 10,
+    });
+  });
+
+  test('builds recovery requests for the transaction API', () => {
+    const wallets = new WalletsClient(
+      { post: async () => ({}) } as never,
+      'devnet',
+    );
+    const wallet = wallets.use({
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+
+    expect(
+      startRecoveryRequest(
+        wallet,
+        {
+          feePayer: 'payer_123',
+          guardianPubkey: 'guardian_123',
+          newAuthority: 'new_authority_123',
+        },
+        'devnet',
+      ),
+    ).toEqual({
+      network: 'NETWORK_DEVNET',
+      feePayer: 'payer_123',
+      swigAddress: 'swig_config_123',
+      guardianPubkey: 'guardian_123',
+      newAuthority: 'new_authority_123',
+    });
+    expect(
+      cancelRecoveryRequest(
+        wallet,
+        {
+          feePayer: 'payer_123',
+        },
+        'devnet',
+      ),
+    ).toEqual({
+      network: 'NETWORK_DEVNET',
+      feePayer: 'payer_123',
+      swigAddress: 'swig_config_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+    expect(
+      executeRecoveryRequest(
+        wallet,
+        {
+          feePayer: 'payer_123',
+          newAuthority: 'new_authority_123',
+        },
+        'devnet',
+      ),
+    ).toEqual({
+      network: 'NETWORK_DEVNET',
+      feePayer: 'payer_123',
+      swigAddress: 'swig_config_123',
+      newAuthority: 'new_authority_123',
     });
   });
 
@@ -552,5 +614,85 @@ describe('WalletsClient', () => {
       network: 'devnet',
       recentBlockhash: 'blockhash_789',
     });
+  });
+
+  test('prepares recovery flow through the transaction API', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          transaction: `base64-${calls.length}-tx`,
+          transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+          network: 'NETWORK_DEVNET',
+          recentBlockhash: 'blockhash_recovery',
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+          },
+        };
+      }),
+    });
+    const wallet = swig.wallets.use({
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+
+    const started = await wallet.recovery.start({
+      feePayer: 'payer_123',
+      guardianPubkey: 'guardian_123',
+      newAuthority: 'new_authority_123',
+    });
+    const cancelled = await wallet.recovery.cancel({
+      feePayer: 'payer_123',
+    });
+    const executed = await wallet.recovery.execute({
+      feePayer: 'payer_123',
+      newAuthority: 'new_authority_123',
+    });
+
+    expect(calls).toHaveLength(3);
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/recovery/start',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        guardianPubkey: 'guardian_123',
+        newAuthority: 'new_authority_123',
+      },
+    });
+    expect(calls[1]).toMatchObject({
+      url: 'http://localhost:8080/transaction/recovery/cancel',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+      },
+    });
+    expect(calls[2]).toMatchObject({
+      url: 'http://localhost:8080/transaction/recovery/execute',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        newAuthority: 'new_authority_123',
+      },
+    });
+    expect(started).toMatchObject({
+      transaction: 'base64-1-tx',
+      transactionEncoding: 'base64',
+      network: 'devnet',
+    });
+    expect(cancelled.transaction).toBe('base64-2-tx');
+    expect(executed.transaction).toBe('base64-3-tx');
   });
 });

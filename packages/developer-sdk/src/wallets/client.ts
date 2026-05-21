@@ -1,9 +1,11 @@
 import type { HttpClient } from '../core/index.js';
 import type {
+  CancelRecoveryArgs,
   CreateWalletArgs,
   CreateWalletResponseWire,
   CreateWalletResult,
   ExecuteArgs,
+  ExecuteRecoveryArgs,
   IdpWalletSession,
   Network,
   PrepareArgs,
@@ -11,6 +13,7 @@ import type {
   PreparedTransactionsResult,
   PreparedTransactionWire,
   PrepareTransactionsResponseWire,
+  StartRecoveryArgs,
   SwapArgs,
   TransferArgs,
   WalletHandleOptions,
@@ -23,10 +26,13 @@ import {
   normalizePrepareTransactionsResponse,
 } from './normalizers.js';
 import {
+  cancelRecoveryRequest,
   createWalletRequest,
+  executeRecoveryRequest,
   executeRequest,
   isTokenTransfer,
   prepareRequest,
+  startRecoveryRequest,
   swapRequest,
   transferSolRequest,
   transferTokenRequest,
@@ -145,6 +151,39 @@ export class WalletsClient {
     const response = await this.http.post<PreparedTransactionWire>(
       '/transaction/swap/jupiter',
       swapRequest(wallet, args, this.defaultNetwork),
+    );
+    return normalizePreparedTransaction(response);
+  };
+
+  startRecovery = async (
+    wallet: WalletHandle,
+    args: StartRecoveryArgs,
+  ): Promise<PreparedTransaction> => {
+    const response = await this.http.post<PreparedTransactionWire>(
+      '/transaction/recovery/start',
+      startRecoveryRequest(wallet, args, this.defaultNetwork),
+    );
+    return normalizePreparedTransaction(response);
+  };
+
+  cancelRecovery = async (
+    wallet: WalletHandle,
+    args: CancelRecoveryArgs,
+  ): Promise<PreparedTransaction> => {
+    const response = await this.http.post<PreparedTransactionWire>(
+      '/transaction/recovery/cancel',
+      cancelRecoveryRequest(wallet, args, this.defaultNetwork),
+    );
+    return normalizePreparedTransaction(response);
+  };
+
+  executeRecovery = async (
+    wallet: WalletHandle,
+    args: ExecuteRecoveryArgs,
+  ): Promise<PreparedTransaction> => {
+    const response = await this.http.post<PreparedTransactionWire>(
+      '/transaction/recovery/execute',
+      executeRecoveryRequest(wallet, args, this.defaultNetwork),
     );
     return normalizePreparedTransaction(response);
   };

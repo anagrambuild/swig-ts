@@ -8,10 +8,12 @@ export {
 
 export type {
   Amount,
+  CancelRecoveryArgs,
   CreateWalletArgs,
   CreateWalletResponse,
   CreateWalletResult,
   ExecuteArgs,
+  ExecuteRecoveryArgs,
   IdpWalletSession,
   JsonObject,
   JsonValue,
@@ -20,6 +22,7 @@ export type {
   PreparedTransactionWire,
   RetryOptions,
   SponsorSignedTransactionArgs,
+  StartRecoveryArgs,
   SubmittedTransaction,
   SubmittedTransactionWire,
   SwapArgs,
