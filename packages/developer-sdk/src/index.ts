@@ -5,10 +5,12 @@ export { WalletHandle, WalletsClient } from './wallets/index.js';
 
 export type {
   Amount,
+  CancelRecoveryArgs,
   CreateWalletArgs,
   CreateWalletResponse,
   CreateWalletResult,
   ExecuteArgs,
+  ExecuteRecoveryArgs,
   IdpWalletSession,
   JsonObject,
   JsonValue,
@@ -21,6 +23,7 @@ export type {
   SolanaInstruction,
   SolanaInstructionInput,
   SponsorSignedTransactionArgs,
+  StartRecoveryArgs,
   SubmittedTransaction,
   SubmittedTransactionWire,
   SwapArgs,

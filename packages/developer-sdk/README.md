@@ -265,6 +265,70 @@ client. Do not authority-sign `created.operatorSignedTransactions`; those
 already include the backend recovery operator signature and only need the final
 fee-payer or sponsor signature before submission.
 
+## Recovery Flow
+
+Recovery-enabled wallets can be created by passing a guardian public key. The
+backend installs the recovery authority and returns the operator-signed
+configure-recovery transaction in `operatorSignedTransactions`. The current
+backend requires `policyId` when `guardianPubkey` is provided.
+
+```typescript
+const created = await swig.wallets.create({
+  feePayer,
+  policyId,
+  initialUser: {
+    secp256r1: {
+      publicKey: passkeyPublicKey,
+    },
+  },
+  guardianPubkey: guardianPublicKey,
+});
+```
+
+After wallet creation, use the wallet recovery helper to prepare start, cancel,
+and execute transactions:
+
+```typescript
+import { signPreparedTransaction } from '@swig-wallet/developer-sdk/client';
+
+declare const signWithGuardian: Parameters<
+  typeof signPreparedTransaction
+>[1]['signTransaction'];
+
+const wallet = swig.wallets.use(created.wallet, {
+  requesterAuthority: {
+    secp256r1: {
+      publicKey: passkeyPublicKey,
+    },
+  },
+});
+
+const start = await wallet.recovery.start({
+  feePayer,
+  guardianPubkey: guardianPublicKey,
+  newAuthority: newAuthorityPublicKey,
+});
+const signedStart = await signPreparedTransaction(start, {
+  signTransaction: signWithGuardian,
+});
+
+const cancel = await wallet.recovery.cancel({
+  feePayer,
+});
+
+const execute = await wallet.recovery.execute({
+  feePayer,
+  newAuthority: newAuthorityPublicKey,
+});
+const signedExecute = await signPreparedTransaction(execute, {
+  signTransaction: signWithGuardian,
+});
+```
+
+The guardian signs both start and execute. The current wallet authority signs
+cancel. Execute is prepared after the recovery delay has elapsed and applies the
+recovered authority change.
+
 ## Public Entrypoints
 
 - `@swig-wallet/developer-sdk/server/typescript`: API-key server SDK for manual

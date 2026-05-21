@@ -1,9 +1,12 @@
 import type {
+  CancelRecoveryArgs,
   ExecuteArgs,
+  ExecuteRecoveryArgs,
   Network,
   PrepareArgs,
   PreparedTransaction,
   PreparedTransactionsResult,
+  StartRecoveryArgs,
   SwapArgs,
   TransferArgs,
   TransferSolArgs,
@@ -26,6 +29,12 @@ export type WalletSwapClient = {
   jupiter(args: SwapArgs): Promise<PreparedTransaction>;
 };
 
+export type WalletRecoveryClient = {
+  start(args: StartRecoveryArgs): Promise<PreparedTransaction>;
+  cancel(args: CancelRecoveryArgs): Promise<PreparedTransaction>;
+  execute(args: ExecuteRecoveryArgs): Promise<PreparedTransaction>;
+};
+
 export class WalletHandle {
   readonly swigConfigAddress: string;
   readonly walletAddress?: string;
@@ -33,6 +42,7 @@ export class WalletHandle {
   readonly requesterAuthority?: WalletReference['requesterAuthority'];
   readonly transfer: WalletTransferClient;
   readonly swap: WalletSwapClient;
+  readonly recovery: WalletRecoveryClient;
 
   constructor(
     private readonly wallets: WalletsClient,
@@ -44,6 +54,7 @@ export class WalletHandle {
     this.requesterAuthority = init.requesterAuthority;
     this.transfer = createWalletTransferClient(wallets, this);
     this.swap = createWalletSwapClient(wallets, this);
+    this.recovery = createWalletRecoveryClient(wallets, this);
   }
 
   prepare = (args: PrepareArgs): Promise<PreparedTransactionsResult> =>
@@ -76,4 +87,16 @@ function createWalletSwapClient(
   swap.jupiter = (args: SwapArgs) => wallets.jupiterSwap(wallet, args);
 
   return swap;
+}
+
+function createWalletRecoveryClient(
+  wallets: WalletsClient,
+  wallet: WalletHandle,
+): WalletRecoveryClient {
+  return {
+    start: (args: StartRecoveryArgs) => wallets.startRecovery(wallet, args),
+    cancel: (args: CancelRecoveryArgs) => wallets.cancelRecovery(wallet, args),
+    execute: (args: ExecuteRecoveryArgs) =>
+      wallets.executeRecovery(wallet, args),
+  };
 }

@@ -77,6 +77,25 @@ export interface SwapArgs {
   idempotencyKey?: string;
 }
 
+export interface BaseRecoveryArgs {
+  feePayer: string;
+  network?: Network;
+  idempotencyKey?: string;
+}
+
+export interface StartRecoveryArgs extends BaseRecoveryArgs {
+  guardianPubkey: string;
+  newAuthority: string;
+}
+
+export interface CancelRecoveryArgs extends BaseRecoveryArgs {
+  requesterAuthority?: WalletAuthority;
+}
+
+export interface ExecuteRecoveryArgs extends BaseRecoveryArgs {
+  newAuthority: string;
+}
+
 export interface ExecuteArgs {
   instructions: SolanaInstructionInput[];
   addressLookupTableAccounts?: string[];
