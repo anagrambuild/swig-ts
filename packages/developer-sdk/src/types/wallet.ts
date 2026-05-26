@@ -16,10 +16,13 @@ export interface WalletReference {
 export interface IdpWalletSession {
   configAddress: string;
   walletAddress: string;
+  authFlow?: 'session' | 'role';
+  updatedAt?: number;
   requesterAuthority?: WalletAuthority;
   authorityPublicKey?: string;
   /**
-   * Deprecated. The transaction API resolves the requester's role on-chain.
+   * Present on persisted IdP sessions. Local proxy handlers can use it to
+   * resolve requester authority server-side.
    */
   roleId?: number;
 }

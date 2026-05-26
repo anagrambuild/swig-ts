@@ -57,28 +57,41 @@ export const { POST } = createSwigRouteHandlers({
 
 ## Client Usage
 
-Once the route is installed, browser code can call it directly:
+Once the route is installed, browser code can use the browser client. It calls
+your local app route only; the Swig developer API key stays on the server.
 
 ```typescript
 import { signPreparedTransaction } from '@swig-wallet/developer-sdk/client';
+import { SwigBrowserClient } from '@swig-wallet/developer-sdk/browser';
 
-const { prepared } = await fetch('/api/swig/transfer/sol', {
-  method: 'POST',
-  headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({
-    network: 'devnet',
-    wallet: {
-      swigConfigAddress,
-      walletAddress,
-      requesterAuthority: { ed25519: { publicKey: userPublicKey } },
-    },
-    destination,
-    amount: '1000000',
-  }),
-}).then((response) => response.json());
+const swig = new SwigBrowserClient({ network: 'devnet' });
+const wallet = swig.wallets.fromIdpSession(session);
+
+const prepared = await wallet.transfer.sol({
+  destination,
+  amount: 1_000_000n,
+});
 
 const signed = await signPreparedTransaction(prepared, {
   signTransaction: (transaction) => signPreparedSwigTransaction(transaction),
+});
+```
+
+The same wallet handle also supports SPL transfers and Jupiter swap
+preparation:
+
+```typescript
+await wallet.transfer.token({
+  mint,
+  destinationOwner,
+  amount: '2500',
+});
+
+await wallet.swap.jupiter({
+  inputMint,
+  outputMint,
+  amount: '1000000',
+  slippageBps: 75,
 });
 ```
 
@@ -89,8 +102,8 @@ resolve it server-side:
 
 ```typescript
 export const { POST } = createSwigRouteHandlers({
-  resolveRequesterAuthority: async ({ wallet, body }) => {
-    return wallet?.requesterAuthority ?? lookupRequesterForUser(body);
+  resolveRequesterAuthority: async ({ wallet }) => {
+    return wallet?.requesterAuthority ?? lookupRequesterForRole(wallet?.roleId);
   },
 });
 ```

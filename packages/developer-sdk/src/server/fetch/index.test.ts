@@ -341,9 +341,13 @@ describe('createSwigFetchHandler', () => {
       apiKey: 'sk_test',
       transactionApiUrl: 'http://localhost:8080',
       feePayer: 'payer_123',
-      resolveRequesterAuthority: () => ({
-        ed25519: { publicKey: 'requester_123' },
-      }),
+      resolveRequesterAuthority: ({ wallet }) => {
+        expect(wallet?.roleId).toBe(2);
+        expect(wallet?.authorityPublicKey).toBe('authority_123');
+        return {
+          ed25519: { publicKey: 'requester_123' },
+        };
+      },
       fetch: jsonFetch((request) => {
         calls.push(request);
         return {
@@ -359,6 +363,8 @@ describe('createSwigFetchHandler', () => {
         body: JSON.stringify({
           wallet: {
             swigConfigAddress: 'swig_config_123',
+            roleId: 2,
+            authorityPublicKey: 'authority_123',
           },
           network: 'devnet',
           destination: 'destination_123',
