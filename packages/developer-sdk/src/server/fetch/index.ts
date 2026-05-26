@@ -18,11 +18,16 @@ export type SwigProxyRoute =
   | 'transfer/spl-token'
   | 'swap/jupiter';
 
+export interface SwigProxyWalletReference extends WalletReference {
+  roleId?: number;
+  authorityPublicKey?: string;
+}
+
 export interface SwigRouteContext {
   request: Request;
   route: SwigProxyRoute;
   body: Record<string, unknown>;
-  wallet?: WalletReference;
+  wallet?: SwigProxyWalletReference;
   network?: Network;
 }
 
@@ -422,7 +427,7 @@ async function readJsonObject(
   return body;
 }
 
-function readWallet(value: unknown): WalletReference | undefined {
+function readWallet(value: unknown): SwigProxyWalletReference | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -433,6 +438,8 @@ function readWallet(value: unknown): WalletReference | undefined {
   return {
     swigConfigAddress: readRequiredString(value, 'swigConfigAddress'),
     walletAddress: readOptionalString(value, 'walletAddress'),
+    roleId: readOptionalNumber(value, 'roleId'),
+    authorityPublicKey: readOptionalString(value, 'authorityPublicKey'),
     requesterAuthority: readWalletAuthority(
       value.requesterAuthority,
       'wallet.requesterAuthority',
