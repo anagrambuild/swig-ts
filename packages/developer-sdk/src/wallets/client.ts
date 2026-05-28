@@ -285,7 +285,9 @@ function recoverySetupPlanFromPolicy(
     delaySeconds:
       args.recovery?.delaySeconds ??
       normalizePolicyDelaySeconds(policy.guardianDelaySeconds),
-    targetRoleId: args.recovery?.targetRoleId ?? 0,
+    ...(args.recovery?.targetRoleId === undefined
+      ? {}
+      : { targetRoleId: args.recovery.targetRoleId }),
   };
 }
 

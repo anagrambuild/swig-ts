@@ -261,7 +261,6 @@ describe('createSwigFetchHandler', () => {
           },
           guardianPubkey: 'guardian_123',
           delaySeconds: 1,
-          targetRoleId: 0,
         },
       },
     });
