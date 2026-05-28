@@ -422,9 +422,7 @@ async function runRecoverySmoke(connection: Connection) {
   }
   const recoverySetup = await wallet.recovery.prepareSetup({
     feePayer: recoveryFeePayer.publicKey.toBase58(),
-    guardianPubkey: created.recoverySetup.guardianPubkey,
-    delaySeconds: created.recoverySetup.delaySeconds,
-    targetRoleId: created.recoverySetup.targetRoleId,
+    ...created.recoverySetup,
   });
 
   const addRecoverySignature = await signSwigAndSendPreparedTransaction(

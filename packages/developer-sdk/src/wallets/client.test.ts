@@ -432,7 +432,6 @@ describe('WalletsClient', () => {
       },
       guardianPubkey: 'guardian_123',
       delaySeconds: 86_400,
-      targetRoleId: 0,
     });
   });
 
@@ -497,7 +496,6 @@ describe('WalletsClient', () => {
       },
       guardianPubkey: 'guardian_123',
       delaySeconds: 1,
-      targetRoleId: 0,
     });
   });
 
@@ -801,7 +799,7 @@ describe('WalletsClient', () => {
     });
   });
 
-  test('prepares recovery setup through the explicit setup endpoints', async () => {
+  test('prepares recovery setup from a create-time setup plan', async () => {
     const calls: CapturedRequest[] = [];
     const swig = new SwigClient({
       apiKey: 'sk_test',
@@ -846,13 +844,16 @@ describe('WalletsClient', () => {
     const wallet = swig.wallets.use({
       swigConfigAddress: 'swig_config_123',
       walletAddress: 'wallet_123',
-      requesterAuthority: { secp256r1: { publicKey: 'passkey_123' } },
     });
+    const recoverySetup = {
+      requesterAuthority: { secp256r1: { publicKey: 'passkey_123' } },
+      guardianPubkey: 'guardian_123',
+      delaySeconds: 86_400,
+    } as const;
 
     const prepared = await wallet.recovery.prepareSetup({
       feePayer: 'payer_123',
-      guardianPubkey: 'guardian_123',
-      delaySeconds: 86_400,
+      ...recoverySetup,
     });
 
     expect(calls).toHaveLength(2);

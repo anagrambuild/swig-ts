@@ -267,10 +267,9 @@ fee-payer or sponsor signature before submission.
 
 ## Recovery Flow
 
-Recovery-enabled wallets can be created by passing a guardian public key. The
-backend installs the recovery authority and returns the operator-signed
-configure-recovery transaction in `operatorSignedTransactions`. The current
-backend requires `policyId` when `guardianPubkey` is provided.
+Recovery-enabled wallets should be created from a recovery-enabled policy. Pass
+the guardian once at wallet creation; the SDK returns a `recoverySetup` plan that
+can be fed directly into the setup helper.
 
 ```typescript
 const created = await swig.wallets.create({
@@ -281,12 +280,41 @@ const created = await swig.wallets.create({
       publicKey: passkeyPublicKey,
     },
   },
-  guardianPubkey: guardianPublicKey,
+  recovery: {
+    guardianPubkey: guardianPublicKey,
+    delaySeconds: 86_400,
+  },
 });
 ```
 
-After wallet creation, use the wallet recovery helper to prepare start, cancel,
-and execute transactions:
+Submit the creation transaction, then prepare the recovery setup from the plan
+returned by create. The add-authority transaction is signed by the current
+passkey authority; the configure-recovery transaction is already signed by
+Swig's recovery operator and only needs the fee payer or sponsor path.
+
+```typescript
+import { signPreparedSwigTransaction } from '@swig-wallet/developer-sdk/client';
+
+await submitPrepared(created.creationTransaction!);
+
+const wallet = swig.wallets.use(created.wallet);
+
+const setup = await wallet.recovery.prepareSetup({
+  feePayer,
+  ...created.recoverySetup!,
+});
+
+const signedAddAuthority = await signPreparedSwigTransaction(
+  setup.addAuthorityTransaction!,
+  { secp256r1: passkeySigningFn },
+);
+
+await submitPrepared(signedAddAuthority);
+await submitPrepared(setup.configureRecoveryTransaction!);
+```
+
+After setup, the guardian can start recovery and execute after the configured
+delay. The current wallet authority can cancel a pending recovery.
 
 ```typescript
 import { signPreparedTransaction } from '@swig-wallet/developer-sdk/client';
@@ -294,14 +322,6 @@ import { signPreparedTransaction } from '@swig-wallet/developer-sdk/client';
 declare const signWithGuardian: Parameters<
   typeof signPreparedTransaction
 >[1]['signTransaction'];
-
-const wallet = swig.wallets.use(created.wallet, {
-  requesterAuthority: {
-    secp256r1: {
-      publicKey: passkeyPublicKey,
-    },
-  },
-});
 
 const start = await wallet.recovery.start({
   feePayer,
