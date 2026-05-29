@@ -4,11 +4,12 @@ import {
 } from '@solana-program/system';
 import {
   AccountRole,
-  generateKeyPairSigner,
+  createKeyPairSignerFromBytes,
+  getTransactionEncoder,
   type Address,
   type Blockhash,
-  type IInstruction,
   type KeyPairSigner,
+  type Transaction as KitTransaction,
 } from '@solana/kit';
 import {
   Keypair,
@@ -21,13 +22,13 @@ import {
   Actions,
   batchSignTransactions,
   createEd25519AuthorityInfo,
-  fetchSwig,
   findSwigPda,
   getAddAuthorityInstructions,
   getCreateSwigInstruction,
   getSwigWalletAddress,
   Swig,
   SWIG_PROGRAM_ADDRESS,
+  type KitInstruction,
   type SwigFetchFn,
 } from '@swig-wallet/kit';
 import {
@@ -74,20 +75,26 @@ function fetchSwig(
     const address =
       typeof swigAccountAddress === 'string'
         ? new PublicKey(swigAccountAddress)
-        : swigAccountAddress;
+        : swigAccountAddress instanceof Uint8Array
+          ? new PublicKey(swigAccountAddress)
+          : new PublicKey(swigAccountAddress.toBytes());
     const account = svm.getAccount(address);
     if (!account) throw new Error('swig account not found');
     return getSwigCodec().decode(account.data);
   };
 
-  return new Swig(swigAccountAddress.toBase58() as Address, swigAccount, swigFetchFn);
+  return new Swig(
+    swigAccountAddress.toBase58() as Address,
+    swigAccount,
+    swigFetchFn,
+  );
 }
 
 function getSolTransferInstruction(args: {
   fromAddress: Address;
   toAddress: Address;
   lamports: bigint;
-}): IInstruction {
+}): KitInstruction {
   return {
     programAddress: SYSTEM_PROGRAM_ADDRESS,
     accounts: [
@@ -104,25 +111,11 @@ function getSolTransferInstruction(args: {
 
 // Convert Kit signed transaction to web3.js Transaction for LiteSVM
 function convertKitTransactionToWeb3(
-  kitSignedTransaction: Awaited<
-    ReturnType<typeof import('@solana/kit').signTransactionMessageWithSigners>
-  >,
+  kitTransaction: KitTransaction,
 ): Transaction {
-  // Get serialized bytes from Kit transaction
-  let serialized: Uint8Array;
-  if (
-    'serialize' in kitSignedTransaction &&
-    typeof kitSignedTransaction.serialize === 'function'
-  ) {
-    serialized = kitSignedTransaction.serialize();
-  } else if ('serializedBytes' in kitSignedTransaction) {
-    serialized = kitSignedTransaction.serializedBytes as Uint8Array;
-  } else {
-    throw new Error('Unable to serialize Kit transaction');
-  }
-
-  // Deserialize into web3.js Transaction
-  return Transaction.from(serialized);
+  return Transaction.from(
+    new Uint8Array(getTransactionEncoder().encode(kitTransaction)),
+  );
 }
 
 console.log('starting batch signing example (Kit)...');
@@ -175,8 +168,12 @@ createTx.add({
   programId: new PublicKey(createSwigInstruction.programAddress),
   keys: createSwigInstruction.accounts.map((acc) => ({
     pubkey: new PublicKey(acc.address),
-    isSigner: acc.role === AccountRole.WRITABLE_SIGNER || acc.role === AccountRole.READONLY_SIGNER,
-    isWritable: acc.role === AccountRole.WRITABLE_SIGNER || acc.role === AccountRole.WRITABLE,
+    isSigner:
+      acc.role === AccountRole.WRITABLE_SIGNER ||
+      acc.role === AccountRole.READONLY_SIGNER,
+    isWritable:
+      acc.role === AccountRole.WRITABLE_SIGNER ||
+      acc.role === AccountRole.WRITABLE,
   })),
   data: Buffer.from(createSwigInstruction.data),
 });
@@ -226,8 +223,12 @@ for (const ix of addAuthorityIx) {
     programId: new PublicKey(ix.programAddress),
     keys: ix.accounts.map((acc) => ({
       pubkey: new PublicKey(acc.address),
-      isSigner: acc.role === AccountRole.WRITABLE_SIGNER || acc.role === AccountRole.READONLY_SIGNER,
-      isWritable: acc.role === AccountRole.WRITABLE_SIGNER || acc.role === AccountRole.WRITABLE,
+      isSigner:
+        acc.role === AccountRole.WRITABLE_SIGNER ||
+        acc.role === AccountRole.READONLY_SIGNER,
+      isWritable:
+        acc.role === AccountRole.WRITABLE_SIGNER ||
+        acc.role === AccountRole.WRITABLE,
     })),
     data: Buffer.from(ix.data),
   });
@@ -261,7 +262,7 @@ console.log(
 // Create multiple transfer instructions for batch signing
 //
 const transferAmount = 0.1 * LAMPORTS_PER_SOL;
-const transfers: IInstruction[] = [];
+const transfers: KitInstruction[] = [];
 
 // Create 3 transfer instructions
 for (let i = 0; i < 3; i++) {
@@ -282,18 +283,9 @@ const latestBlockhash = svm.latestBlockhash();
 //
 console.log('\n=== Batch Signing: Full Sign (Swig + all signers) ===');
 
-// Create a KeyPairSigner from web3.js Keypair
-// We need to extract the secretKey and use it to sign
-const dappAuthoritySigner: KeyPairSigner = {
-  address: dappAuthorityKeypair.publicKey.toBase58() as Address,
-  signMessage: async (message: Uint8Array) => {
-    // Use nacl to sign the message with the keypair's secretKey
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const nacl = require('tweetnacl');
-    const signature = nacl.sign.detached(message, dappAuthorityKeypair.secretKey);
-    return new Uint8Array(signature);
-  },
-};
+const dappAuthoritySigner: KeyPairSigner = await createKeyPairSignerFromBytes(
+  dappAuthorityKeypair.secretKey,
+);
 
 const freshBlockhash = svm.latestBlockhash();
 const freshBlockhashObj: Readonly<{
@@ -390,4 +382,3 @@ console.log(
 );
 
 console.log('\n✅ Batch signing example completed!');
-
