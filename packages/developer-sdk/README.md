@@ -256,6 +256,32 @@ const signedCreateTransactions = await signPreparedSwigTransactions(
 );
 ```
 
+### EVM Transaction Signing
+
+Use this when the prepared transaction contains a `secp256k1` signature request.
+The helper wraps an EIP-1193 provider with `personal_sign` and adds the Ethereum
+message prefix expected by Swig's secp256k1 authority payload.
+
+```typescript
+import {
+  createSecp256k1EvmSigningFn,
+  signPreparedSwigTransaction,
+  type PreparedTransaction,
+} from '@swig-wallet/developer-sdk/client';
+
+declare const prepared: PreparedTransaction;
+declare const evmAddress: string;
+
+const evmSigningFn = createSecp256k1EvmSigningFn({
+  provider: window.ethereum,
+  address: evmAddress,
+});
+
+const signed = await signPreparedSwigTransaction(prepared, {
+  secp256k1: evmSigningFn,
+});
+```
+
 After signing, pass `signed` to your app-owned send or sponsor flow. On your
 server, `swig.transactions.sponsor(signed)` handles the deployed paymaster route
 and base58 payload encoding expected by the backend.

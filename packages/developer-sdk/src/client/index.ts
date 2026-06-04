@@ -1,10 +1,15 @@
 import type { PreparedTransaction } from '../types/index.js';
 
+export { createSecp256k1EvmSigningFn } from '../evm/index.js';
 export { createSecp256r1PasskeySigningFn } from '../passkeys/index.js';
 export type {
+  CreateSecp256k1EvmSigningFnOptions,
+  Eip1193Provider,
   PasskeySigningFn,
   PasskeySigningResult,
   PreparedTransaction,
+  Secp256k1SigningFn,
+  Secp256k1SigningResult,
   TransactionEncoding,
 } from '../types/index.js';
 export {
@@ -12,6 +17,7 @@ export {
   signPreparedSwigTransactions,
 } from './swig-signing.js';
 export type {
+  Secp256k1SigningFns,
   Secp256r1SigningFns,
   SignPreparedSwigTransactionOptions,
 } from './swig-signing.js';

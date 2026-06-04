@@ -137,6 +137,46 @@ describe('client signing helpers', () => {
     expect(signed).toHaveLength(2);
     expect(challenges).toEqual([firstMessageHash, secondMessageHash]);
   });
+
+  test('signPreparedSwigTransaction patches secp256k1 SignV2 authority payloads', async () => {
+    const publicKey = Uint8Array.from({ length: 33 }, (_, index) =>
+      index === 0 ? 2 : index + 20,
+    );
+    const messageHash = Uint8Array.from(
+      { length: 32 },
+      (_, index) => 200 - index,
+    );
+    const messageHashHex = bytesToHex(messageHash);
+    const signature = Uint8Array.from(
+      { length: 65 },
+      (_, index) => 120 - index,
+    );
+    signature[64] = 27;
+    const prefix = asciiToBytes('\x19Ethereum Signed Message:\n64');
+    const prepared = preparedSecp256k1SwigTransaction(
+      publicKey,
+      messageHashHex,
+      12,
+      34,
+    );
+
+    const signed = await signPreparedSwigTransaction(prepared, {
+      secp256k1: async (message) => {
+        expect(message).toEqual(asciiToBytes(messageHashHex));
+        return { signature, prefix };
+      },
+    });
+
+    const transaction = Transaction.from(base64ToBytes(signed.transaction));
+    const authorityPayload = readAuthorityPayload(
+      new Uint8Array(transaction.instructions[0].data),
+    );
+
+    expect(readU64(authorityPayload, 0)).toBe(12n);
+    expect(readU32(authorityPayload, 8)).toBe(34);
+    expect(authorityPayload.slice(12, 77)).toEqual(signature);
+    expect([...authorityPayload.slice(77)]).toEqual([...prefix]);
+  });
 });
 
 const SECP256R1_PROGRAM_ID = new PublicKey(
@@ -194,6 +234,46 @@ function preparedSwigTransaction(
   };
 }
 
+function preparedSecp256k1SwigTransaction(
+  publicKey: Uint8Array,
+  messageHash: string,
+  slot: number,
+  counter: number,
+): PreparedTransaction {
+  const transaction = new Transaction({
+    feePayer: FEE_PAYER,
+    recentBlockhash: '11111111111111111111111111111111',
+  }).add(
+    new TransactionInstruction({
+      programId: SWIG_PROGRAM_ID,
+      keys: [],
+      data: Buffer.from(
+        signV2InstructionData(secp256k1AuthorityPayload(slot, counter)),
+      ),
+    }),
+  );
+
+  return {
+    transaction: bytesToBase64(
+      transaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      }),
+    ),
+    transactionEncoding: 'base64',
+    network: 'devnet',
+    signatureRequests: [
+      {
+        scheme: 'secp256k1',
+        signer: bytesToHex(publicKey),
+        messageHash,
+        slot,
+        counter,
+      },
+    ],
+  };
+}
+
 function encodeSecp256r1InstructionData(args: {
   publicKey: Uint8Array;
   signature: Uint8Array;
@@ -237,10 +317,13 @@ function parseSecp256r1InstructionData(data: Uint8Array): {
   };
 }
 
-function signV2InstructionData(): Uint8Array {
+function signV2InstructionData(
+  authorityPayload = baseAuthorityPayload(),
+): Uint8Array {
   const compactInstructionPayload = Uint8Array.from([11, 22, 33]);
-  const authorityPayload = baseAuthorityPayload();
-  const data = new Uint8Array(8 + compactInstructionPayload.length + 17);
+  const data = new Uint8Array(
+    8 + compactInstructionPayload.length + authorityPayload.length,
+  );
   const view = new DataView(data.buffer);
 
   view.setUint16(0, 11, true);
@@ -250,6 +333,14 @@ function signV2InstructionData(): Uint8Array {
   data.set(authorityPayload, 8 + compactInstructionPayload.length);
 
   return data;
+}
+
+function secp256k1AuthorityPayload(slot: number, counter: number): Uint8Array {
+  const payload = new Uint8Array(77);
+  const view = new DataView(payload.buffer);
+  view.setBigUint64(0, BigInt(slot), true);
+  view.setUint32(8, counter, true);
+  return payload;
 }
 
 function baseAuthorityPayload(): Uint8Array {
@@ -268,6 +359,21 @@ function readU16(data: Uint8Array, offset: number): number {
   );
 }
 
+function readU32(data: Uint8Array, offset: number): number {
+  return new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(
+    offset,
+    true,
+  );
+}
+
+function readU64(data: Uint8Array, offset: number): bigint {
+  return new DataView(
+    data.buffer,
+    data.byteOffset,
+    data.byteLength,
+  ).getBigUint64(offset, true);
+}
+
 function bytesToHex(bytes: Uint8Array): string {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -276,6 +382,14 @@ function concatBytes(left: Uint8Array, right: Uint8Array): Uint8Array {
   const bytes = new Uint8Array(left.length + right.length);
   bytes.set(left);
   bytes.set(right, left.length);
+  return bytes;
+}
+
+function asciiToBytes(value: string): Uint8Array {
+  const bytes = new Uint8Array(value.length);
+  for (let index = 0; index < value.length; index++) {
+    bytes[index] = value.charCodeAt(index);
+  }
   return bytes;
 }
 
