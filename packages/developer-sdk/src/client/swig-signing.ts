@@ -4,6 +4,7 @@ import type {
   ClientSignatureRequest,
   PasskeySigningFn,
   PreparedTransaction,
+  Secp256k1SigningFn,
 } from '../types/index.js';
 import type { SignedPreparedTransaction } from './index.js';
 
@@ -18,14 +19,21 @@ const SECP256R1_AUTHORITY_PAYLOAD_SIZE = 17;
 const SECP256R1_PUBLIC_KEY_SIZE = 33;
 const SECP256R1_SIGNATURE_SIZE = 64;
 const SECP256R1_HEADER_SIZE = 16;
+const SECP256K1_AUTHORITY_PAYLOAD_SIZE = 77;
+const SECP256K1_SIGNATURE_SIZE = 65;
+const SECP256K1_SIGNATURE_OFFSET = 12;
 const U16_MAX = 65535;
 
 export type Secp256r1SigningFns =
   | PasskeySigningFn
   | Record<string, PasskeySigningFn>;
+export type Secp256k1SigningFns =
+  | Secp256k1SigningFn
+  | Record<string, Secp256k1SigningFn>;
 
 export interface SignPreparedSwigTransactionOptions {
-  secp256r1: Secp256r1SigningFns;
+  secp256r1?: Secp256r1SigningFns;
+  secp256k1?: Secp256k1SigningFns;
 }
 
 type SwigTransaction = Transaction | VersionedTransaction;
@@ -76,12 +84,24 @@ async function applySignatureRequest(
   request: ClientSignatureRequest,
   options: SignPreparedSwigTransactionOptions,
 ) {
-  if (request.scheme !== 'secp256r1') {
-    throw new Error(
-      `Client signing for ${request.scheme} prepared transactions is not supported yet`,
-    );
+  switch (request.scheme) {
+    case 'secp256r1':
+      await applySecp256r1SignatureRequest(transaction, request, options);
+      return;
+    case 'secp256k1':
+      await applySecp256k1SignatureRequest(transaction, request, options);
+      return;
   }
+}
 
+async function applySecp256r1SignatureRequest(
+  transaction: SwigTransaction,
+  request: ClientSignatureRequest,
+  options: SignPreparedSwigTransactionOptions,
+) {
+  if (!options.secp256r1) {
+    throw new Error('No secp256r1 signing function registered');
+  }
   const publicKey = hexToBytes(request.signer);
   if (publicKey.length !== SECP256R1_PUBLIC_KEY_SIZE) {
     throw new Error('Secp256r1 signature request signer must be 33 bytes');
@@ -120,12 +140,47 @@ async function applySignatureRequest(
     setInstructionData(
       transaction,
       signV2InstructionIndex,
-      patchSignV2AuthorityPayload(
+      patchSignV2AuthorityPayloadPrefix(
         getInstructionData(transaction, signV2InstructionIndex),
         signingResult.prefix,
+        SECP256R1_AUTHORITY_PAYLOAD_SIZE,
+        'secp256r1',
       ),
     );
   }
+}
+
+async function applySecp256k1SignatureRequest(
+  transaction: SwigTransaction,
+  request: ClientSignatureRequest,
+  options: SignPreparedSwigTransactionOptions,
+) {
+  if (!options.secp256k1) {
+    throw new Error('No secp256k1 signing function registered');
+  }
+
+  const signingFn = resolveSecp256k1SigningFn(request, options.secp256k1);
+  const message = asciiToBytes(normalizeHex(request.messageHash));
+  const signingResult = await signingFn(message);
+
+  if (signingResult.signature.length !== SECP256K1_SIGNATURE_SIZE) {
+    throw new Error('Secp256k1 signature must be 65 bytes');
+  }
+
+  const signV2InstructionIndex = findSignV2InstructionIndexForSecp256k1(
+    transaction,
+    request,
+  );
+  setInstructionData(
+    transaction,
+    signV2InstructionIndex,
+    patchSignV2Secp256k1AuthorityPayload(
+      getInstructionData(transaction, signV2InstructionIndex),
+      request,
+      signingResult.signature,
+      signingResult.prefix,
+    ),
+  );
 }
 
 function resolveSecp256r1SigningFn(
@@ -145,6 +200,29 @@ function resolveSecp256r1SigningFn(
   if (!signingFn) {
     throw new Error(
       `No secp256r1 signing function registered for signer ${request.signer}`,
+    );
+  }
+
+  return signingFn;
+}
+
+function resolveSecp256k1SigningFn(
+  request: ClientSignatureRequest,
+  signingFns: Secp256k1SigningFns,
+): Secp256k1SigningFn {
+  if (typeof signingFns === 'function') {
+    return signingFns;
+  }
+
+  const normalizedSigner = normalizeHex(request.signer);
+  const signingFn =
+    signingFns[normalizedSigner] ??
+    signingFns[`0x${normalizedSigner}`] ??
+    signingFns[request.signer];
+
+  if (!signingFn) {
+    throw new Error(
+      `No secp256k1 signing function registered for signer ${request.signer}`,
     );
   }
 
@@ -224,6 +302,49 @@ function findFollowingSignV2InstructionIndex(
   );
 }
 
+function findSignV2InstructionIndexForSecp256k1(
+  transaction: SwigTransaction,
+  request: ClientSignatureRequest,
+): number {
+  const fallbackIndexes: number[] = [];
+
+  for (let index = 0; index < instructionCount(transaction); index++) {
+    if (!getInstructionProgramId(transaction, index).equals(SWIG_PROGRAM_ID)) {
+      continue;
+    }
+
+    const instructionData = getInstructionData(transaction, index);
+    if (readU16(instructionData, 0) !== SIGN_V2_DISCRIMINATOR) {
+      continue;
+    }
+
+    const authorityPayloadOffset =
+      getSignV2AuthorityPayloadOffset(instructionData);
+    if (
+      instructionData.length <
+      authorityPayloadOffset + SECP256K1_AUTHORITY_PAYLOAD_SIZE
+    ) {
+      continue;
+    }
+
+    fallbackIndexes.push(index);
+
+    if (
+      readU64(instructionData, authorityPayloadOffset) ===
+        BigInt(request.slot) &&
+      readU32(instructionData, authorityPayloadOffset + 8) === request.counter
+    ) {
+      return index;
+    }
+  }
+
+  if (fallbackIndexes.length === 1) {
+    return fallbackIndexes[0];
+  }
+
+  throw new Error('Matching secp256k1 Swig SignV2 instruction not found');
+}
+
 function encodeSecp256r1SignatureInstruction(args: {
   publicKey: Uint8Array;
   signature: Uint8Array;
@@ -282,29 +403,76 @@ function parseSecp256r1SignatureInstruction(data: Uint8Array):
   };
 }
 
-function patchSignV2AuthorityPayload(
+function patchSignV2AuthorityPayloadPrefix(
   instructionData: Uint8Array,
   prefix: Uint8Array,
+  fixedPayloadSize: number,
+  scheme: string,
 ): Uint8Array {
-  const instructionPayloadLength = readU16(instructionData, 2);
-  const authorityPayloadOffset = 8 + instructionPayloadLength;
+  const authorityPayloadOffset =
+    getSignV2AuthorityPayloadOffset(instructionData);
 
-  if (
-    instructionData.length <
-    authorityPayloadOffset + SECP256R1_AUTHORITY_PAYLOAD_SIZE
-  ) {
+  if (instructionData.length < authorityPayloadOffset + fixedPayloadSize) {
     throw new Error(
-      'Swig SignV2 instruction is missing secp256r1 authority payload',
+      `Swig SignV2 instruction is missing ${scheme} authority payload`,
     );
   }
 
-  const fixedPayloadEnd =
-    authorityPayloadOffset + SECP256R1_AUTHORITY_PAYLOAD_SIZE;
+  const fixedPayloadEnd = authorityPayloadOffset + fixedPayloadSize;
   const patched = new Uint8Array(fixedPayloadEnd + prefix.length);
   patched.set(instructionData.slice(0, fixedPayloadEnd));
   patched.set(prefix, fixedPayloadEnd);
 
   return patched;
+}
+
+function patchSignV2Secp256k1AuthorityPayload(
+  instructionData: Uint8Array,
+  request: ClientSignatureRequest,
+  signature: Uint8Array,
+  prefix?: Uint8Array,
+): Uint8Array {
+  const authorityPayloadOffset =
+    getSignV2AuthorityPayloadOffset(instructionData);
+
+  if (
+    instructionData.length <
+    authorityPayloadOffset + SECP256K1_AUTHORITY_PAYLOAD_SIZE
+  ) {
+    throw new Error(
+      'Swig SignV2 instruction is missing secp256k1 authority payload',
+    );
+  }
+
+  if (!Number.isSafeInteger(request.slot) || request.slot < 0) {
+    throw new Error('Secp256k1 signature request slot must be a safe integer');
+  }
+
+  if (
+    !Number.isSafeInteger(request.counter) ||
+    request.counter < 0 ||
+    request.counter > 0xffffffff
+  ) {
+    throw new Error('Secp256k1 signature request counter must fit in u32');
+  }
+
+  const fixedPayloadEnd =
+    authorityPayloadOffset + SECP256K1_AUTHORITY_PAYLOAD_SIZE;
+  const prefixPayload = prefix ?? new Uint8Array(0);
+  const patched = new Uint8Array(fixedPayloadEnd + prefixPayload.length);
+  patched.set(instructionData.slice(0, fixedPayloadEnd));
+
+  const view = new DataView(patched.buffer, patched.byteOffset);
+  view.setBigUint64(authorityPayloadOffset, BigInt(request.slot), true);
+  view.setUint32(authorityPayloadOffset + 8, request.counter, true);
+  patched.set(signature, authorityPayloadOffset + SECP256K1_SIGNATURE_OFFSET);
+  patched.set(prefixPayload, fixedPayloadEnd);
+
+  return patched;
+}
+
+function getSignV2AuthorityPayloadOffset(instructionData: Uint8Array): number {
+  return 8 + readU16(instructionData, 2);
 }
 
 function instructionCount(transaction: SwigTransaction): number {
@@ -389,12 +557,41 @@ function readU16(data: Uint8Array, offset: number): number {
   );
 }
 
+function readU32(data: Uint8Array, offset: number): number {
+  if (data.length < offset + 4) {
+    throw new Error('Instruction data is too short');
+  }
+  return new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(
+    offset,
+    true,
+  );
+}
+
+function readU64(data: Uint8Array, offset: number): bigint {
+  if (data.length < offset + 8) {
+    throw new Error('Instruction data is too short');
+  }
+  return new DataView(
+    data.buffer,
+    data.byteOffset,
+    data.byteLength,
+  ).getBigUint64(offset, true);
+}
+
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   if (left.length !== right.length) {
     return false;
   }
 
   return left.every((value, index) => value === right[index]);
+}
+
+function asciiToBytes(value: string): Uint8Array {
+  const bytes = new Uint8Array(value.length);
+  for (let index = 0; index < value.length; index++) {
+    bytes[index] = value.charCodeAt(index);
+  }
+  return bytes;
 }
 
 function base64ToBytes(value: string): Uint8Array {
