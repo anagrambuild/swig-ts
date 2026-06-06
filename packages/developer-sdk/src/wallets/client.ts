@@ -9,6 +9,11 @@ import type {
   ExecuteArgs,
   ExecuteRecoveryArgs,
   IdpWalletSession,
+  ListSwigTokenBalancesResult,
+  ListSwigTokenBalancesWire,
+  ListSwigTokenTransactionsArgs,
+  ListSwigTokenTransactionsResult,
+  ListSwigTokenTransactionsWire,
   Network,
   Policy,
   PrepareArgs,
@@ -21,9 +26,12 @@ import type {
   RecoverySetupPlan,
   StartRecoveryArgs,
   SwapArgs,
+  SwigUsdBalance,
+  SwigUsdBalanceWire,
   TransferArgs,
   WalletAuthority,
   WalletHandleOptions,
+  WalletReadArgs,
   WalletReference,
 } from '../types/index.js';
 import { WalletHandle } from './handle.js';
@@ -31,6 +39,9 @@ import {
   normalizeCreateWalletResponse,
   normalizePreparedTransaction,
   normalizePrepareTransactionsResponse,
+  normalizeSwigTokenBalances,
+  normalizeSwigTokenTransactions,
+  normalizeSwigUsdBalance,
 } from './normalizers.js';
 import {
   addRecoveryAuthorityRequest,
@@ -83,6 +94,43 @@ export class WalletsClient {
     return this.http.get<Policy>(
       `/wallet/policies/${encodeURIComponent(policyId)}`,
     );
+  };
+
+  getUsdBalance = async (
+    wallet: WalletHandle,
+    args: WalletReadArgs = {},
+  ): Promise<SwigUsdBalance> => {
+    const response = await this.http.get<SwigUsdBalanceWire>(
+      walletReadPath(wallet, 'balance/usd', {
+        network: args.network ?? wallet.network ?? this.defaultNetwork,
+      }),
+    );
+    return normalizeSwigUsdBalance(response);
+  };
+
+  listTokenBalances = async (
+    wallet: WalletHandle,
+    args: WalletReadArgs = {},
+  ): Promise<ListSwigTokenBalancesResult> => {
+    const response = await this.http.get<ListSwigTokenBalancesWire>(
+      walletReadPath(wallet, 'token-balances', {
+        network: args.network ?? wallet.network ?? this.defaultNetwork,
+      }),
+    );
+    return normalizeSwigTokenBalances(response);
+  };
+
+  listTokenTransactions = async (
+    wallet: WalletHandle,
+    args: ListSwigTokenTransactionsArgs = {},
+  ): Promise<ListSwigTokenTransactionsResult> => {
+    const response = await this.http.get<ListSwigTokenTransactionsWire>(
+      walletReadPath(wallet, 'token-transactions', {
+        network: args.network ?? wallet.network ?? this.defaultNetwork,
+        limit: args.limit,
+      }),
+    );
+    return normalizeSwigTokenTransactions(response);
   };
 
   use = (
@@ -263,6 +311,26 @@ export class WalletsClient {
     );
     return normalizePreparedTransaction(response);
   };
+}
+
+function walletReadPath(
+  wallet: WalletHandle,
+  route: 'balance/usd' | 'token-balances' | 'token-transactions',
+  query: { network?: Network; limit?: number },
+): string {
+  const params = new URLSearchParams();
+  if (query.network) {
+    params.set('network', networkParam(query.network));
+  }
+  if (query.limit !== undefined) {
+    params.set('limit', String(query.limit));
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : '';
+  return `/wallet/swig/${encodeURIComponent(wallet.swigConfigAddress)}/${route}${suffix}`;
+}
+
+function networkParam(network: Network): string {
+  return network === 'mainnet' ? 'NETWORK_MAINNET' : 'NETWORK_DEVNET';
 }
 
 function recoverySetupPlanFromPolicy(

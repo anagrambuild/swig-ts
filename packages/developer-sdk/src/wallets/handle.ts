@@ -2,6 +2,9 @@ import type {
   CancelRecoveryArgs,
   ExecuteArgs,
   ExecuteRecoveryArgs,
+  ListSwigTokenBalancesResult,
+  ListSwigTokenTransactionsArgs,
+  ListSwigTokenTransactionsResult,
   Network,
   PrepareArgs,
   PreparedRecoverySetupResult,
@@ -10,9 +13,11 @@ import type {
   PrepareRecoverySetupArgs,
   StartRecoveryArgs,
   SwapArgs,
+  SwigUsdBalance,
   TransferArgs,
   TransferSolArgs,
   TransferTokenArgs,
+  WalletReadArgs,
   WalletReference,
 } from '../types/index.js';
 import type { WalletsClient } from './client.js';
@@ -66,6 +71,19 @@ export class WalletHandle {
     this.wallets.prepare(this, args);
 
   execute = (args: ExecuteArgs) => this.wallets.execute(this, args);
+
+  getUsdBalance = (args?: WalletReadArgs): Promise<SwigUsdBalance> =>
+    this.wallets.getUsdBalance(this, args);
+
+  listTokenBalances = (
+    args?: WalletReadArgs,
+  ): Promise<ListSwigTokenBalancesResult> =>
+    this.wallets.listTokenBalances(this, args);
+
+  listTokenTransactions = (
+    args?: ListSwigTokenTransactionsArgs,
+  ): Promise<ListSwigTokenTransactionsResult> =>
+    this.wallets.listTokenTransactions(this, args);
 }
 
 function createWalletTransferClient(

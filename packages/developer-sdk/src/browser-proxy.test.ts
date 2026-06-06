@@ -275,6 +275,75 @@ describe('SwigBrowserClient', () => {
     expect(prepared.transaction).toBe('base64-swap-tx');
   });
 
+  test('reads wallet balances through the local proxy without an API key', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigBrowserClient({
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          swigConfigAddress: 'swig_config_123',
+          walletAddress: 'wallet_123',
+          usdValue: 123.45,
+        };
+      }),
+    });
+    const wallet = swig.wallets.fromIdpSession({
+      configAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      roleId: 0,
+    });
+
+    const balance = await wallet.getUsdBalance();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      url: 'https://app.example/api/swig/wallet/swig_config_123/balance/usd?network=devnet',
+      method: 'GET',
+      body: undefined,
+    });
+    expect(calls[0]?.headers.has('authorization')).toBe(false);
+    expect(balance).toEqual({
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      usdValue: 123.45,
+    });
+  });
+
+  test('reads paymaster balance through the local proxy without an API key', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigBrowserClient({
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          configured: true,
+          kind: 'idp',
+          id: 'paymaster_123',
+          address: 'paymaster_address_123',
+          label: 'IdP paymaster',
+          balanceLamports: '5000000000',
+          balanceSol: 5,
+        };
+      }),
+    });
+
+    const balance = await swig.paymaster.getBalance();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      url: 'https://app.example/api/swig/paymaster/balance?network=devnet',
+      method: 'GET',
+      body: undefined,
+    });
+    expect(calls[0]?.headers.has('authorization')).toBe(false);
+    expect(balance).toMatchObject({
+      configured: true,
+      address: 'paymaster_address_123',
+      balanceSol: 5,
+    });
+  });
+
   test('throws proxy errors with the route response status and message', async () => {
     const swig = new SwigBrowserClient({
       fetch: jsonFetch(() => ({
