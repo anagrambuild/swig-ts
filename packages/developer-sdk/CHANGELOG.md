@@ -1,5 +1,14 @@
 # @swig-wallet/developer-sdk
 
+## 0.4.2
+
+### Patch Changes
+
+- 21191af: Add API-key scoped Swig wallet balance, token activity, and paymaster balance read helpers.
+- de93161: Update the documented recovery setup flow to feed the create-time `recoverySetup` plan directly into `wallet.recovery.prepareSetup`, and avoid defaulting `targetRoleId` into that plan unless explicitly provided.
+- Updated dependencies [c172c01]
+  - @swig-wallet/lib@2.1.0
+
 ## 0.4.1
 
 ### Patch Changes
