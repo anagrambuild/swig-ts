@@ -11,12 +11,20 @@ import type {
 } from '../../types/index.js';
 import { SwigClient } from '../typescript/index.js';
 
-export type SwigProxyRoute =
+export type SwigPostProxyRoute =
   | 'wallet/create'
   | 'prepare'
   | 'transfer/sol'
   | 'transfer/spl-token'
   | 'swap/jupiter';
+
+export type SwigReadProxyRoute =
+  | 'wallet/balance/usd'
+  | 'wallet/token-balances'
+  | 'wallet/token-transactions'
+  | 'paymaster/balance';
+
+export type SwigProxyRoute = SwigPostProxyRoute | SwigReadProxyRoute;
 
 export interface SwigProxyWalletReference extends WalletReference {
   roleId?: number;
@@ -59,7 +67,7 @@ class SwigRouteError extends Error {
   }
 }
 
-const swigProxyRoutes: SwigProxyRoute[] = [
+const swigPostProxyRoutes: SwigPostProxyRoute[] = [
   'wallet/create',
   'prepare',
   'transfer/sol',
@@ -75,12 +83,18 @@ export function createSwigFetchHandler(
   return (request: Request) => handlePost(request, config);
 }
 
+export function createSwigGetHandler(
+  config: CreateSwigFetchHandlerConfig = {},
+): SwigFetchHandler {
+  return (request: Request) => handleGet(request, config);
+}
+
 async function handlePost(
   request: Request,
   config: CreateSwigFetchHandlerConfig,
 ): Promise<Response> {
   try {
-    const route = resolveRoute(request);
+    const route = resolvePostRoute(request);
     const body = await readJsonObject(request);
     const network = readNetwork(body.network) ?? config.network;
     const wallet = readWallet(body.wallet);
@@ -128,6 +142,63 @@ async function handlePost(
     const status = error instanceof SwigRouteError ? error.status : 400;
     return json({ error: message }, status);
   }
+}
+
+async function handleGet(
+  request: Request,
+  config: CreateSwigFetchHandlerConfig,
+): Promise<Response> {
+  try {
+    const route = resolveReadRoute(request);
+    const network =
+      readNetwork(new URL(request.url).searchParams.get('network')) ??
+      config.network;
+    const apiKey = resolveApiKey(config);
+    const transactionApiUrl = resolveTransactionApiUrl(config);
+    const swig = new SwigClient({
+      apiKey,
+      ...(transactionApiUrl ? { baseUrl: transactionApiUrl } : {}),
+      ...(network ? { network } : {}),
+      ...(config.fetch ? { fetch: config.fetch } : {}),
+    });
+
+    switch (route.route) {
+      case 'wallet/balance/usd':
+        return json(
+          await swig.wallets
+            .use(route.swigConfigAddress, walletOptions(network))
+            .getUsdBalance(walletOptions(network)),
+        );
+      case 'wallet/token-balances':
+        return json(
+          await swig.wallets
+            .use(route.swigConfigAddress, walletOptions(network))
+            .listTokenBalances(walletOptions(network)),
+        );
+      case 'wallet/token-transactions': {
+        const limit = readOptionalQueryNumber(request, 'limit');
+        return json(
+          await swig.wallets
+            .use(route.swigConfigAddress, walletOptions(network))
+            .listTokenTransactions({
+              ...walletOptions(network),
+              ...(limit === undefined ? {} : { limit }),
+            }),
+        );
+      }
+      case 'paymaster/balance':
+        return json(await swig.paymaster.getBalance(walletOptions(network)));
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Unable to fetch Swig resource';
+    const status = error instanceof SwigRouteError ? error.status : 400;
+    return json({ error: message }, status);
+  }
+}
+
+function walletOptions(network: Network | undefined): { network?: Network } {
+  return network ? { network } : {};
 }
 
 async function prepareWalletCreation(
@@ -403,9 +474,9 @@ function resolveTransactionApiUrl(config: CreateSwigFetchHandlerConfig) {
   );
 }
 
-function resolveRoute(request: Request): SwigProxyRoute {
+function resolvePostRoute(request: Request): SwigPostProxyRoute {
   const pathname = new URL(request.url).pathname.replace(/\/$/, '');
-  const route = swigProxyRoutes.find(
+  const route = swigPostProxyRoutes.find(
     (candidate) =>
       pathname === `/${candidate}` || pathname.endsWith(`/${candidate}`),
   );
@@ -415,6 +486,45 @@ function resolveRoute(request: Request): SwigProxyRoute {
   }
 
   return route;
+}
+
+function resolveReadRoute(
+  request: Request,
+):
+  | { route: 'wallet/balance/usd'; swigConfigAddress: string }
+  | { route: 'wallet/token-balances'; swigConfigAddress: string }
+  | { route: 'wallet/token-transactions'; swigConfigAddress: string }
+  | { route: 'paymaster/balance' } {
+  const pathname = new URL(request.url).pathname.replace(/\/$/, '');
+  if (
+    pathname === '/paymaster/balance' ||
+    pathname.endsWith('/paymaster/balance')
+  ) {
+    return { route: 'paymaster/balance' };
+  }
+
+  const match = pathname.match(
+    /\/wallet\/([^/]+)\/(balance\/usd|token-balances|token-transactions)$/,
+  );
+  if (!match) {
+    throw new SwigRouteError('Unsupported Swig route', 404);
+  }
+
+  const swigConfigAddress = decodeURIComponent(match[1] ?? '');
+  if (!swigConfigAddress) {
+    throw new SwigRouteError('swigConfigAddress is required');
+  }
+
+  switch (match[2]) {
+    case 'balance/usd':
+      return { route: 'wallet/balance/usd', swigConfigAddress };
+    case 'token-balances':
+      return { route: 'wallet/token-balances', swigConfigAddress };
+    case 'token-transactions':
+      return { route: 'wallet/token-transactions', swigConfigAddress };
+    default:
+      throw new SwigRouteError('Unsupported Swig route', 404);
+  }
 }
 
 async function readJsonObject(
@@ -581,6 +691,18 @@ function readOptionalNumber(
   return typeof value === 'number' && Number.isFinite(value)
     ? value
     : undefined;
+}
+
+function readOptionalQueryNumber(
+  request: Request,
+  key: string,
+): number | undefined {
+  const value = new URL(request.url).searchParams.get(key);
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function readEnv(...names: string[]): string | undefined {

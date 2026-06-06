@@ -4,6 +4,10 @@ import type {
   ClientSignatureRequestWire,
   CreateWalletResponseWire,
   CreateWalletResult,
+  ListSwigTokenBalancesResult,
+  ListSwigTokenBalancesWire,
+  ListSwigTokenTransactionsResult,
+  ListSwigTokenTransactionsWire,
   Network,
   NetworkWire,
   PreparedTransaction,
@@ -16,6 +20,14 @@ import type {
   SolanaInstructionInput,
   SubmittedTransaction,
   SubmittedTransactionWire,
+  SwigTokenBalance,
+  SwigTokenBalanceWire,
+  SwigTokenTransaction,
+  SwigTokenTransactionDirection,
+  SwigTokenTransactionDirectionWire,
+  SwigTokenTransactionWire,
+  SwigUsdBalance,
+  SwigUsdBalanceWire,
   TransactionEncoding,
   TransactionEncodingWire,
 } from '../types/index.js';
@@ -141,6 +153,146 @@ export function normalizeSubmittedTransaction(
   };
 }
 
+export function normalizeSwigUsdBalance(
+  response: SwigUsdBalanceWire,
+): SwigUsdBalance {
+  return {
+    swigConfigAddress: readString(
+      response.swigConfigAddress ?? response.swig_config_address,
+      'swigConfigAddress',
+    ),
+    walletAddress: readString(
+      response.walletAddress ?? response.wallet_address,
+      'walletAddress',
+    ),
+    usdValue: readNumber(response.usdValue ?? response.usd_value, 'usdValue'),
+  };
+}
+
+export function normalizeSwigTokenBalances(
+  response: ListSwigTokenBalancesWire,
+): ListSwigTokenBalancesResult {
+  return {
+    swigConfigAddress: readString(
+      response.swigConfigAddress ?? response.swig_config_address,
+      'swigConfigAddress',
+    ),
+    walletAddress: readString(
+      response.walletAddress ?? response.wallet_address,
+      'walletAddress',
+    ),
+    balances: (response.balances ?? []).map(normalizeSwigTokenBalance),
+    totalUsdValue: readNumber(
+      response.totalUsdValue ?? response.total_usd_value,
+      'totalUsdValue',
+    ),
+  };
+}
+
+export function normalizeSwigTokenTransactions(
+  response: ListSwigTokenTransactionsWire,
+): ListSwigTokenTransactionsResult {
+  return {
+    swigConfigAddress: readString(
+      response.swigConfigAddress ?? response.swig_config_address,
+      'swigConfigAddress',
+    ),
+    walletAddress: readString(
+      response.walletAddress ?? response.wallet_address,
+      'walletAddress',
+    ),
+    transactions: (response.transactions ?? []).map(
+      normalizeSwigTokenTransaction,
+    ),
+  };
+}
+
+function normalizeSwigTokenBalance(
+  response: SwigTokenBalanceWire,
+): SwigTokenBalance {
+  return {
+    mintAddress: readString(
+      response.mintAddress ?? response.mint_address,
+      'mintAddress',
+    ),
+    tokenProgram: readNumber(
+      response.tokenProgram ?? response.token_program,
+      'tokenProgram',
+    ),
+    tokenSymbol: readString(
+      response.tokenSymbol ?? response.token_symbol ?? '',
+      'tokenSymbol',
+    ),
+    tokenName: readString(
+      response.tokenName ?? response.token_name ?? '',
+      'tokenName',
+    ),
+    decimals: readNumber(response.decimals, 'decimals'),
+    amountRaw: readString(
+      response.amountRaw ?? response.amount_raw,
+      'amountRaw',
+    ),
+    uiAmount: readNumber(response.uiAmount ?? response.ui_amount, 'uiAmount'),
+    usdPrice: readNumber(response.usdPrice ?? response.usd_price, 'usdPrice'),
+    usdValue: readNumber(response.usdValue ?? response.usd_value, 'usdValue'),
+  };
+}
+
+function normalizeSwigTokenTransaction(
+  response: SwigTokenTransactionWire,
+): SwigTokenTransaction {
+  const blockTime = response.blockTime ?? response.block_time;
+  return {
+    transactionSignature: readString(
+      response.transactionSignature ?? response.transaction_signature,
+      'transactionSignature',
+    ),
+    slot: readNumber(response.slot, 'slot'),
+    ...(blockTime ? { blockTime } : {}),
+    ownerAddress: readString(
+      response.ownerAddress ?? response.owner_address,
+      'ownerAddress',
+    ),
+    walletAddress: readString(
+      response.walletAddress ?? response.wallet_address,
+      'walletAddress',
+    ),
+    isSubaccount: readBoolean(
+      response.isSubaccount ?? response.is_subaccount,
+      'isSubaccount',
+    ),
+    tokenAccountAddress: readString(
+      response.tokenAccountAddress ?? response.token_account_address,
+      'tokenAccountAddress',
+    ),
+    mintAddress: readString(
+      response.mintAddress ?? response.mint_address,
+      'mintAddress',
+    ),
+    tokenProgram: readNumber(
+      response.tokenProgram ?? response.token_program,
+      'tokenProgram',
+    ),
+    direction: normalizeTokenTransactionDirection(response.direction),
+    amountRaw: readString(
+      response.amountRaw ?? response.amount_raw,
+      'amountRaw',
+    ),
+    decimals: readNumber(response.decimals, 'decimals'),
+    uiAmount: readNumber(response.uiAmount ?? response.ui_amount, 'uiAmount'),
+    usdPrice: readNumber(response.usdPrice ?? response.usd_price, 'usdPrice'),
+    usdValue: readNumber(response.usdValue ?? response.usd_value, 'usdValue'),
+    tokenSymbol: readString(
+      response.tokenSymbol ?? response.token_symbol ?? '',
+      'tokenSymbol',
+    ),
+    tokenName: readString(
+      response.tokenName ?? response.token_name ?? '',
+      'tokenName',
+    ),
+  };
+}
+
 export function normalizeInstruction(
   instruction: SolanaInstructionInput,
 ): SolanaInstruction {
@@ -218,6 +370,50 @@ function normalizePreparedTransactionKind(
     default:
       return undefined;
   }
+}
+
+function normalizeTokenTransactionDirection(
+  direction?: SwigTokenTransactionDirectionWire,
+): SwigTokenTransactionDirection {
+  switch (direction) {
+    case 'inflow':
+    case 'SWIG_TOKEN_TRANSACTION_DIRECTION_INFLOW':
+    case 1:
+      return 'inflow';
+    case 'outflow':
+    case 'SWIG_TOKEN_TRANSACTION_DIRECTION_OUTFLOW':
+    case 2:
+      return 'outflow';
+    default:
+      throw new Error('Token transaction response has invalid direction');
+  }
+}
+
+function readString(value: unknown, field: string): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  throw new Error(`Response is missing ${field}`);
+}
+
+function readNumber(value: unknown, field: string): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  throw new Error(`Response is missing ${field}`);
+}
+
+function readBoolean(value: unknown, field: string): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  throw new Error(`Response is missing ${field}`);
 }
 
 function normalizeSignatureRequests(

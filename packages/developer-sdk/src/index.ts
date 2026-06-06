@@ -1,4 +1,5 @@
 export { DEFAULT_BACKEND_URL, SwigDeveloperSdkError } from './core/index.js';
+export { PaymasterClient } from './paymaster/index.js';
 export { SwigClient } from './server/typescript/index.js';
 export { TransactionsClient } from './transactions/index.js';
 export { WalletHandle, WalletsClient } from './wallets/index.js';

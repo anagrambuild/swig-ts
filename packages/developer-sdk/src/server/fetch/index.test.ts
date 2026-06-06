@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { createSwigFetchHandler } from './index.js';
+import { createSwigFetchHandler, createSwigGetHandler } from './index.js';
 
 type CapturedRequest = {
   url: string;
@@ -604,5 +604,87 @@ describe('createSwigFetchHandler', () => {
         mode: 'fast',
       },
     });
+  });
+});
+
+describe('createSwigGetHandler', () => {
+  test('proxies wallet USD balance reads with the configured API key', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigGetHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          swig_config_address: 'swig_config_123',
+          wallet_address: 'wallet_123',
+          usd_value: 42.5,
+        };
+      }),
+    });
+
+    const response = await handler(
+      new Request(
+        'https://app.example/api/swig/wallet/swig_config_123/balance/usd?network=devnet',
+        { method: 'GET' },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      usdValue: 42.5,
+    });
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/wallet/swig/swig_config_123/balance/usd?network=NETWORK_DEVNET',
+      method: 'GET',
+    });
+    expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
+  });
+
+  test('proxies paymaster balance reads without exposing config fields', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigGetHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          configured: true,
+          kind: 'PAYMASTER_KIND_IDP',
+          id: 'paymaster_123',
+          address: 'paymaster_address_123',
+          label: 'IdP paymaster',
+          balance_lamports: '5000000000',
+          balance_sol: 5,
+        };
+      }),
+    });
+
+    const response = await handler(
+      new Request(
+        'https://app.example/api/swig/paymaster/balance?network=devnet',
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      configured: true,
+      kind: 'idp',
+      id: 'paymaster_123',
+      address: 'paymaster_address_123',
+      label: 'IdP paymaster',
+      balanceLamports: '5000000000',
+      balanceSol: 5,
+    });
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/paymaster/balance?network=devnet',
+      method: 'GET',
+    });
+    expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
   });
 });

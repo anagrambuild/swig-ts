@@ -40,4 +40,40 @@ describe('createSwigRouteHandlers', () => {
       },
     });
   });
+
+  test('wraps the fetch handler as a Next.js GET export', async () => {
+    const { GET } = createSwigRouteHandlers({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      fetch: (async () =>
+        new Response(
+          JSON.stringify({
+            configured: true,
+            kind: 'PAYMASTER_KIND_API',
+            id: 'paymaster_123',
+            address: 'paymaster_address_123',
+            label: 'Primary',
+            balance_lamports: '1000000000',
+            balance_sol: 1,
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        )) as unknown as typeof fetch,
+    });
+
+    const response = await GET(
+      new Request(
+        'https://app.example/api/swig/paymaster/balance?network=devnet',
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      configured: true,
+      address: 'paymaster_address_123',
+      balanceSol: 1,
+    });
+  });
 });

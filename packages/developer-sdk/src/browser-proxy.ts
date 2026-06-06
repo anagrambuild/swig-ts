@@ -1,6 +1,11 @@
 import type {
+  GetPaymasterBalanceArgs,
   IdpWalletSession,
+  ListSwigTokenBalancesResult,
+  ListSwigTokenTransactionsArgs,
+  ListSwigTokenTransactionsResult,
   Network,
+  PaymasterBalance,
   PrepareArgs,
   PreparedTransaction,
   PreparedTransactionsResult,
@@ -8,10 +13,12 @@ import type {
   PrepareOperation,
   PrepareTransactionsResponseWire,
   SwapArgs,
+  SwigUsdBalance,
   TransferSolArgs,
   TransferTokenArgs,
   WalletAuthority,
   WalletHandleOptions,
+  WalletReadArgs,
   WalletReference,
 } from './types/index.js';
 import {
@@ -87,9 +94,11 @@ export class SwigBrowserProxyError extends Error {
 }
 
 export class SwigBrowserClient {
+  readonly paymaster: BrowserPaymasterClient;
   readonly wallets: BrowserWalletsClient;
 
   constructor(config: SwigBrowserClientConfig = {}) {
+    this.paymaster = new BrowserPaymasterClient(config);
     this.wallets = new BrowserWalletsClient(config);
   }
 }
@@ -231,34 +240,60 @@ export class BrowserWalletsClient {
     );
     return normalizePreparedTransaction(response);
   };
+
+  getUsdBalance = (
+    wallet: BrowserWalletHandle,
+    args: WalletReadArgs = {},
+  ): Promise<SwigUsdBalance> => {
+    return this.http.get<SwigUsdBalance>(
+      walletReadRoute(wallet, 'balance/usd'),
+      { network: args.network ?? wallet.network ?? this.defaultNetwork },
+    );
+  };
+
+  listTokenBalances = (
+    wallet: BrowserWalletHandle,
+    args: WalletReadArgs = {},
+  ): Promise<ListSwigTokenBalancesResult> => {
+    return this.http.get<ListSwigTokenBalancesResult>(
+      walletReadRoute(wallet, 'token-balances'),
+      { network: args.network ?? wallet.network ?? this.defaultNetwork },
+    );
+  };
+
+  listTokenTransactions = (
+    wallet: BrowserWalletHandle,
+    args: ListSwigTokenTransactionsArgs = {},
+  ): Promise<ListSwigTokenTransactionsResult> => {
+    return this.http.get<ListSwigTokenTransactionsResult>(
+      walletReadRoute(wallet, 'token-transactions'),
+      {
+        network: args.network ?? wallet.network ?? this.defaultNetwork,
+        limit: args.limit,
+      },
+    );
+  };
 }
 
-export class BrowserWalletHandle {
-  readonly swigConfigAddress: string;
-  readonly walletAddress?: string;
-  readonly roleId?: number;
-  readonly authorityPublicKey?: string;
-  readonly network?: Network;
-  readonly requesterAuthority?: WalletAuthority;
-  readonly transfer: BrowserWalletTransferClient;
-  readonly swap: BrowserWalletSwapClient;
+export class BrowserPaymasterClient {
+  private readonly http: BrowserProxyHttpClient;
+  private readonly defaultNetwork?: Network;
 
-  constructor(
-    private readonly wallets: BrowserWalletsClient,
-    init: BrowserWalletReference,
-  ) {
-    this.swigConfigAddress = init.swigConfigAddress;
-    this.walletAddress = init.walletAddress;
-    this.roleId = init.roleId;
-    this.authorityPublicKey = init.authorityPublicKey;
-    this.network = init.network;
-    this.requesterAuthority = init.requesterAuthority;
-    this.transfer = createBrowserWalletTransferClient(wallets, this);
-    this.swap = createBrowserWalletSwapClient(wallets, this);
+  constructor(config: SwigBrowserClientConfig = {}) {
+    this.http = new BrowserProxyHttpClient({
+      basePath: config.basePath ?? '/api/swig',
+      fetch: resolveFetch(config.fetch),
+    });
+    this.defaultNetwork = config.network;
   }
 
-  prepare = (args: BrowserPrepareArgs): Promise<PreparedTransactionsResult> =>
-    this.wallets.prepare(this, args);
+  getBalance = (
+    args: GetPaymasterBalanceArgs = {},
+  ): Promise<PaymasterBalance> => {
+    return this.http.get<PaymasterBalance>('paymaster/balance', {
+      network: args.network ?? this.defaultNetwork,
+    });
+  };
 }
 
 class BrowserProxyHttpClient {
@@ -293,6 +328,84 @@ class BrowserProxyHttpClient {
 
     return readPrepared<TResponse>(responseBody);
   };
+
+  get = async <TResponse>(
+    route: string,
+    query: Record<string, string | number | undefined> = {},
+  ): Promise<TResponse> => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) {
+        params.set(key, String(value));
+      }
+    }
+    const suffix = params.size > 0 ? `?${params.toString()}` : '';
+    const response = await this.#fetch(`${this.#basePath}/${route}${suffix}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+    const responseBody = await parseResponseBody(response);
+
+    if (!response.ok) {
+      throw new SwigBrowserProxyError(
+        errorMessageFromBody(responseBody),
+        response.status,
+        responseBody,
+      );
+    }
+
+    return responseBody as TResponse;
+  };
+}
+
+export class BrowserWalletHandle {
+  readonly swigConfigAddress: string;
+  readonly walletAddress?: string;
+  readonly roleId?: number;
+  readonly authorityPublicKey?: string;
+  readonly network?: Network;
+  readonly requesterAuthority?: WalletAuthority;
+  readonly transfer: BrowserWalletTransferClient;
+  readonly swap: BrowserWalletSwapClient;
+
+  constructor(
+    private readonly wallets: BrowserWalletsClient,
+    init: BrowserWalletReference,
+  ) {
+    this.swigConfigAddress = init.swigConfigAddress;
+    this.walletAddress = init.walletAddress;
+    this.roleId = init.roleId;
+    this.authorityPublicKey = init.authorityPublicKey;
+    this.network = init.network;
+    this.requesterAuthority = init.requesterAuthority;
+    this.transfer = createBrowserWalletTransferClient(wallets, this);
+    this.swap = createBrowserWalletSwapClient(wallets, this);
+  }
+
+  prepare = (args: BrowserPrepareArgs): Promise<PreparedTransactionsResult> =>
+    this.wallets.prepare(this, args);
+
+  getUsdBalance = (args?: WalletReadArgs): Promise<SwigUsdBalance> =>
+    this.wallets.getUsdBalance(this, args);
+
+  listTokenBalances = (
+    args?: WalletReadArgs,
+  ): Promise<ListSwigTokenBalancesResult> =>
+    this.wallets.listTokenBalances(this, args);
+
+  listTokenTransactions = (
+    args?: ListSwigTokenTransactionsArgs,
+  ): Promise<ListSwigTokenTransactionsResult> =>
+    this.wallets.listTokenTransactions(this, args);
+}
+
+function walletReadRoute(
+  wallet: BrowserWalletHandle,
+  route: 'balance/usd' | 'token-balances' | 'token-transactions',
+): string {
+  return `wallet/${encodeURIComponent(wallet.swigConfigAddress)}/${route}`;
 }
 
 function createBrowserWalletTransferClient(
