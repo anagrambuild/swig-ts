@@ -1,9 +1,23 @@
 export { DEFAULT_BACKEND_URL, SwigDeveloperSdkError } from './core/index.js';
+export {
+  DEFAULT_ONE_BUSINESS_URL,
+  OneBusinessGrantAccessCallbackError,
+  buildOneBusinessGrantAccessUrl,
+  completeOneBusinessGrantAccess,
+  redirectToOneBusinessGrantAccess,
+} from './one-business/index.js';
 export { PaymasterClient } from './paymaster/index.js';
 export { SwigClient } from './server/typescript/index.js';
 export { TransactionsClient } from './transactions/index.js';
 export { WalletHandle, WalletsClient } from './wallets/index.js';
 
+export type {
+  BuildOneBusinessGrantAccessUrlArgs,
+  OneBusinessGrantAccessAction,
+  OneBusinessGrantAccessCallbackInput,
+  OneBusinessGrantAccessResult,
+  RedirectToOneBusinessGrantAccessOptions,
+} from './one-business/index.js';
 export type {
   AddRecoveryAuthorityArgs,
   Amount,
