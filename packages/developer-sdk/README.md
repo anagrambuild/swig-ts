@@ -193,6 +193,41 @@ return preparedSwap;
 Client code should only sign prepared transactions. It should not hold the API
 key or call the Swig backend directly.
 
+### One Business Grant Access
+
+Use this when a local app needs an admin to grant one of the app's keys access
+to an existing One Business Swig. The local app sends the admin to One Business,
+then reads the result on its callback page.
+
+```typescript
+import {
+  buildOneBusinessGrantAccessUrl,
+  completeOneBusinessGrantAccess,
+} from '@swig-wallet/developer-sdk/browser';
+
+const grantUrl = buildOneBusinessGrantAccessUrl({
+  swigPubkey,
+  authorityPublicKey: appAuthorityPublicKey,
+  appName: 'Local Trading App',
+  redirectUri: 'http://localhost:5173/swig/grant/callback',
+  state: crypto.randomUUID(),
+  actions: [
+    {
+      type: 'transferToken',
+      mint: usdcMint,
+      amount: '10000000',
+      cadence: 'daily',
+    },
+  ],
+});
+
+window.location.assign(grantUrl);
+
+// In /swig/grant/callback:
+const grant = completeOneBusinessGrantAccess(window.location.href);
+// grant.roleId and grant.walletAddress identify the newly granted authority.
+```
+
 ### Solana Transaction Signing
 
 Use this for prepared transactions whose requester authority is Ed25519.
