@@ -37,6 +37,12 @@ export interface SignPreparedOptions {
   signTransaction: PreparedTransactionSigningFn;
 }
 
+export interface PreparedTransactionSigner {
+  signPreparedTransaction(
+    prepared: PreparedTransaction,
+  ): Promise<SignedPreparedTransaction>;
+}
+
 export async function signPreparedTransaction(
   prepared: PreparedTransaction,
   options: SignPreparedOptions,
@@ -46,4 +52,11 @@ export async function signPreparedTransaction(
     transactionEncoding: prepared.transactionEncoding,
     network: prepared.network,
   };
+}
+
+export async function signPreparedTransactionWithSigner(
+  prepared: PreparedTransaction,
+  signer: PreparedTransactionSigner,
+): Promise<SignedPreparedTransaction> {
+  return signer.signPreparedTransaction(prepared);
 }

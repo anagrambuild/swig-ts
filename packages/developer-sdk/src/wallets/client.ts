@@ -386,6 +386,9 @@ function walletAuthorityFromPolicy(
   ) {
     return authority;
   }
+  if ('programExecSession' in authority) {
+    return undefined;
+  }
 
   switch (authority.type) {
     case 'Ed25519':
@@ -411,6 +414,9 @@ function publicKeyFromPolicyAuthority(
   }
   if ('secp256k1' in authority) {
     return authority.secp256k1.publicKey;
+  }
+  if ('programExecSession' in authority) {
+    return authority.programExecSession.sessionKey;
   }
   return authority.secp256r1.publicKey;
 }
