@@ -1,5 +1,11 @@
 # @swig-wallet/developer-sdk
 
+## 0.5.1
+
+### Patch Changes
+
+- 6bc43d3: Rebuild the developer SDK package with ProgramExec session authority declarations.
+
 ## 0.5.0
 
 ### Minor Changes
