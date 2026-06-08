@@ -292,8 +292,26 @@ export class BrowserPaymasterClient {
   ): Promise<PaymasterBalance> => {
     return this.http.get<PaymasterBalance>('paymaster/balance', {
       network: args.network ?? this.defaultNetwork,
+      kind: args.kind ? paymasterKindQueryValue(args.kind) : undefined,
     });
   };
+
+  getIdpBalance = (
+    args: Omit<GetPaymasterBalanceArgs, 'kind'> = {},
+  ): Promise<PaymasterBalance> => {
+    return this.getBalance({ ...args, kind: 'idp' });
+  };
+}
+
+function paymasterKindQueryValue(
+  kind: NonNullable<GetPaymasterBalanceArgs['kind']>,
+): string {
+  switch (kind) {
+    case 'api':
+      return 'PAYMASTER_KIND_API';
+    case 'idp':
+      return 'PAYMASTER_KIND_IDP';
+  }
 }
 
 class BrowserProxyHttpClient {

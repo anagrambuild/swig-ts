@@ -344,6 +344,40 @@ describe('SwigBrowserClient', () => {
     });
   });
 
+  test('reads IDP paymaster balance through the local proxy', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigBrowserClient({
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          configured: true,
+          kind: 'idp',
+          id: 'paymaster_123',
+          address: 'paymaster_address_123',
+          label: 'IdP paymaster',
+          balanceLamports: '5000000000',
+          balanceSol: 5,
+        };
+      }),
+    });
+
+    const balance = await swig.paymaster.getIdpBalance();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      url: 'https://app.example/api/swig/paymaster/balance?network=devnet&kind=PAYMASTER_KIND_IDP',
+      method: 'GET',
+      body: undefined,
+    });
+    expect(balance).toMatchObject({
+      configured: true,
+      kind: 'idp',
+      address: 'paymaster_address_123',
+      balanceSol: 5,
+    });
+  });
+
   test('throws proxy errors with the route response status and message', async () => {
     const swig = new SwigBrowserClient({
       fetch: jsonFetch(() => ({
