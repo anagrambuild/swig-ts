@@ -1,5 +1,12 @@
 # @swig-wallet/developer-sdk
 
+## 0.4.3
+
+### Patch Changes
+
+- 1da14a6: Add IDP paymaster balance reads for One Business funding views.
+- 40d8565: Add One Business grant-access URL and callback helpers.
+
 ## 0.4.2
 
 ### Patch Changes
