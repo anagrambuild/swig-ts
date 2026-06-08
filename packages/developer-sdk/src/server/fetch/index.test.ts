@@ -334,7 +334,7 @@ describe('createSwigFetchHandler', () => {
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
   });
 
-  test('proxies ProgramExecSession requester authority to the transaction API', async () => {
+  test('proxies ProgramExecProof requester authority to the transaction API', async () => {
     const calls: CapturedRequest[] = [];
     const handler = createSwigFetchHandler({
       apiKey: 'sk_test',
@@ -350,9 +350,9 @@ describe('createSwigFetchHandler', () => {
     });
 
     const requesterAuthority = {
-      programExecSession: {
-        roleId: 3,
-        sessionKey: 'session_key_123',
+      programExecProof: {
+        roleId: 0,
+        zkProof: 'proof_b64',
       },
     };
 
