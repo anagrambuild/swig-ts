@@ -10,6 +10,7 @@ import {
   signPreparedSwigTransaction,
   signPreparedSwigTransactions,
   signPreparedTransaction,
+  signPreparedTransactionWithSigner,
 } from './index.js';
 
 const prepared: PreparedTransaction = {
@@ -27,6 +28,24 @@ describe('client signing helpers', () => {
       }),
     ).resolves.toEqual({
       transaction: 'base64-prepared-tx.signed',
+      transactionEncoding: 'base64',
+      network: 'devnet',
+    });
+  });
+
+  test('signPreparedTransactionWithSigner accepts an isolated-host signer shape', async () => {
+    const signer = {
+      signPreparedTransaction: async (transaction: PreparedTransaction) => ({
+        transaction: `${transaction.transaction}.idp-signed`,
+        transactionEncoding: transaction.transactionEncoding,
+        network: transaction.network,
+      }),
+    };
+
+    await expect(
+      signPreparedTransactionWithSigner(prepared, signer),
+    ).resolves.toEqual({
+      transaction: 'base64-prepared-tx.idp-signed',
       transactionEncoding: 'base64',
       network: 'devnet',
     });

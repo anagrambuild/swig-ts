@@ -334,6 +334,51 @@ describe('createSwigFetchHandler', () => {
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
   });
 
+  test('proxies ProgramExecSession requester authority to the transaction API', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigFetchHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          transaction: 'base64-transfer-tx',
+          transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+          network: 'NETWORK_DEVNET',
+        };
+      }),
+    });
+
+    const requesterAuthority = {
+      programExecSession: {
+        roleId: 3,
+        sessionKey: 'session_key_123',
+      },
+    };
+
+    const response = await handler(
+      new Request('https://app.example/api/swig/transfer/sol', {
+        method: 'POST',
+        body: JSON.stringify({
+          wallet: {
+            swigConfigAddress: 'swig_config_123',
+            walletAddress: 'wallet_123',
+            requesterAuthority,
+          },
+          network: 'devnet',
+          feePayer: 'payer_123',
+          destination: 'destination_123',
+          amount: '42',
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls[0]?.body).toMatchObject({
+      requesterAuthority,
+    });
+  });
+
   test('uses configured requester and fee payer resolvers', async () => {
     const calls: CapturedRequest[] = [];
     const handler = createSwigFetchHandler({
