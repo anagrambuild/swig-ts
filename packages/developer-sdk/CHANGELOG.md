@@ -1,5 +1,11 @@
 # @swig-wallet/developer-sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- 66679f6: Add ProgramExecSession requester authority support and a structural prepared-transaction signer interface for IdP-backed signing flows.
+
 ## 0.4.3
 
 ### Patch Changes
