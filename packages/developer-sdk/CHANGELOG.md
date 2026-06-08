@@ -1,5 +1,11 @@
 # @swig-wallet/developer-sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- 4ee9d27: Replace ProgramExecSession requester authorities with ProgramExecProof requester authorities for keyless IdP flows.
+
 ## 0.5.1
 
 ### Patch Changes
