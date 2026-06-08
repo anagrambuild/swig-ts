@@ -18,18 +18,44 @@ export class PaymasterClient {
     args: GetPaymasterBalanceArgs = {},
   ): Promise<PaymasterBalance> => {
     const response = await this.http.get<PaymasterBalanceWire>(
-      paymasterBalancePath(args.network ?? this.defaultNetwork),
+      paymasterBalancePath({
+        network: args.network ?? this.defaultNetwork,
+        kind: args.kind,
+      }),
     );
     return normalizePaymasterBalance(response);
   };
+
+  getIdpBalance = async (
+    args: Omit<GetPaymasterBalanceArgs, 'kind'> = {},
+  ): Promise<PaymasterBalance> => {
+    return this.getBalance({ ...args, kind: 'idp' });
+  };
 }
 
-function paymasterBalancePath(network?: Network): string {
-  if (!network) {
+function paymasterBalancePath(args: GetPaymasterBalanceArgs): string {
+  const params = new URLSearchParams();
+  if (args.network) {
+    params.set('network', args.network);
+  }
+  if (args.kind) {
+    params.set('kind', paymasterKindQueryValue(args.kind));
+  }
+  if (params.size === 0) {
     return '/paymaster/balance';
   }
-  const params = new URLSearchParams({ network });
   return `/paymaster/balance?${params.toString()}`;
+}
+
+function paymasterKindQueryValue(
+  kind: NonNullable<GetPaymasterBalanceArgs['kind']>,
+): string {
+  switch (kind) {
+    case 'api':
+      return 'PAYMASTER_KIND_API';
+    case 'idp':
+      return 'PAYMASTER_KIND_IDP';
+  }
 }
 
 function normalizePaymasterBalance(

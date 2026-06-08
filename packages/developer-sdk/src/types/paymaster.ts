@@ -2,9 +2,11 @@ import type { Network } from './common.js';
 
 export interface GetPaymasterBalanceArgs {
   network?: Network;
+  kind?: PaymasterBalanceKind;
 }
 
 export type PaymasterKind = 'api' | 'idp' | 'unspecified';
+export type PaymasterBalanceKind = Exclude<PaymasterKind, 'unspecified'>;
 
 export type PaymasterKindWire =
   | PaymasterKind

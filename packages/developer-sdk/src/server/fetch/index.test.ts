@@ -687,4 +687,45 @@ describe('createSwigGetHandler', () => {
     });
     expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
   });
+
+  test('proxies IDP paymaster balance reads by kind', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigGetHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          configured: true,
+          kind: 'PAYMASTER_KIND_IDP',
+          id: 'paymaster_123',
+          address: 'paymaster_address_123',
+          label: 'IdP paymaster',
+          balance_lamports: '5000000000',
+          balance_sol: 5,
+        };
+      }),
+    });
+
+    const response = await handler(
+      new Request(
+        'https://app.example/api/swig/paymaster/balance?network=devnet&kind=idp',
+        {
+          method: 'GET',
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      kind: 'idp',
+      address: 'paymaster_address_123',
+      balanceSol: 5,
+    });
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/paymaster/balance?network=devnet&kind=PAYMASTER_KIND_IDP',
+      method: 'GET',
+    });
+    expect(calls[0]?.headers.get('authorization')).toBe('Bearer sk_test');
+  });
 });

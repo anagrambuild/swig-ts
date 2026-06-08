@@ -2,6 +2,7 @@ import type {
   Amount,
   CreateWalletArgs,
   Network,
+  PaymasterBalanceKind,
   PrepareArgs,
   PrepareOperation,
   SwapArgs,
@@ -150,9 +151,9 @@ async function handleGet(
 ): Promise<Response> {
   try {
     const route = resolveReadRoute(request);
-    const network =
-      readNetwork(new URL(request.url).searchParams.get('network')) ??
-      config.network;
+    const searchParams = new URL(request.url).searchParams;
+    const network = readNetwork(searchParams.get('network')) ?? config.network;
+    const paymasterKind = readPaymasterBalanceKind(searchParams.get('kind'));
     const apiKey = resolveApiKey(config);
     const transactionApiUrl = resolveTransactionApiUrl(config);
     const swig = new SwigClient({
@@ -187,7 +188,11 @@ async function handleGet(
         );
       }
       case 'paymaster/balance':
-        return json(await swig.paymaster.getBalance(walletOptions(network)));
+        return json(
+          await swig.paymaster.getBalance(
+            paymasterOptions(network, paymasterKind),
+          ),
+        );
     }
   } catch (error) {
     const message =
@@ -199,6 +204,16 @@ async function handleGet(
 
 function walletOptions(network: Network | undefined): { network?: Network } {
   return network ? { network } : {};
+}
+
+function paymasterOptions(
+  network: Network | undefined,
+  kind: PaymasterBalanceKind | undefined,
+) {
+  return {
+    ...(network ? { network } : {}),
+    ...(kind ? { kind } : {}),
+  };
 }
 
 async function prepareWalletCreation(
@@ -654,6 +669,24 @@ function readNetwork(value: unknown): Network | undefined {
     return value;
   }
   return undefined;
+}
+
+function readPaymasterBalanceKind(
+  value: string | null,
+): PaymasterBalanceKind | undefined {
+  switch (value?.trim().toUpperCase()) {
+    case undefined:
+    case '':
+      return undefined;
+    case 'API':
+    case 'PAYMASTER_KIND_API':
+      return 'api';
+    case 'IDP':
+    case 'PAYMASTER_KIND_IDP':
+      return 'idp';
+    default:
+      throw new SwigRouteError('kind must be api or idp');
+  }
 }
 
 function readRequiredString(
