@@ -593,14 +593,11 @@ function readWalletAuthority(
       return { [scheme]: { publicKey } } as WalletAuthority;
     }
   }
-  if (isRecord(value.programExecSession)) {
-    const roleId = readOptionalNumber(value.programExecSession, 'roleId');
-    const sessionKey = readOptionalString(
-      value.programExecSession,
-      'sessionKey',
-    );
-    if (roleId !== undefined && sessionKey) {
-      return { programExecSession: { roleId, sessionKey } };
+  if (isRecord(value.programExecProof)) {
+    const roleId = readOptionalNumber(value.programExecProof, 'roleId');
+    const zkProof = readOptionalString(value.programExecProof, 'zkProof');
+    if (roleId !== undefined && zkProof) {
+      return { programExecProof: { roleId, zkProof } };
     }
   }
   throw new SwigRouteError(`${field} must include a supported authority`);

@@ -6,7 +6,7 @@ export type WalletAuthority =
   | { ed25519: { publicKey: string } }
   | { secp256k1: { publicKey: string } }
   | { secp256r1: { publicKey: string } }
-  | { programExecSession: { roleId: number; sessionKey: string } };
+  | { programExecProof: { roleId: number; zkProof: string } };
 
 export interface CreateWalletArgs {
   policyId?: string;
