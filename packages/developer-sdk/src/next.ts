@@ -4,3 +4,10 @@ export {
   type SwigProxyRoute,
   type SwigRouteContext,
 } from './server/next/index.js';
+export { rampCustomer } from './ramp/index.js';
+
+export type {
+  DirectSwigUserRampCustomerArgs,
+  PartnerBusinessRampCustomerArgs,
+  PartnerCustomerRampCustomerArgs,
+} from './ramp/index.js';

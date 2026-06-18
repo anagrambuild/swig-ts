@@ -188,6 +188,73 @@ const preparedSwap = await wallet.swap.jupiter({
 return preparedSwap;
 ```
 
+### Add Funds With Ramp
+
+Use `swig.ramp` to build a headless Add Funds UI. The server SDK keeps the
+developer API key server-side while returning frontend-safe quotes, launch URLs,
+and transaction history.
+
+```typescript
+const quotes = await swig.ramp.quote({
+  customer: {
+    organizationId,
+    partnerApplicationId,
+    customerType: 'individual',
+  },
+  wallet: {
+    walletId,
+    walletAddress,
+    network: 'devnet',
+  },
+  direction: 'onramp',
+  sourceAmount: '100.00',
+  sourceCurrencyCode: 'USD',
+  destinationCurrencyCode: 'USDC_SOLANA',
+  countryCode: 'US',
+  paymentMethodType: 'credit-debit-card',
+});
+
+const session = await swig.ramp.createSession({
+  customer: {
+    organizationId,
+    partnerApplicationId,
+    customerType: 'individual',
+  },
+  wallet: {
+    walletId,
+    walletAddress,
+    network: 'devnet',
+  },
+  direction: 'onramp',
+  selectedQuoteId: quotes.quotes[0].quoteId,
+  sourceAmount: '100.00',
+  sourceCurrencyCode: 'USD',
+  destinationCurrencyCode: 'USDC_SOLANA',
+  countryCode: 'US',
+  serviceProvider: quotes.quotes[0].serviceProvider,
+  paymentMethodType: quotes.quotes[0].paymentMethodType,
+  redirectUrl: 'https://app.example/ramp/return',
+});
+
+return {
+  launchUrl: session.launchUrl,
+};
+```
+
+Browser apps can call the local proxy surface with `SwigBrowserClient`:
+
+```typescript
+import { SwigBrowserClient } from '@swig-wallet/developer-sdk/browser';
+
+const swig = new SwigBrowserClient({ network: 'devnet' });
+
+const history = await swig.ramp.listTransactions({
+  walletId,
+  direction: 'onramp',
+  limit: 25,
+});
+```
+
 ## Client Signing
 
 Client code should only sign prepared transactions. It should not hold the API

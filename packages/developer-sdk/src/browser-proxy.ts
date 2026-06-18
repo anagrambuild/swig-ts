@@ -1,6 +1,25 @@
+import {
+  normalizeCreateRampSessionResult,
+  normalizeGetRampTransactionResult,
+  normalizeListRampTransactionsResult,
+  normalizeQuoteRampResult,
+  normalizeRampOptions,
+} from './ramp/client.js';
 import type {
+  CreateRampSessionArgs,
+  CreateRampSessionResult,
+  CreateRampSessionResultWire,
   GetPaymasterBalanceArgs,
+  GetRampOptionsArgs,
+  GetRampOptionsResult,
+  GetRampOptionsResultWire,
+  GetRampTransactionArgs,
+  GetRampTransactionResult,
+  GetRampTransactionResultWire,
   IdpWalletSession,
+  ListRampTransactionsArgs,
+  ListRampTransactionsResult,
+  ListRampTransactionsResultWire,
   ListSwigTokenBalancesResult,
   ListSwigTokenTransactionsArgs,
   ListSwigTokenTransactionsResult,
@@ -12,6 +31,9 @@ import type {
   PreparedTransactionWire,
   PrepareOperation,
   PrepareTransactionsResponseWire,
+  QuoteRampArgs,
+  QuoteRampResult,
+  QuoteRampResultWire,
   SwapArgs,
   SwigUsdBalance,
   TransferSolArgs,
@@ -95,10 +117,12 @@ export class SwigBrowserProxyError extends Error {
 
 export class SwigBrowserClient {
   readonly paymaster: BrowserPaymasterClient;
+  readonly ramp: BrowserRampClient;
   readonly wallets: BrowserWalletsClient;
 
   constructor(config: SwigBrowserClientConfig = {}) {
     this.paymaster = new BrowserPaymasterClient(config);
+    this.ramp = new BrowserRampClient(config);
     this.wallets = new BrowserWalletsClient(config);
   }
 }
@@ -314,6 +338,76 @@ function paymasterKindQueryValue(
   }
 }
 
+export class BrowserRampClient {
+  private readonly http: BrowserProxyHttpClient;
+  private readonly defaultNetwork?: Network;
+
+  constructor(config: SwigBrowserClientConfig = {}) {
+    this.http = new BrowserProxyHttpClient({
+      basePath: config.basePath ?? '/api/swig',
+      fetch: resolveFetch(config.fetch),
+    });
+    this.defaultNetwork = config.network;
+  }
+
+  getOptions = async (
+    args: GetRampOptionsArgs,
+  ): Promise<GetRampOptionsResult> => {
+    const response = await this.http.get<GetRampOptionsResultWire>(
+      'ramp/options',
+      {
+        organizationId: args.organizationId,
+        partnerApplicationId: args.partnerApplicationId,
+        countryCode: args.countryCode,
+        fiatCurrencyCode: args.fiatCurrencyCode,
+      },
+    );
+    return normalizeRampOptions(response);
+  };
+
+  quote = async (args: QuoteRampArgs): Promise<QuoteRampResult> => {
+    const response = await this.http.postResource<QuoteRampResultWire>(
+      'ramp/quote',
+      args,
+    );
+    return normalizeQuoteRampResult(response);
+  };
+
+  createSession = async (
+    args: CreateRampSessionArgs,
+  ): Promise<CreateRampSessionResult> => {
+    const response = await this.http.postResource<CreateRampSessionResultWire>(
+      'ramp/sessions',
+      args,
+    );
+    return normalizeCreateRampSessionResult(response);
+  };
+
+  getTransaction = async (
+    args: GetRampTransactionArgs,
+  ): Promise<GetRampTransactionResult> => {
+    const response = await this.http.get<GetRampTransactionResultWire>(
+      `ramp/transactions/${encodeURIComponent(args.transactionId)}`,
+    );
+    return normalizeGetRampTransactionResult(response);
+  };
+
+  listTransactions = async (
+    args: ListRampTransactionsArgs,
+  ): Promise<ListRampTransactionsResult> => {
+    const response = await this.http.get<ListRampTransactionsResultWire>(
+      `ramp/wallets/${encodeURIComponent(args.walletId)}/transactions`,
+      {
+        network: args.network ?? this.defaultNetwork,
+        direction: args.direction,
+        status: args.status,
+        limit: args.limit,
+      },
+    );
+    return normalizeListRampTransactionsResult(response);
+  };
+}
+
 class BrowserProxyHttpClient {
   readonly #basePath: string;
   readonly #fetch: typeof fetch;
@@ -345,6 +439,30 @@ class BrowserProxyHttpClient {
     }
 
     return readPrepared<TResponse>(responseBody);
+  };
+
+  postResource = async <TResponse>(
+    route: string,
+    body: unknown,
+  ): Promise<TResponse> => {
+    const response = await this.#fetch(`${this.#basePath}/${route}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const responseBody = await parseResponseBody(response);
+
+    if (!response.ok) {
+      throw new SwigBrowserProxyError(
+        errorMessageFromBody(responseBody),
+        response.status,
+        responseBody,
+      );
+    }
+
+    return responseBody as TResponse;
   };
 
   get = async <TResponse>(

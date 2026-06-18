@@ -16,7 +16,7 @@ Create one catch-all route:
 // app/api/swig/[...swig]/route.ts
 import { createSwigRouteHandlers } from '@swig-wallet/developer-sdk/next';
 
-export const { POST } = createSwigRouteHandlers();
+export const { GET, POST } = createSwigRouteHandlers();
 ```
 
 The helper handles:
@@ -27,6 +27,11 @@ POST /api/swig/prepare
 POST /api/swig/transfer/sol
 POST /api/swig/transfer/spl-token
 POST /api/swig/swap/jupiter
+GET  /api/swig/ramp/options
+POST /api/swig/ramp/quote
+POST /api/swig/ramp/sessions
+GET  /api/swig/ramp/transactions/:transactionId
+GET  /api/swig/ramp/wallets/:walletId/transactions
 ```
 
 ## Configuration
@@ -107,3 +112,26 @@ export const { POST } = createSwigRouteHandlers({
   },
 });
 ```
+
+## Ramp Customer Resolution
+
+Ramp routes can also resolve customer identity server-side. This keeps browser
+code from choosing the Meld customer identity while still letting each app map
+its own authenticated user or downstream customer.
+
+```typescript
+export const { GET, POST } = createSwigRouteHandlers({
+  resolveRampCustomer: async ({ request }) => {
+    const user = await getUserFromSession(request);
+
+    return {
+      organizationId: user.organizationId,
+      swigUserId: user.id,
+      customerType: 'individual',
+    };
+  },
+});
+```
+
+For embedded partner apps, return `partnerApplicationId` plus either
+`externalCustomerId` or `externalBusinessId` instead of `swigUserId`.

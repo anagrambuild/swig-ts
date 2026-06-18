@@ -1,10 +1,14 @@
 import type {
   Amount,
+  CreateRampSessionArgs,
   CreateWalletArgs,
+  GetRampOptionsArgs,
   Network,
   PaymasterBalanceKind,
   PrepareArgs,
   PrepareOperation,
+  QuoteRampArgs,
+  RampCustomerContext,
   SwapArgs,
   TransferTokenArgs,
   WalletAuthority,
@@ -17,13 +21,18 @@ export type SwigPostProxyRoute =
   | 'prepare'
   | 'transfer/sol'
   | 'transfer/spl-token'
-  | 'swap/jupiter';
+  | 'swap/jupiter'
+  | 'ramp/quote'
+  | 'ramp/sessions';
 
 export type SwigReadProxyRoute =
   | 'wallet/balance/usd'
   | 'wallet/token-balances'
   | 'wallet/token-transactions'
-  | 'paymaster/balance';
+  | 'paymaster/balance'
+  | 'ramp/options'
+  | 'ramp/transaction'
+  | 'ramp/wallet-transactions';
 
 export type SwigProxyRoute = SwigPostProxyRoute | SwigReadProxyRoute;
 
@@ -54,6 +63,12 @@ export interface CreateSwigFetchHandlerConfig {
   resolveRequesterAuthority?: (
     context: SwigRouteContext,
   ) => MaybePromise<WalletAuthority | undefined>;
+  resolveRequesterPubkey?: (
+    context: SwigRouteContext,
+  ) => MaybePromise<string | undefined>;
+  resolveRampCustomer?: (
+    context: SwigRouteContext,
+  ) => MaybePromise<RampCustomerContext | undefined>;
   fetch?: typeof fetch;
 }
 
@@ -74,6 +89,8 @@ const swigPostProxyRoutes: SwigPostProxyRoute[] = [
   'transfer/sol',
   'transfer/spl-token',
   'swap/jupiter',
+  'ramp/quote',
+  'ramp/sessions',
 ];
 
 export type SwigFetchHandler = (request: Request) => Promise<Response>;
@@ -98,7 +115,9 @@ async function handlePost(
     const route = resolvePostRoute(request);
     const body = await readJsonObject(request);
     const network = readNetwork(body.network) ?? config.network;
-    const wallet = readWallet(body.wallet);
+    const wallet = route.startsWith('ramp/')
+      ? undefined
+      : readWallet(body.wallet);
     const context: SwigRouteContext = {
       request,
       route,
@@ -136,6 +155,26 @@ async function handlePost(
         return json({
           prepared: await prepareJupiterSwap(swig, body, context, config),
         });
+      case 'ramp/quote':
+        return json(
+          await swig.ramp.quote(
+            (await bodyWithResolvedRampCustomer(
+              body,
+              context,
+              config,
+            )) as unknown as QuoteRampArgs,
+          ),
+        );
+      case 'ramp/sessions':
+        return json(
+          await swig.ramp.createSession(
+            (await bodyWithResolvedRampCustomer(
+              body,
+              context,
+              config,
+            )) as unknown as CreateRampSessionArgs,
+          ),
+        );
     }
   } catch (error) {
     const message =
@@ -162,6 +201,12 @@ async function handleGet(
       ...(network ? { network } : {}),
       ...(config.fetch ? { fetch: config.fetch } : {}),
     });
+    const context: SwigRouteContext = {
+      request,
+      route: route.route,
+      body: {},
+      network,
+    };
 
     switch (route.route) {
       case 'wallet/balance/usd':
@@ -191,6 +236,24 @@ async function handleGet(
         return json(
           await swig.paymaster.getBalance(
             paymasterOptions(network, paymasterKind),
+          ),
+        );
+      case 'ramp/options':
+        return json(
+          await swig.ramp.getOptions(
+            await readRampOptionsArgs(request, context, config),
+          ),
+        );
+      case 'ramp/transaction':
+        return json(
+          await swig.ramp.getTransaction({
+            transactionId: route.transactionId,
+          }),
+        );
+      case 'ramp/wallet-transactions':
+        return json(
+          await swig.ramp.listTransactions(
+            readListRampTransactionsArgs(request, route.walletId),
           ),
         );
     }
@@ -435,13 +498,22 @@ async function resolveRequesterAuthority(
       context.body.requesterAuthority,
       'requesterAuthority',
     ) ??
-    (await config.resolveRequesterAuthority?.(context));
+    (await config.resolveRequesterAuthority?.(context)) ??
+    (await resolveLegacyRequesterAuthority(context, config));
 
   if (!requesterAuthority) {
     throw new SwigRouteError('requesterAuthority is required');
   }
 
   return requesterAuthority;
+}
+
+async function resolveLegacyRequesterAuthority(
+  context: SwigRouteContext,
+  config: CreateSwigFetchHandlerConfig,
+): Promise<WalletAuthority | undefined> {
+  const publicKey = await config.resolveRequesterPubkey?.(context);
+  return publicKey ? { ed25519: { publicKey } } : undefined;
 }
 
 async function resolveFeePayer(
@@ -509,13 +581,39 @@ function resolveReadRoute(
   | { route: 'wallet/balance/usd'; swigConfigAddress: string }
   | { route: 'wallet/token-balances'; swigConfigAddress: string }
   | { route: 'wallet/token-transactions'; swigConfigAddress: string }
-  | { route: 'paymaster/balance' } {
+  | { route: 'paymaster/balance' }
+  | { route: 'ramp/options' }
+  | { route: 'ramp/transaction'; transactionId: string }
+  | { route: 'ramp/wallet-transactions'; walletId: string } {
   const pathname = new URL(request.url).pathname.replace(/\/$/, '');
   if (
     pathname === '/paymaster/balance' ||
     pathname.endsWith('/paymaster/balance')
   ) {
     return { route: 'paymaster/balance' };
+  }
+  if (pathname === '/ramp/options' || pathname.endsWith('/ramp/options')) {
+    return { route: 'ramp/options' };
+  }
+
+  const rampTransactionMatch = pathname.match(/\/ramp\/transactions\/([^/]+)$/);
+  if (rampTransactionMatch) {
+    const transactionId = decodeURIComponent(rampTransactionMatch[1] ?? '');
+    if (!transactionId) {
+      throw new SwigRouteError('transactionId is required');
+    }
+    return { route: 'ramp/transaction', transactionId };
+  }
+
+  const rampWalletTransactionsMatch = pathname.match(
+    /\/ramp\/wallets\/([^/]+)\/transactions$/,
+  );
+  if (rampWalletTransactionsMatch) {
+    const walletId = decodeURIComponent(rampWalletTransactionsMatch[1] ?? '');
+    if (!walletId) {
+      throw new SwigRouteError('walletId is required');
+    }
+    return { route: 'ramp/wallet-transactions', walletId };
   }
 
   const match = pathname.match(
@@ -540,6 +638,70 @@ function resolveReadRoute(
     default:
       throw new SwigRouteError('Unsupported Swig route', 404);
   }
+}
+
+async function readRampOptionsArgs(
+  request: Request,
+  context: SwigRouteContext,
+  config: CreateSwigFetchHandlerConfig,
+): Promise<GetRampOptionsArgs> {
+  const resolvedCustomer = await config.resolveRampCustomer?.(context);
+  return {
+    organizationId:
+      resolvedCustomer?.organizationId ??
+      readRequiredQueryString(request, 'organizationId'),
+    partnerApplicationId:
+      resolvedCustomer?.partnerApplicationId ??
+      readOptionalQueryString(request, 'partnerApplicationId'),
+    countryCode: readOptionalQueryString(request, 'countryCode'),
+    fiatCurrencyCode: readOptionalQueryString(request, 'fiatCurrencyCode'),
+  };
+}
+
+async function bodyWithResolvedRampCustomer(
+  body: Record<string, unknown>,
+  context: SwigRouteContext,
+  config: CreateSwigFetchHandlerConfig,
+): Promise<Record<string, unknown>> {
+  const resolvedCustomer = await config.resolveRampCustomer?.(context);
+  if (!resolvedCustomer) {
+    return body;
+  }
+
+  return {
+    ...body,
+    customer: {
+      ...(isRecord(body.customer) ? body.customer : {}),
+      ...resolvedCustomer,
+    },
+  };
+}
+
+function readListRampTransactionsArgs(request: Request, walletId: string) {
+  const network = readNetwork(new URL(request.url).searchParams.get('network'));
+  if (!network) {
+    throw new SwigRouteError('network is required');
+  }
+  return {
+    walletId,
+    network,
+    direction: readOptionalQueryString(request, 'direction') as
+      | 'onramp'
+      | 'offramp'
+      | 'transfer'
+      | undefined,
+    status: readOptionalQueryString(request, 'status') as
+      | 'created'
+      | 'pending'
+      | 'settling'
+      | 'settled'
+      | 'failed'
+      | 'declined'
+      | 'cancelled'
+      | 'refunded'
+      | undefined,
+    limit: readOptionalQueryNumber(request, 'limit'),
+  };
 }
 
 async function readJsonObject(
@@ -672,10 +834,20 @@ function readAmount(body: Record<string, unknown>): Amount {
 }
 
 function readNetwork(value: unknown): Network | undefined {
-  if (value === 'devnet' || value === 'mainnet') {
-    return value;
+  switch (value) {
+    case 'devnet':
+    case 'NETWORK_DEVNET':
+    case 1:
+    case '1':
+      return 'devnet';
+    case 'mainnet':
+    case 'NETWORK_MAINNET':
+    case 2:
+    case '2':
+      return 'mainnet';
+    default:
+      return undefined;
   }
-  return undefined;
 }
 
 function readPaymasterBalanceKind(
@@ -743,6 +915,22 @@ function readOptionalQueryNumber(
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readRequiredQueryString(request: Request, key: string): string {
+  const value = readOptionalQueryString(request, key);
+  if (!value) {
+    throw new SwigRouteError(`${key} is required`);
+  }
+  return value;
+}
+
+function readOptionalQueryString(
+  request: Request,
+  key: string,
+): string | undefined {
+  const value = new URL(request.url).searchParams.get(key);
+  return value && value.trim() ? value.trim() : undefined;
 }
 
 function readEnv(...names: string[]): string | undefined {

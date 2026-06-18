@@ -13,7 +13,7 @@ endpoint.
 Create one controller mounted at your Swig proxy prefix:
 
 ```typescript
-import { Controller, Post, Req, Res } from '@nestjs/common';
+import { All, Controller, Req, Res } from '@nestjs/common';
 import { createSwigNestHandler } from '@swig-wallet/developer-sdk/nest';
 import type { Request, Response } from 'express';
 
@@ -21,7 +21,7 @@ const swigHandler = createSwigNestHandler();
 
 @Controller('swig')
 export class SwigController {
-  @Post('*')
+  @All('*')
   handle(@Req() request: Request, @Res() response: Response) {
     return swigHandler(request, response);
   }
@@ -36,6 +36,11 @@ POST /swig/prepare
 POST /swig/transfer/sol
 POST /swig/transfer/spl-token
 POST /swig/swap/jupiter
+GET  /swig/ramp/options
+POST /swig/ramp/quote
+POST /swig/ramp/sessions
+GET  /swig/ramp/transactions/:transactionId
+GET  /swig/ramp/wallets/:walletId/transactions
 ```
 
 ## Configuration
