@@ -197,8 +197,8 @@ and transaction history.
 ```typescript
 const quotes = await swig.ramp.quote({
   customer: {
-    organizationId,
     partnerApplicationId,
+    swigUserId,
     customerType: 'individual',
   },
   wallet: {
@@ -216,8 +216,8 @@ const quotes = await swig.ramp.quote({
 
 const session = await swig.ramp.createSession({
   customer: {
-    organizationId,
     partnerApplicationId,
+    swigUserId,
     customerType: 'individual',
   },
   wallet: {

@@ -724,7 +724,7 @@ describe('createSwigFetchHandler', () => {
         method: 'POST',
         body: JSON.stringify({
           customer: {
-            organizationId: 'org_123',
+            swigUserId: 'user_123',
             customerType: 'individual',
           },
           wallet: {
@@ -757,7 +757,7 @@ describe('createSwigFetchHandler', () => {
       method: 'POST',
       body: {
         customer: {
-          organizationId: 'org_123',
+          swigUserId: 'user_123',
           customerType: 'RAMP_CUSTOMER_TYPE_INDIVIDUAL',
         },
         wallet: {
@@ -784,7 +784,6 @@ describe('createSwigFetchHandler', () => {
           externalCustomerId: 'browser_customer',
         });
         return {
-          organizationId: 'server_org',
           partnerApplicationId: 'server_app',
           externalCustomerId: 'server_customer',
           customerType: 'individual',
@@ -825,13 +824,16 @@ describe('createSwigFetchHandler', () => {
       url: 'http://localhost:8080/wallet/api/ramp/quote',
       body: {
         customer: {
-          organizationId: 'server_org',
           partnerApplicationId: 'server_app',
           externalCustomerId: 'server_customer',
           customerType: 'RAMP_CUSTOMER_TYPE_INDIVIDUAL',
         },
       },
     });
+    const forwardedCustomer = (calls[0]!.body as Record<string, unknown>)
+      .customer as Record<string, unknown>;
+    expect(forwardedCustomer).not.toHaveProperty('organizationId');
+    expect(forwardedCustomer).not.toHaveProperty('organization_id');
   });
 
   test('resolves ramp customer context server-side for session requests', async () => {
@@ -840,7 +842,6 @@ describe('createSwigFetchHandler', () => {
       apiKey: 'sk_test',
       transactionApiUrl: 'http://localhost:8080',
       resolveRampCustomer: () => ({
-        organizationId: 'server_org',
         swigUserId: 'swig_user_123',
         customerType: 'individual',
       }),
@@ -890,13 +891,16 @@ describe('createSwigFetchHandler', () => {
       url: 'http://localhost:8080/wallet/api/ramp/sessions',
       body: {
         customer: {
-          organizationId: 'server_org',
           swigUserId: 'swig_user_123',
           customerType: 'RAMP_CUSTOMER_TYPE_INDIVIDUAL',
         },
         selectedQuoteId: 'quote_123',
       },
     });
+    const forwardedCustomer = (calls[0]!.body as Record<string, unknown>)
+      .customer as Record<string, unknown>;
+    expect(forwardedCustomer).not.toHaveProperty('organizationId');
+    expect(forwardedCustomer).not.toHaveProperty('organization_id');
   });
 });
 
@@ -1030,7 +1034,6 @@ describe('createSwigGetHandler', () => {
       resolveRampCustomer: ({ route }) => {
         expect(route).toBe('ramp/options');
         return {
-          organizationId: 'server_org',
           partnerApplicationId: 'server_app',
           customerType: 'individual',
         };
@@ -1059,7 +1062,44 @@ describe('createSwigGetHandler', () => {
       fiatCurrencyCodes: ['USD'],
     });
     expect(calls[0]).toMatchObject({
-      url: 'http://localhost:8080/wallet/api/ramp/options?organizationId=server_org&partnerApplicationId=server_app&countryCode=US&fiatCurrencyCode=USD',
+      url: 'http://localhost:8080/wallet/api/ramp/options?partnerApplicationId=server_app&countryCode=US&fiatCurrencyCode=USD',
+      method: 'GET',
+    });
+  });
+
+  test('proxies ramp options without an organization id', async () => {
+    const calls: CapturedRequest[] = [];
+    const handler = createSwigGetHandler({
+      apiKey: 'sk_test',
+      transactionApiUrl: 'http://localhost:8080',
+      resolveRampCustomer: ({ route }) => {
+        expect(route).toBe('ramp/options');
+        return {
+          partnerApplicationId: 'server_app',
+          customerType: 'individual',
+        };
+      },
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          country_codes: ['US'],
+          fiat_currency_codes: ['USD'],
+          payment_method_types: ['RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD'],
+          crypto_currency_codes: ['USDC_SOLANA'],
+        };
+      }),
+    });
+
+    const response = await handler(
+      new Request(
+        'https://app.example/api/swig/ramp/options?countryCode=US&fiatCurrencyCode=USD',
+        { method: 'GET' },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/wallet/api/ramp/options?partnerApplicationId=server_app&countryCode=US&fiatCurrencyCode=USD',
       method: 'GET',
     });
   });

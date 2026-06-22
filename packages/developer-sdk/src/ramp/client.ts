@@ -170,7 +170,6 @@ export function normalizeListRampTransactionsResult(
 
 function rampOptionsPath(args: GetRampOptionsArgs): string {
   return pathWithQuery('/wallet/api/ramp/options', {
-    organizationId: args.organizationId,
     partnerApplicationId: args.partnerApplicationId,
     countryCode: args.countryCode,
     fiatCurrencyCode: args.fiatCurrencyCode,
@@ -239,7 +238,6 @@ function rampCustomerContextRequest(
   customer: RampCustomerContext,
 ): RampCustomerContextWire {
   return {
-    organizationId: customer.organizationId,
     partnerApplicationId: customer.partnerApplicationId,
     swigUserId: customer.swigUserId,
     externalCustomerId: customer.externalCustomerId,

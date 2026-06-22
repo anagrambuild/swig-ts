@@ -68,8 +68,8 @@ describe('RampClient', () => {
 
     const result = await swig.ramp.quote({
       customer: {
-        organizationId: 'org_123',
         partnerApplicationId: 'app_123',
+        swigUserId: 'user_123',
         customerType: 'individual',
       },
       wallet: {
@@ -91,8 +91,8 @@ describe('RampClient', () => {
       method: 'POST',
       body: {
         customer: {
-          organizationId: 'org_123',
           partnerApplicationId: 'app_123',
+          swigUserId: 'user_123',
           customerType: 'RAMP_CUSTOMER_TYPE_INDIVIDUAL',
         },
         wallet: {
@@ -164,7 +164,7 @@ describe('RampClient', () => {
 
     const session = await swig.ramp.createSession({
       customer: {
-        organizationId: 'org_123',
+        swigUserId: 'user_123',
         customerType: 'individual',
       },
       wallet: {

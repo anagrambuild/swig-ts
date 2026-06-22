@@ -125,7 +125,6 @@ export const { GET, POST } = createSwigRouteHandlers({
     const user = await getUserFromSession(request);
 
     return {
-      organizationId: user.organizationId,
       swigUserId: user.id,
       customerType: 'individual',
     };

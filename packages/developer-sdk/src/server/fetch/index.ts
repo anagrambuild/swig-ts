@@ -553,11 +553,7 @@ function resolveTransactionApiUrl(config: CreateSwigFetchHandlerConfig) {
   return (
     config.transactionApiUrl ??
     config.baseUrl ??
-    readEnv(
-      'SWIG_TRANSACTION_API_URL',
-      'SWIG_BACKEND_URL',
-      'NEXT_PUBLIC_SWIG_BACKEND_URL',
-    )
+    readEnv('SWIG_TRANSACTION_API_URL', 'NEXT_PUBLIC_SWIG_BACKEND_URL')
   );
 }
 
@@ -647,9 +643,6 @@ async function readRampOptionsArgs(
 ): Promise<GetRampOptionsArgs> {
   const resolvedCustomer = await config.resolveRampCustomer?.(context);
   return {
-    organizationId:
-      resolvedCustomer?.organizationId ??
-      readRequiredQueryString(request, 'organizationId'),
     partnerApplicationId:
       resolvedCustomer?.partnerApplicationId ??
       readOptionalQueryString(request, 'partnerApplicationId'),
@@ -671,10 +664,23 @@ async function bodyWithResolvedRampCustomer(
   return {
     ...body,
     customer: {
-      ...(isRecord(body.customer) ? body.customer : {}),
+      ...rampCustomerBodyWithoutOrganization(body.customer),
       ...resolvedCustomer,
     },
   };
+}
+
+function rampCustomerBodyWithoutOrganization(
+  value: unknown,
+): Record<string, unknown> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const customer = { ...value };
+  delete customer.organizationId;
+  delete customer.organization_id;
+  return customer;
 }
 
 function readListRampTransactionsArgs(request: Request, walletId: string) {
@@ -915,14 +921,6 @@ function readOptionalQueryNumber(
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function readRequiredQueryString(request: Request, key: string): string {
-  const value = readOptionalQueryString(request, key);
-  if (!value) {
-    throw new SwigRouteError(`${key} is required`);
-  }
-  return value;
 }
 
 function readOptionalQueryString(

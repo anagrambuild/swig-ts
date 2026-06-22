@@ -408,7 +408,7 @@ describe('SwigBrowserClient', () => {
 
     const result = await swig.ramp.quote({
       customer: {
-        organizationId: 'org_123',
+        swigUserId: 'user_123',
         customerType: 'individual',
       },
       wallet: {
@@ -430,7 +430,7 @@ describe('SwigBrowserClient', () => {
       method: 'POST',
       body: {
         customer: {
-          organizationId: 'org_123',
+          swigUserId: 'user_123',
           customerType: 'individual',
         },
         wallet: {

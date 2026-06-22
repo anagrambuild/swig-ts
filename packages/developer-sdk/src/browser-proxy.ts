@@ -356,7 +356,6 @@ export class BrowserRampClient {
     const response = await this.http.get<GetRampOptionsResultWire>(
       'ramp/options',
       {
-        organizationId: args.organizationId,
         partnerApplicationId: args.partnerApplicationId,
         countryCode: args.countryCode,
         fiatCurrencyCode: args.fiatCurrencyCode,

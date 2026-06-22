@@ -87,7 +87,6 @@ export type RampPaymentMethodTypeWire =
   | number;
 
 export interface RampCustomerContext {
-  organizationId: string;
   partnerApplicationId?: string;
   swigUserId?: string;
   externalCustomerId?: string;
@@ -125,7 +124,6 @@ export interface RampWalletContextWire {
 }
 
 export interface GetRampOptionsArgs {
-  organizationId: string;
   partnerApplicationId?: string;
   countryCode?: string;
   fiatCurrencyCode?: string;

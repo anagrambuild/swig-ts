@@ -1,19 +1,16 @@
 import type { RampCustomerContext } from '../types/ramp.js';
 
 export interface DirectSwigUserRampCustomerArgs {
-  organizationId: string;
   partnerApplicationId?: string;
   swigUserId: string;
 }
 
 export interface PartnerCustomerRampCustomerArgs {
-  organizationId: string;
   partnerApplicationId: string;
   externalCustomerId: string;
 }
 
 export interface PartnerBusinessRampCustomerArgs {
-  organizationId: string;
   partnerApplicationId: string;
   externalBusinessId: string;
 }
@@ -21,7 +18,6 @@ export interface PartnerBusinessRampCustomerArgs {
 export const rampCustomer = {
   directSwigUser(args: DirectSwigUserRampCustomerArgs): RampCustomerContext {
     return {
-      organizationId: requireNonEmpty(args.organizationId, 'organizationId'),
       ...optionalPartnerApplicationId(args.partnerApplicationId),
       swigUserId: requireNonEmpty(args.swigUserId, 'swigUserId'),
       customerType: 'individual',
@@ -30,7 +26,6 @@ export const rampCustomer = {
 
   partnerCustomer(args: PartnerCustomerRampCustomerArgs): RampCustomerContext {
     return {
-      organizationId: requireNonEmpty(args.organizationId, 'organizationId'),
       partnerApplicationId: requireNonEmpty(
         args.partnerApplicationId,
         'partnerApplicationId',
@@ -45,7 +40,6 @@ export const rampCustomer = {
 
   partnerBusiness(args: PartnerBusinessRampCustomerArgs): RampCustomerContext {
     return {
-      organizationId: requireNonEmpty(args.organizationId, 'organizationId'),
       partnerApplicationId: requireNonEmpty(
         args.partnerApplicationId,
         'partnerApplicationId',
