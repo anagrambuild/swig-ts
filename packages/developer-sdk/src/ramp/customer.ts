@@ -56,9 +56,7 @@ export const rampCustomer = {
 function optionalPartnerApplicationId(
   partnerApplicationId: string | undefined,
 ): Pick<RampCustomerContext, 'partnerApplicationId'> | Record<string, never> {
-  return partnerApplicationId?.trim()
-    ? { partnerApplicationId }
-    : {};
+  return partnerApplicationId?.trim() ? { partnerApplicationId } : {};
 }
 
 function requireNonEmpty(value: string, fieldName: string): string {
