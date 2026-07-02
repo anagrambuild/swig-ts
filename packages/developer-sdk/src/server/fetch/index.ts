@@ -553,7 +553,11 @@ function resolveTransactionApiUrl(config: CreateSwigFetchHandlerConfig) {
   return (
     config.transactionApiUrl ??
     config.baseUrl ??
-    readEnv('SWIG_TRANSACTION_API_URL', 'NEXT_PUBLIC_SWIG_BACKEND_URL')
+    readEnv(
+      'SWIG_TRANSACTION_API_URL',
+      'SWIG_BACKEND_URL',
+      'NEXT_PUBLIC_SWIG_BACKEND_URL',
+    )
   );
 }
 
@@ -663,24 +667,8 @@ async function bodyWithResolvedRampCustomer(
 
   return {
     ...body,
-    customer: {
-      ...rampCustomerBodyWithoutOrganization(body.customer),
-      ...resolvedCustomer,
-    },
+    customer: resolvedCustomer,
   };
-}
-
-function rampCustomerBodyWithoutOrganization(
-  value: unknown,
-): Record<string, unknown> {
-  if (!isRecord(value)) {
-    return {};
-  }
-
-  const customer = { ...value };
-  delete customer.organizationId;
-  delete customer.organization_id;
-  return customer;
 }
 
 function readListRampTransactionsArgs(request: Request, walletId: string) {

@@ -863,7 +863,9 @@ describe('createSwigFetchHandler', () => {
         body: JSON.stringify({
           customer: {
             organizationId: 'browser_org',
+            partnerApplicationId: 'browser_app',
             externalCustomerId: 'browser_customer',
+            externalBusinessId: 'browser_business',
             customerType: 'business',
           },
           wallet: {
@@ -901,10 +903,65 @@ describe('createSwigFetchHandler', () => {
       .customer as Record<string, unknown>;
     expect(forwardedCustomer).not.toHaveProperty('organizationId');
     expect(forwardedCustomer).not.toHaveProperty('organization_id');
+    expect(forwardedCustomer).not.toHaveProperty('partnerApplicationId');
+    expect(forwardedCustomer).not.toHaveProperty('externalCustomerId');
+    expect(forwardedCustomer).not.toHaveProperty('externalBusinessId');
   });
 });
 
 describe('createSwigGetHandler', () => {
+  test('uses SWIG_BACKEND_URL as a deprecated transaction API fallback', async () => {
+    const previousTransactionApiUrl = process.env.SWIG_TRANSACTION_API_URL;
+    const previousBackendUrl = process.env.SWIG_BACKEND_URL;
+    const previousPublicBackendUrl = process.env.NEXT_PUBLIC_SWIG_BACKEND_URL;
+    delete process.env.SWIG_TRANSACTION_API_URL;
+    process.env.SWIG_BACKEND_URL = 'http://localhost:8080';
+    delete process.env.NEXT_PUBLIC_SWIG_BACKEND_URL;
+
+    try {
+      const calls: CapturedRequest[] = [];
+      const handler = createSwigGetHandler({
+        apiKey: 'sk_test',
+        fetch: jsonFetch((request) => {
+          calls.push(request);
+          return {
+            kind: 'idp',
+            address: 'paymaster_address_123',
+            balanceSol: 5,
+          };
+        }),
+      });
+
+      const response = await handler(
+        new Request('https://app.example/api/swig/paymaster/balance', {
+          method: 'GET',
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(calls[0]).toMatchObject({
+        url: 'http://localhost:8080/paymaster/balance',
+        method: 'GET',
+      });
+    } finally {
+      if (previousTransactionApiUrl === undefined) {
+        delete process.env.SWIG_TRANSACTION_API_URL;
+      } else {
+        process.env.SWIG_TRANSACTION_API_URL = previousTransactionApiUrl;
+      }
+      if (previousBackendUrl === undefined) {
+        delete process.env.SWIG_BACKEND_URL;
+      } else {
+        process.env.SWIG_BACKEND_URL = previousBackendUrl;
+      }
+      if (previousPublicBackendUrl === undefined) {
+        delete process.env.NEXT_PUBLIC_SWIG_BACKEND_URL;
+      } else {
+        process.env.NEXT_PUBLIC_SWIG_BACKEND_URL = previousPublicBackendUrl;
+      }
+    }
+  });
+
   test('proxies wallet USD balance reads with the configured API key', async () => {
     const calls: CapturedRequest[] = [];
     const handler = createSwigGetHandler({
