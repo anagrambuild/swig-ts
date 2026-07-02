@@ -1,3 +1,4 @@
+export { rampCustomer } from './ramp/index.js';
 export {
   createSwigNestHandler,
   type CreateSwigNestHandlerConfig,
@@ -5,3 +6,9 @@ export {
   type SwigNestRequestLike,
   type SwigNestResponseLike,
 } from './server/nest/index.js';
+
+export type {
+  DirectSwigUserRampCustomerArgs,
+  PartnerBusinessRampCustomerArgs,
+  PartnerCustomerRampCustomerArgs,
+} from './ramp/index.js';

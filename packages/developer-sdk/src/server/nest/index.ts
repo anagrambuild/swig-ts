@@ -1,5 +1,6 @@
 import {
   createSwigFetchHandler,
+  createSwigGetHandler,
   type CreateSwigFetchHandlerConfig,
 } from '../fetch/index.js';
 
@@ -31,9 +32,11 @@ export type SwigNestHandler = (
 export function createSwigNestHandler(
   config: CreateSwigNestHandlerConfig = {},
 ): SwigNestHandler {
-  const fetchHandler = createSwigFetchHandler(config);
+  const getHandler = createSwigGetHandler(config);
+  const postHandler = createSwigFetchHandler(config);
 
   return async (request, response) => {
+    const fetchHandler = request.method === 'GET' ? getHandler : postHandler;
     const fetchResponse = await fetchHandler(toFetchRequest(request));
     response.status(fetchResponse.status);
     fetchResponse.headers.forEach((value, name) => {

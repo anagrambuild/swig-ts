@@ -1,4 +1,5 @@
 export { DEFAULT_BACKEND_URL, SwigDeveloperSdkError } from '../core/index.js';
+export { RampClient, rampCustomer } from '../ramp/index.js';
 export { TransactionsClient } from '../transactions/index.js';
 export { WalletHandle, WalletsClient } from '../wallets/index.js';
 export {
@@ -11,14 +12,22 @@ export type {
   Amount,
   CancelRecoveryArgs,
   ConfigureRecoveryArgs,
+  CreateRampSessionArgs,
+  CreateRampSessionResult,
   CreateWalletArgs,
   CreateWalletResponse,
   CreateWalletResult,
   ExecuteArgs,
   ExecuteRecoveryArgs,
+  GetRampOptionsArgs,
+  GetRampOptionsResult,
+  GetRampTransactionArgs,
+  GetRampTransactionResult,
   IdpWalletSession,
   JsonObject,
   JsonValue,
+  ListRampTransactionsArgs,
+  ListRampTransactionsResult,
   Network,
   Policy,
   PolicyAuthority,
@@ -27,6 +36,18 @@ export type {
   PreparedTransaction,
   PreparedTransactionWire,
   PreparedTransactionsResult,
+  QuoteRampArgs,
+  QuoteRampResult,
+  RampCustomerContext,
+  RampCustomerType,
+  RampDirection,
+  RampPaymentMethodType,
+  RampQuote,
+  RampServiceProvider,
+  RampTransaction,
+  RampTransactionStatus,
+  RampTransactionType,
+  RampWalletContext,
   RecoverySetupPlan,
   RetryOptions,
   SponsorSignedTransactionArgs,
@@ -41,3 +62,9 @@ export type {
   WalletHandleOptions,
   WalletReference,
 } from '../types/index.js';
+
+export type {
+  DirectSwigUserRampCustomerArgs,
+  PartnerBusinessRampCustomerArgs,
+  PartnerCustomerRampCustomerArgs,
+} from '../ramp/index.js';
