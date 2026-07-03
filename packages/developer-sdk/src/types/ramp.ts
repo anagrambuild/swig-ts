@@ -129,8 +129,35 @@ export interface GetRampOptionsArgs {
   fiatCurrencyCode?: string;
 }
 
+export interface RampSubdivisionOption {
+  subdivisionCode: string;
+  subdivisionName: string;
+}
+
+export interface RampSubdivisionOptionWire {
+  subdivision_code?: string;
+  subdivisionCode?: string;
+  subdivision_name?: string;
+  subdivisionName?: string;
+}
+
+export interface RampCountryOption {
+  countryCode: string;
+  countryName: string;
+  subdivisions: RampSubdivisionOption[];
+}
+
+export interface RampCountryOptionWire {
+  country_code?: string;
+  countryCode?: string;
+  country_name?: string;
+  countryName?: string;
+  subdivisions?: RampSubdivisionOptionWire[];
+}
+
 export interface GetRampOptionsResult {
   countryCodes: string[];
+  countries: RampCountryOption[];
   fiatCurrencyCodes: string[];
   paymentMethodTypes: RampPaymentMethodType[];
   cryptoCurrencyCodes: string[];
@@ -139,6 +166,7 @@ export interface GetRampOptionsResult {
 export interface GetRampOptionsResultWire {
   country_codes?: string[];
   countryCodes?: string[];
+  countries?: RampCountryOptionWire[];
   fiat_currency_codes?: string[];
   fiatCurrencyCodes?: string[];
   payment_method_types?: RampPaymentMethodTypeWire[];

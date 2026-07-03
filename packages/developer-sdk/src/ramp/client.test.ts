@@ -34,6 +34,107 @@ function jsonFetch(
 }
 
 describe('RampClient', () => {
+  test('normalizes ramp country subdivision options', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          country_codes: ['GB', 'US'],
+          countries: [
+            {
+              country_code: 'GB',
+              country_name: 'United Kingdom',
+              subdivisions: [],
+            },
+            {
+              country_code: 'US',
+              country_name: 'United States',
+              subdivisions: [
+                {
+                  subdivision_code: 'US-CA',
+                  subdivision_name: 'California',
+                },
+                {
+                  subdivision_code: 'US-NY',
+                  subdivision_name: 'New York',
+                },
+              ],
+            },
+          ],
+          fiat_currency_codes: ['USD'],
+          payment_method_types: ['RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD'],
+          crypto_currency_codes: ['USDC_SOLANA'],
+        };
+      }),
+    });
+
+    const result = await swig.ramp.getOptions({
+      countryCode: 'US',
+      fiatCurrencyCode: 'USD',
+    });
+
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/wallet/api/ramp/options?countryCode=US&fiatCurrencyCode=USD',
+      method: 'GET',
+    });
+    expect(result).toMatchObject({
+      countryCodes: ['GB', 'US'],
+      countries: [
+        {
+          countryCode: 'GB',
+          countryName: 'United Kingdom',
+          subdivisions: [],
+        },
+        {
+          countryCode: 'US',
+          countryName: 'United States',
+          subdivisions: [
+            {
+              subdivisionCode: 'US-CA',
+              subdivisionName: 'California',
+            },
+            {
+              subdivisionCode: 'US-NY',
+              subdivisionName: 'New York',
+            },
+          ],
+        },
+      ],
+      fiatCurrencyCodes: ['USD'],
+      paymentMethodTypes: ['credit-debit-card'],
+      cryptoCurrencyCodes: ['USDC_SOLANA'],
+    });
+  });
+
+  test('falls back to country codes when country options are absent', async () => {
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch(() => ({
+        country_codes: ['US'],
+        fiat_currency_codes: ['USD'],
+        payment_method_types: ['RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD'],
+        crypto_currency_codes: ['USDC_SOLANA'],
+      })),
+    });
+
+    await expect(swig.ramp.getOptions({})).resolves.toMatchObject({
+      countryCodes: ['US'],
+      countries: [
+        {
+          countryCode: 'US',
+          countryName: 'US',
+          subdivisions: [],
+        },
+      ],
+    });
+  });
+
   test('quotes ramp options through the backend API with proto wire enums', async () => {
     const calls: CapturedRequest[] = [];
     const swig = new SwigClient({
