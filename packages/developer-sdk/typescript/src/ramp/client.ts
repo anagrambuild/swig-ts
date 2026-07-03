@@ -19,6 +19,8 @@ import type {
   QuoteRampRequestWire,
   QuoteRampResult,
   QuoteRampResultWire,
+  RampCountryOption,
+  RampCountryOptionWire,
   RampCustomerContext,
   RampCustomerContextWire,
   RampCustomerTypeWire,
@@ -30,6 +32,8 @@ import type {
   RampQuoteWire,
   RampServiceProvider,
   RampServiceProviderWire,
+  RampSubdivisionOption,
+  RampSubdivisionOptionWire,
   RampTransaction,
   RampTransactionStatus,
   RampTransactionStatusWire,
@@ -98,8 +102,10 @@ export class RampClient {
 export function normalizeRampOptions(
   response: GetRampOptionsResultWire,
 ): GetRampOptionsResult {
+  const countryCodes = response.countryCodes ?? response.country_codes ?? [];
   return {
-    countryCodes: response.countryCodes ?? response.country_codes ?? [],
+    countryCodes,
+    countries: normalizeRampCountryOptions(response.countries, countryCodes),
     fiatCurrencyCodes:
       response.fiatCurrencyCodes ?? response.fiat_currency_codes ?? [],
     paymentMethodTypes: (
@@ -109,6 +115,63 @@ export function normalizeRampOptions(
     ).map(normalizeRampPaymentMethodType),
     cryptoCurrencyCodes:
       response.cryptoCurrencyCodes ?? response.crypto_currency_codes ?? [],
+  };
+}
+
+function normalizeRampCountryOptions(
+  countries: RampCountryOptionWire[] | undefined,
+  countryCodes: string[],
+): RampCountryOption[] {
+  if (countries?.length) {
+    return countries
+      .map(normalizeRampCountryOption)
+      .filter((country): country is RampCountryOption => country !== undefined);
+  }
+
+  return countryCodes.map((countryCode) => ({
+    countryCode,
+    countryName: countryCode,
+    subdivisions: [],
+  }));
+}
+
+function normalizeRampCountryOption(
+  country: RampCountryOptionWire,
+): RampCountryOption | undefined {
+  const countryCode = country.countryCode ?? country.country_code;
+  if (!countryCode) {
+    return undefined;
+  }
+  const countryName =
+    country.countryName ?? country.country_name ?? countryCode;
+
+  return {
+    countryCode,
+    countryName,
+    subdivisions: (country.subdivisions ?? [])
+      .map(normalizeRampSubdivisionOption)
+      .filter(
+        (subdivision): subdivision is RampSubdivisionOption =>
+          subdivision !== undefined,
+      ),
+  };
+}
+
+function normalizeRampSubdivisionOption(
+  subdivision: RampSubdivisionOptionWire,
+): RampSubdivisionOption | undefined {
+  const subdivisionCode =
+    subdivision.subdivisionCode ?? subdivision.subdivision_code;
+  if (!subdivisionCode) {
+    return undefined;
+  }
+
+  return {
+    subdivisionCode,
+    subdivisionName:
+      subdivision.subdivisionName ??
+      subdivision.subdivision_name ??
+      subdivisionCode,
   };
 }
 
