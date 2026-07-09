@@ -161,6 +161,8 @@ describe('RampClient', () => {
               partner_fee: '0.20',
               ramp_score: '92.5',
               low_kyc: true,
+              service_provider_code: 'TRANSAK',
+              service_provider_name: 'Transak',
             },
           ],
         };
@@ -218,6 +220,8 @@ describe('RampClient', () => {
       paymentMethodType: 'credit-debit-card',
       rampScore: '92.5',
       lowKyc: true,
+      serviceProviderCode: 'TRANSAK',
+      serviceProviderName: 'Transak',
     });
   });
 
