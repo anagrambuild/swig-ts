@@ -473,9 +473,7 @@ async def run_paymaster_e2e(
         transaction=transaction,
         idempotency_key=idempotency_key,
     )
-    submitted = await swig.transactions.sponsor(
-        sponsor_args
-    )
+    submitted = await swig.transactions.sponsor(sponsor_args)
     await rpc.confirm(submitted.signature)
     destination_after = await rpc.balance(str(destination.pubkey()))
     user_after = await rpc.balance(str(user.pubkey()))
