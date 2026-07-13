@@ -21,6 +21,7 @@ Repository = "https://github.com/anagrambuild/swig-ts"
 
 [dependency-groups]
 dev = [
+  "cryptography>=49.0.0",
   "mypy>=1.16,<2",
   "pytest>=8.4,<9",
   "pytest-asyncio>=1.0,<2",

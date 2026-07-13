@@ -180,13 +180,13 @@ jobs:
         run: uv sync --frozen --all-groups
 
       - name: Check Format
-        run: uv run --frozen ruff format --check src tests
+        run: uv run --frozen ruff format --check src tests scripts
 
       - name: Check Linting
-        run: uv run --frozen ruff check src tests
+        run: uv run --frozen ruff check src tests scripts
 
       - name: Check Types
-        run: uv run --frozen mypy src
+        run: uv run --frozen mypy src scripts
 
       - name: Run Tests
         run: uv run --frozen pytest
