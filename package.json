@@ -24,6 +24,7 @@
     "dev": "bun --filter '*' dev",
     "dev:classic": "bun --filter '@swig-wallet/classic' dev",
     "dev:coder": "bun --filter '@swig-wallet/coder' dev",
+    "e2e:developer-sdk:python": "cd packages/developer-sdk/python && uv run --frozen python scripts/local_transaction_e2e.py",
     "format": "prettier --check packages/ && prettier --check packages/paymaster/",
     "format:fix": "prettier --write packages/ && prettier --check packages/paymaster/",
     "lint": "nx run-many --target=lint --projects='@swig-wallet/api','@swig-wallet/classic','@swig-wallet/coder','@swig-wallet/developer','@swig-wallet/developer-sdk','@swig-wallet/kit','@swig-wallet/lib','@swig-wallet/paymaster-core','@swig-wallet/paymaster-classic','@swig-wallet/paymaster-kit'",
