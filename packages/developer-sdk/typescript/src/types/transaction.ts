@@ -1,4 +1,4 @@
-import type { JsonObject, Network } from './common.js';
+import type { Network } from './common.js';
 import type { WalletAuthority } from './wallet-actions.js';
 import type { WalletAddressInfo } from './wallet.js';
 
@@ -133,7 +133,6 @@ export interface SponsorSignedTransactionArgs {
   transaction: string;
   transactionEncoding?: TransactionEncoding;
   network?: Network;
-  metadata?: JsonObject;
   idempotencyKey?: string;
 }
 

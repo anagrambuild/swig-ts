@@ -468,12 +468,12 @@ async def run_paymaster_e2e(
     destination_before = await rpc.balance(str(destination.pubkey()))
     user_before = await rpc.balance(str(user.pubkey()))
     paymaster_before = await rpc.balance(paymaster.address)
-    submitted = await swig.transactions.sponsor(
-        SponsorSignedTransactionArgs(
-            transaction=transaction,
-            metadata={"source": "python-local-e2e"},
-        )
+    idempotency_key = f"python-local-e2e-{uuid4()}"
+    sponsor_args = SponsorSignedTransactionArgs(
+        transaction=transaction,
+        idempotency_key=idempotency_key,
     )
+    submitted = await swig.transactions.sponsor(sponsor_args)
     await rpc.confirm(submitted.signature)
     destination_after = await rpc.balance(str(destination.pubkey()))
     user_after = await rpc.balance(str(user.pubkey()))
@@ -488,8 +488,20 @@ async def run_paymaster_e2e(
         raise RuntimeError("Sponsored transfer charged the user a transaction fee")
     if paymaster_fee <= 0:
         raise RuntimeError("Sponsored transfer did not charge the paymaster")
+
+    replayed = await swig.transactions.sponsor(sponsor_args)
+    if replayed != submitted:
+        raise RuntimeError("Idempotent sponsor retry changed the response")
+    if await rpc.balance(str(destination.pubkey())) != destination_after:
+        raise RuntimeError("Idempotent sponsor retry repeated the transfer")
+    if await rpc.balance(str(user.pubkey())) != user_after:
+        raise RuntimeError("Idempotent sponsor retry charged the user again")
+    if await rpc.balance(paymaster.address) != paymaster_after:
+        raise RuntimeError("Idempotent sponsor retry charged the paymaster again")
+
     return {
         "paymaster_configured": True,
+        "paymaster_idempotency_replayed": True,
         "paymaster_destination_delta_lamports": destination_delta,
         "paymaster_user_delta_lamports": user_delta,
         "paymaster_fee_lamports": paymaster_fee,

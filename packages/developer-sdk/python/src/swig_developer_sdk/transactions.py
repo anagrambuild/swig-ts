@@ -8,7 +8,6 @@ from typing import Literal
 import base58
 
 from .common import (
-    JsonObject,
     Network,
     WalletAddressInfo,
     normalize_network,
@@ -62,7 +61,6 @@ class SponsorSignedTransactionArgs:
     transaction: str
     transaction_encoding: TransactionEncoding | None = None
     network: Network | None = None
-    metadata: JsonObject | None = None
     idempotency_key: str | None = None
 
 
@@ -96,7 +94,6 @@ class TransactionsClient:
                     transaction_bytes
                 ).decode("ascii"),
                 "network": args.network or self._default_network,
-                "metadata": args.metadata,
                 "idempotencyKey": args.idempotency_key,
             },
         )

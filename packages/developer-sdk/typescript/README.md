@@ -386,7 +386,9 @@ const signed = await signPreparedSwigTransaction(prepared, {
 
 After signing, pass `signed` to your app-owned send or sponsor flow. On your
 server, `swig.transactions.sponsor(signed)` handles the deployed paymaster route
-and base58 payload encoding expected by the backend.
+and base58 payload encoding expected by the backend. Pass `idempotencyKey` when
+the application may retry sponsorship; a matching retry returns the original
+paymaster response.
 
 For wallet creation, sign only `created.clientAuthorityTransactions` on the
 client. Do not authority-sign `created.operatorSignedTransactions`; those
