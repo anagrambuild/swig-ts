@@ -153,3 +153,12 @@ swig.so
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 *.so
+
+# Python
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.egg-info/

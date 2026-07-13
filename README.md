@@ -1,7 +1,7 @@
-# Swig TS
-_Swig Typescript_
+# Swig SDKs
 
-This repository holds the goodies for interacting with Swig using typescript. 
+This repository contains Swig SDKs and tooling. The developer SDK is available
+for both TypeScript and Python under [`packages/developer-sdk`](./packages/developer-sdk).
 
 ### Run locally
 
