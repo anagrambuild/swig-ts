@@ -15,7 +15,7 @@ uses snake_case names while TypeScript uses camelCase.
 | Generic execution   | `wallet.execute`                                 | `wallet.execute`                                    | same instruction normalization                          |
 | Wallet reads        | balance, token balances, transactions            | balance, token balances, transactions               | same required-field validation                          |
 | Paymaster           | balance and IDP balance                          | balance and IDP balance                             | same query and normalization                            |
-| Sponsorship         | `transactions.sponsor`                           | `transactions.sponsor`                              | base64 input converted to base58 for the sponsor API    |
+| Sponsorship         | `transactions.sponsor`                           | `transactions.sponsor`                              | same base58 conversion and idempotency-key forwarding   |
 | Ramp                | options, quote, session, transaction reads       | same                                                | same enum conversion and required-field validation      |
 | One Business        | grant URL, redirect, and callback parsing        | same                                                | same query contract and errors                          |
 | Generic signing     | callback and signer object                       | callback and signer protocol                        | same metadata preservation                              |

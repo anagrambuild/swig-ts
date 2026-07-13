@@ -35,14 +35,14 @@ async def test_sponsor_converts_base64_transaction_to_base58() -> None:
     submitted = await swig.transactions.sponsor(
         SponsorSignedTransactionArgs(
             transaction=base64.b64encode(transaction).decode("ascii"),
-            metadata={"source": "test"},
+            idempotency_key="sponsor-request-123",
         )
     )
     assert submitted.signature == "chain-signature"
     assert json.loads(requests[0].content) == {
         "base58_encoded_transaction": base58.b58encode(transaction).decode("ascii"),
         "network": "devnet",
-        "metadata": {"source": "test"},
+        "idempotencyKey": "sponsor-request-123",
     }
 
 

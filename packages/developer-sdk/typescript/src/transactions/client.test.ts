@@ -20,6 +20,7 @@ describe('TransactionsClient', () => {
     await expect(
       transactions.sponsor({
         transaction: bytesToBase64(transactionBytes),
+        idempotencyKey: 'sponsor-request-123',
       }),
     ).resolves.toEqual({
       signature: 'sponsored_signature_123',
@@ -31,8 +32,7 @@ describe('TransactionsClient', () => {
         body: {
           base58_encoded_transaction: bs58.encode(transactionBytes),
           network: 'devnet',
-          metadata: undefined,
-          idempotencyKey: undefined,
+          idempotencyKey: 'sponsor-request-123',
         },
       },
     ]);

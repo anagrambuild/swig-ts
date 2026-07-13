@@ -56,7 +56,8 @@ local API key and exercises wallet creation, real P-256 signing, direct and
 grouped SOL transfers, an SPL-token transfer, and the Python proxy through the
 Developer API. It also verifies the live paymaster balance endpoint and a
 sponsored transfer where the user pays no network fee. Every transaction is
-submitted to Surfpool and verified on-chain.
+submitted to Surfpool and verified on-chain; the paymaster flow also retries
+with the same idempotency key and verifies that no balance changes repeat.
 
 ```bash
 bun run e2e:developer-sdk:python

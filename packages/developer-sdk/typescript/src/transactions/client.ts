@@ -24,7 +24,6 @@ export class TransactionsClient {
           base64ToBytes(args.transaction),
         ),
         network: args.network ?? this.defaultNetwork,
-        metadata: args.metadata,
         idempotencyKey: args.idempotencyKey,
       },
     );
