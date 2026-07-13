@@ -221,7 +221,7 @@
         "@solana/web3.js": "^1.98.0",
       },
     },
-    "packages/developer-sdk": {
+    "packages/developer-sdk/typescript": {
       "name": "@swig-wallet/developer-sdk",
       "version": "0.4.0",
       "dependencies": {
@@ -1023,7 +1023,7 @@
 
     "@swig-wallet/developer": ["@swig-wallet/developer@workspace:packages/developer"],
 
-    "@swig-wallet/developer-sdk": ["@swig-wallet/developer-sdk@workspace:packages/developer-sdk"],
+    "@swig-wallet/developer-sdk": ["@swig-wallet/developer-sdk@workspace:packages/developer-sdk/typescript"],
 
     "@swig-wallet/kit": ["@swig-wallet/kit@workspace:packages/kit"],
 

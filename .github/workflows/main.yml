@@ -158,3 +158,38 @@ jobs:
 
       - name: Run Tests
         run: bun run test
+
+  developer-sdk-python:
+    name: Developer SDK Python
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/developer-sdk/python
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: '3.10'
+          working-directory: packages/developer-sdk/python
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: uv sync --frozen --all-groups
+
+      - name: Check Format
+        run: uv run --frozen ruff format --check src tests
+
+      - name: Check Linting
+        run: uv run --frozen ruff check src tests
+
+      - name: Check Types
+        run: uv run --frozen mypy src
+
+      - name: Run Tests
+        run: uv run --frozen pytest
+
+      - name: Build Package
+        run: uv build

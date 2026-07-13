@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "swig-developer-sdk"
+version = "0.6.0"
+description = "Python SDK for preparing and locally signing Swig wallet transactions"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Anagram" }]
+dependencies = [
+  "base58>=2.1,<3",
+  "httpx>=0.28,<1",
+  "solders>=0.28,<0.29",
+]
+
+[project.urls]
+Repository = "https://github.com/anagrambuild/swig-ts"
+
+[dependency-groups]
+dev = [
+  "mypy>=1.16,<2",
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1.0,<2",
+  "ruff>=0.12,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/swig_developer_sdk"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+packages = ["swig_developer_sdk"]
+mypy_path = "src"
