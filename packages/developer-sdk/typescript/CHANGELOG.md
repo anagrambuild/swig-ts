@@ -1,5 +1,12 @@
 # @swig-wallet/developer-sdk
 
+## 0.7.0
+
+### Minor Changes
+
+- 57be9a8: Use the batch and custom transaction preparation endpoints, replacing generic wallet execution with `wallet.buildTransaction`.
+- ac039aa: Remove unsupported sponsor metadata and retain optional idempotency keys for backend-enforced retries.
+
 ## 0.6.0
 
 ### Minor Changes
