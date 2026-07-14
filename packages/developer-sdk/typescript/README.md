@@ -132,6 +132,26 @@ return {
 };
 ```
 
+### Build a Custom Transaction
+
+Use `wallet.buildTransaction` when the application supplies the raw Solana
+instructions. The backend wraps them in the Swig signing flow and returns an
+unsigned transaction; signing and submission remain client-side.
+
+```typescript
+const prepared = await wallet.buildTransaction({
+  feePayer,
+  instructions: [
+    {
+      programId,
+      accounts: [{ pubkey: destination, isWritable: true }],
+      data: instructionData,
+    },
+  ],
+  addressLookupTableAccounts,
+});
+```
+
 ### Prepare SOL Transfer
 
 ```typescript

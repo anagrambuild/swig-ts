@@ -26,6 +26,10 @@ prepared = await wallet.transfer.sol(
 )
 ```
 
+Use `wallet.build_transaction(...)` to supply raw Solana instructions for the
+backend to wrap in the Swig signing flow. The returned transaction is still
+signed and submitted client-side.
+
 `wallet.transfer(...)` and `wallet.swap(...)` are callable like their
 TypeScript counterparts. Their explicit `sol`, `token`, `spl_token`, and
 `jupiter` methods are available as well.

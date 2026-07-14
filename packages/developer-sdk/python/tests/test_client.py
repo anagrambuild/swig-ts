@@ -5,7 +5,14 @@ import json
 import httpx
 import pytest
 
-from swig_developer_sdk import RetryOptions, SwigClient, SwigDeveloperSdkError
+from swig_developer_sdk import (
+    RetryOptions,
+    SolanaAccountMeta,
+    SolanaInstructionInput,
+    SwigClient,
+    SwigDeveloperSdkError,
+    TransferSolOperation,
+)
 
 
 async def test_wallet_transfer_matches_typescript_wire_contract() -> None:
@@ -62,6 +69,111 @@ async def test_wallet_transfer_matches_typescript_wire_contract() -> None:
         "requesterAuthority": {"ed25519": {"publicKey": "requester"}},
         "destination": "destination",
         "lamports": "123",
+    }
+
+
+async def test_wallet_prepare_uses_batch_preparation_endpoint() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={"data": {"transactions": [], "network": "NETWORK_DEVNET"}},
+        )
+
+    swig = SwigClient(
+        api_key="secret",
+        base_url="https://example.test",
+        network="devnet",
+        transport=httpx.MockTransport(handler),
+    )
+    wallet = swig.wallets.use(
+        "swig-address",
+        requester_authority={"ed25519": {"publicKey": "requester"}},
+    )
+
+    await wallet.prepare(
+        fee_payer="payer",
+        operations=(TransferSolOperation(destination="destination", amount=123),),
+    )
+
+    assert requests[0].url.path == "/transaction/prepare/batch"
+    assert json.loads(requests[0].content) == {
+        "network": "NETWORK_DEVNET",
+        "feePayer": "payer",
+        "swigAddress": "swig-address",
+        "requesterAuthority": {"ed25519": {"publicKey": "requester"}},
+        "operations": [
+            {"transferSol": {"destination": "destination", "lamports": "123"}}
+        ],
+    }
+
+
+async def test_wallet_build_transaction_matches_custom_preparation_contract() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "transaction": "prepared-custom-base64",
+                    "transactionEncoding": "TRANSACTION_ENCODING_BASE64",
+                    "network": "NETWORK_DEVNET",
+                }
+            },
+        )
+
+    swig = SwigClient(
+        api_key="secret",
+        base_url="https://example.test",
+        network="devnet",
+        transport=httpx.MockTransport(handler),
+    )
+    wallet = swig.wallets.use(
+        "swig-address",
+        requester_authority={"ed25519": {"publicKey": "requester"}},
+    )
+
+    prepared = await wallet.build_transaction(
+        fee_payer="payer",
+        instructions=(
+            SolanaInstructionInput(
+                program_id="program",
+                accounts=(
+                    SolanaAccountMeta(
+                        pubkey="account", is_signer=True, is_writable=True
+                    ),
+                ),
+                data=b"\x01\x02\x03",
+            ),
+        ),
+        address_lookup_table_accounts=("lookup-table",),
+    )
+
+    assert prepared.transaction == "prepared-custom-base64"
+    assert requests[0].url.path == "/transaction/prepare/custom"
+    assert json.loads(requests[0].content) == {
+        "network": "NETWORK_DEVNET",
+        "feePayer": "payer",
+        "swigAddress": "swig-address",
+        "requesterAuthority": {"ed25519": {"publicKey": "requester"}},
+        "instructions": [
+            {
+                "programId": "program",
+                "accounts": [
+                    {
+                        "pubkey": "account",
+                        "isSigner": True,
+                        "isWritable": True,
+                    }
+                ],
+                "data": "AQID",
+            }
+        ],
+        "addressLookupTableAccounts": ["lookup-table"],
     }
 
 

@@ -22,6 +22,7 @@ export type {
 export type {
   AddRecoveryAuthorityArgs,
   Amount,
+  BuildTransactionArgs,
   CancelRecoveryArgs,
   ConfigureRecoveryArgs,
   CreateRampSessionArgs,
@@ -29,7 +30,6 @@ export type {
   CreateWalletArgs,
   CreateWalletResponse,
   CreateWalletResult,
-  ExecuteArgs,
   ExecuteRecoveryArgs,
   GetRampOptionsArgs,
   GetRampOptionsResult,

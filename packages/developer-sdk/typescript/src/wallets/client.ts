@@ -1,12 +1,12 @@
 import type { HttpClient } from '../core/index.js';
 import type {
   AddRecoveryAuthorityArgs,
+  BuildTransactionArgs,
   CancelRecoveryArgs,
   ConfigureRecoveryArgs,
   CreateWalletArgs,
   CreateWalletResponseWire,
   CreateWalletResult,
-  ExecuteArgs,
   ExecuteRecoveryArgs,
   IdpWalletSession,
   ListSwigTokenBalancesResult,
@@ -45,11 +45,11 @@ import {
 } from './normalizers.js';
 import {
   addRecoveryAuthorityRequest,
+  buildTransactionRequest,
   cancelRecoveryRequest,
   configureRecoveryRequest,
   createWalletRequest,
   executeRecoveryRequest,
-  executeRequest,
   isTokenTransfer,
   prepareRequest,
   startRecoveryRequest,
@@ -181,7 +181,7 @@ export class WalletsClient {
     args: PrepareArgs,
   ): Promise<PreparedTransactionsResult> => {
     const response = await this.http.post<PrepareTransactionsResponseWire>(
-      '/transaction/prepare',
+      '/transaction/prepare/batch',
       prepareRequest(wallet, args, this.defaultNetwork),
     );
     return normalizePrepareTransactionsResponse(response);
@@ -301,13 +301,13 @@ export class WalletsClient {
     return normalizePreparedTransaction(response);
   };
 
-  execute = async (
+  buildTransaction = async (
     wallet: WalletHandle,
-    args: ExecuteArgs,
+    args: BuildTransactionArgs,
   ): Promise<PreparedTransaction> => {
     const response = await this.http.post<PreparedTransactionWire>(
-      `/v1/wallets/${encodeURIComponent(wallet.swigConfigAddress)}/execute`,
-      executeRequest(wallet, args, this.defaultNetwork),
+      '/transaction/prepare/custom',
+      buildTransactionRequest(wallet, args, this.defaultNetwork),
     );
     return normalizePreparedTransaction(response);
   };

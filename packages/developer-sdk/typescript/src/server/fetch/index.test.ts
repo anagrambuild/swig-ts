@@ -541,7 +541,7 @@ describe('createSwigFetchHandler', () => {
       },
     });
     expect(calls[0]).toMatchObject({
-      url: 'http://localhost:8080/transaction/prepare',
+      url: 'http://localhost:8080/transaction/prepare/batch',
       body: {
         network: 'NETWORK_DEVNET',
         feePayer: 'payer_123',

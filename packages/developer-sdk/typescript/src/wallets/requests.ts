@@ -1,9 +1,9 @@
 import type {
   AddRecoveryAuthorityArgs,
+  BuildTransactionArgs,
   CancelRecoveryArgs,
   ConfigureRecoveryArgs,
   CreateWalletArgs,
-  ExecuteArgs,
   ExecuteRecoveryArgs,
   Network,
   PrepareArgs,
@@ -191,17 +191,20 @@ export function executeRecoveryRequest(
   };
 }
 
-export function executeRequest(
+export function buildTransactionRequest(
   wallet: WalletHandle,
-  args: ExecuteArgs,
+  args: BuildTransactionArgs,
   defaultNetwork?: Network,
 ) {
   return {
-    wallet: wallet.swigConfigAddress,
-    network: args.network ?? wallet.network ?? defaultNetwork,
+    network: toProtoNetwork(
+      resolveNetwork(args.network, wallet.network, defaultNetwork),
+    ),
+    feePayer: args.feePayer,
+    swigAddress: wallet.swigConfigAddress,
+    requesterAuthority: resolveRequesterAuthority(wallet, args),
     instructions: args.instructions.map(normalizeInstruction),
     addressLookupTableAccounts: args.addressLookupTableAccounts,
-    idempotencyKey: args.idempotencyKey,
   };
 }
 
@@ -245,12 +248,14 @@ function resolveRequesterAuthority(
     | TransferArgs
     | SwapArgs
     | PrepareArgs
+    | BuildTransactionArgs
     | CancelRecoveryArgs
     | AddRecoveryAuthorityArgs,
 ): NonNullable<
   | TransferArgs['requesterAuthority']
   | SwapArgs['requesterAuthority']
   | PrepareArgs['requesterAuthority']
+  | BuildTransactionArgs['requesterAuthority']
   | CancelRecoveryArgs['requesterAuthority']
   | AddRecoveryAuthorityArgs['requesterAuthority']
 > {
