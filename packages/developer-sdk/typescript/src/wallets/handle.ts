@@ -1,6 +1,6 @@
 import type {
+  BuildTransactionArgs,
   CancelRecoveryArgs,
-  ExecuteArgs,
   ExecuteRecoveryArgs,
   ListSwigTokenBalancesResult,
   ListSwigTokenTransactionsArgs,
@@ -70,7 +70,9 @@ export class WalletHandle {
   prepare = (args: PrepareArgs): Promise<PreparedTransactionsResult> =>
     this.wallets.prepare(this, args);
 
-  execute = (args: ExecuteArgs) => this.wallets.execute(this, args);
+  buildTransaction = (
+    args: BuildTransactionArgs,
+  ): Promise<PreparedTransaction> => this.wallets.buildTransaction(this, args);
 
   getUsdBalance = (args?: WalletReadArgs): Promise<SwigUsdBalance> =>
     this.wallets.getUsdBalance(this, args);

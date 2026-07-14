@@ -114,9 +114,10 @@ export interface ExecuteRecoveryArgs extends BaseRecoveryArgs {
   newAuthority: string;
 }
 
-export interface ExecuteArgs {
+export interface BuildTransactionArgs {
+  feePayer: string;
+  requesterAuthority?: WalletAuthority;
   instructions: SolanaInstructionInput[];
   addressLookupTableAccounts?: string[];
   network?: Network;
-  idempotencyKey?: string;
 }

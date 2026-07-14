@@ -295,7 +295,7 @@ class WalletsClient:
     ) -> PreparedTransactionsResult:
         authority = _requester_authority(wallet, requester_authority)
         response = await self._http.post(
-            "/transaction/prepare",
+            "/transaction/prepare/batch",
             {
                 **_base_write_request(
                     wallet, fee_payer, network, self._default_network
@@ -575,26 +575,29 @@ class WalletsClient:
             )
         )
 
-    async def execute(
+    async def build_transaction(
         self,
         wallet: WalletHandle,
         *,
+        fee_payer: str,
         instructions: Sequence[SolanaInstructionInput],
+        requester_authority: WalletAuthority | None = None,
         address_lookup_table_accounts: Sequence[str] | None = None,
         network: Network | None = None,
-        idempotency_key: str | None = None,
     ) -> PreparedTransaction:
+        authority = _requester_authority(wallet, requester_authority)
         return normalize_prepared_transaction(
             await self._http.post(
-                f"/v1/wallets/{quote(wallet.swig_config_address, safe='')}/execute",
+                "/transaction/prepare/custom",
                 {
-                    "wallet": wallet.swig_config_address,
-                    "network": network or wallet.network or self._default_network,
+                    **_base_write_request(
+                        wallet, fee_payer, network, self._default_network
+                    ),
+                    "requesterAuthority": wallet_authority_to_wire(authority),
                     "instructions": [
                         _instruction_to_wire(item) for item in instructions
                     ],
                     "addressLookupTableAccounts": address_lookup_table_accounts,
-                    "idempotencyKey": idempotency_key,
                 },
             )
         )
@@ -679,20 +682,22 @@ class WalletHandle:
             idempotency_key=idempotency_key,
         )
 
-    async def execute(
+    async def build_transaction(
         self,
         *,
+        fee_payer: str,
         instructions: Sequence[SolanaInstructionInput],
+        requester_authority: WalletAuthority | None = None,
         address_lookup_table_accounts: Sequence[str] | None = None,
         network: Network | None = None,
-        idempotency_key: str | None = None,
     ) -> PreparedTransaction:
-        return await self._wallets.execute(
+        return await self._wallets.build_transaction(
             self,
+            fee_payer=fee_payer,
             instructions=instructions,
+            requester_authority=requester_authority,
             address_lookup_table_accounts=address_lookup_table_accounts,
             network=network,
-            idempotency_key=idempotency_key,
         )
 
     async def get_usd_balance(

@@ -700,7 +700,7 @@ describe('WalletsClient', () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
-      url: 'http://localhost:8080/transaction/prepare',
+      url: 'http://localhost:8080/transaction/prepare/batch',
       method: 'POST',
       body: {
         network: 'NETWORK_DEVNET',
@@ -738,6 +738,78 @@ describe('WalletsClient', () => {
     });
     expect(prepared.feePayerOnlyTransactions).toHaveLength(1);
     expect(prepared.clientAuthorityTransactions).toEqual([]);
+  });
+
+  test('builds custom transactions through the custom preparation endpoint', async () => {
+    const calls: CapturedRequest[] = [];
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          transaction: 'base64-custom-tx',
+          transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+          network: 'NETWORK_DEVNET',
+          recentBlockhash: 'blockhash_custom',
+        };
+      }),
+    });
+    const wallet = swig.wallets.use({
+      swigConfigAddress: 'swig_config_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+
+    const prepared = await wallet.buildTransaction({
+      feePayer: 'payer_123',
+      instructions: [
+        {
+          programId: 'program_123',
+          accounts: [
+            {
+              pubkey: 'account_123',
+              isSigner: true,
+              isWritable: true,
+            },
+          ],
+          data: new Uint8Array([1, 2, 3]),
+        },
+      ],
+      addressLookupTableAccounts: ['lookup_table_123'],
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/prepare/custom',
+      method: 'POST',
+      body: {
+        network: 'NETWORK_DEVNET',
+        feePayer: 'payer_123',
+        swigAddress: 'swig_config_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+        instructions: [
+          {
+            programId: 'program_123',
+            accounts: [
+              {
+                pubkey: 'account_123',
+                isSigner: true,
+                isWritable: true,
+              },
+            ],
+            data: 'AQID',
+          },
+        ],
+        addressLookupTableAccounts: ['lookup_table_123'],
+      },
+    });
+    expect(prepared).toMatchObject({
+      transaction: 'base64-custom-tx',
+      transactionEncoding: 'base64',
+      network: 'devnet',
+      recentBlockhash: 'blockhash_custom',
+    });
   });
 
   test('prepares Jupiter swaps through the local transaction endpoint', async () => {
