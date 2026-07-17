@@ -223,8 +223,7 @@ export interface RampQuote {
   partnerFee: string;
   rampScore?: string;
   lowKyc?: boolean;
-  serviceProviderCode?: string;
-  serviceProviderName?: string;
+  serviceProviderCode: string;
 }
 
 export interface RampQuoteWire {
@@ -259,8 +258,6 @@ export interface RampQuoteWire {
   lowKyc?: boolean;
   service_provider_code?: string;
   serviceProviderCode?: string;
-  service_provider_name?: string;
-  serviceProviderName?: string;
 }
 
 export interface QuoteRampResult {

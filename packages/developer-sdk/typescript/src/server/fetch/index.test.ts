@@ -703,6 +703,7 @@ describe('createSwigFetchHandler', () => {
               quote_id: 'quote_123',
               direction: 'RAMP_DIRECTION_ONRAMP',
               service_provider: 'RAMP_SERVICE_PROVIDER_OTHER',
+              service_provider_code: 'TRANSAK',
               payment_method_type: 'RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD',
               source_amount: '100.00',
               source_currency_code: 'USD',

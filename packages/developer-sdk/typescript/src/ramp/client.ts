@@ -324,8 +324,6 @@ function normalizeRampQuote(response: RampQuoteWire): RampQuote {
   const lowKyc = response.lowKyc ?? response.low_kyc;
   const serviceProviderCode =
     response.serviceProviderCode ?? response.service_provider_code;
-  const serviceProviderName =
-    response.serviceProviderName ?? response.service_provider_name;
   return {
     quoteId: readString(response.quoteId ?? response.quote_id, 'quoteId'),
     direction: normalizeRampDirection(response.direction),
@@ -370,8 +368,7 @@ function normalizeRampQuote(response: RampQuoteWire): RampQuote {
     ),
     ...(rampScore ? { rampScore } : {}),
     ...(lowKyc === undefined ? {} : { lowKyc }),
-    ...(serviceProviderCode ? { serviceProviderCode } : {}),
-    ...(serviceProviderName ? { serviceProviderName } : {}),
+    serviceProviderCode: readString(serviceProviderCode, 'serviceProviderCode'),
   };
 }
 
