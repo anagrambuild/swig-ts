@@ -5,6 +5,17 @@ export interface SponsorRequest {
   base58_encoded_transaction: string;
   /** Network to use (defaults to 'mainnet') */
   network?: Network;
+  /** Optional client-supplied idempotency key */
+  idempotencyKey?: string;
+}
+
+export interface SponsorBundleRequest {
+  /** Base58-encoded serialized transactions */
+  base58_encoded_transactions: string[];
+  /** Network to use */
+  network: Network;
+  /** Optional client-supplied idempotency key */
+  idempotencyKey?: string;
 }
 
 export interface SignRequest {
@@ -19,6 +30,17 @@ export interface SponsorResponse {
   request_id: string;
   /** Transaction signature */
   signature: string;
+  /** Amount of lamports spent by the paymaster */
+  spent_by_paymaster: number;
+}
+
+export interface SponsorBundleResponse {
+  /** Unique request ID for tracking */
+  request_id: string;
+  /** Jito bundle ID */
+  bundle_id: string;
+  /** Transaction signatures in bundle order */
+  signatures: string[];
   /** Amount of lamports spent by the paymaster */
   spent_by_paymaster: number;
 }

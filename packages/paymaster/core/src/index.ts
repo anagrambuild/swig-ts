@@ -12,12 +12,24 @@ export { PaymasterClient } from './client.js';
 
 // Export transaction utilities
 export { isPaymasterFeePayer } from './helpers.js';
+export {
+  createJitoTipInstruction,
+  getJitoTipAccount,
+  isJitoTipAccount,
+  resolveJitoTipLamports,
+  serializedBundleHasJitoTip,
+  serializedTransactionHasJitoTip,
+  transactionMessageHasJitoTip,
+} from './jito.js';
 
 // Export types
 export type {
+  JitoBundleOptions,
   PaymasterConfig,
+  PaymasterSubmitOptions,
   RetryOptions,
   SerializedTransaction,
+  SponsorBundleResult,
 } from './types.js';
 
 export { PaymasterError } from './types.js';

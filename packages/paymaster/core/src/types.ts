@@ -37,6 +37,30 @@ export interface PaymasterConfig {
  */
 export type SerializedTransaction = Uint8Array;
 
+export interface PaymasterSubmitOptions {
+  /**
+   * Optional opaque idempotency key for submit operations.
+   * If omitted, the SDK generates one per submit call.
+   */
+  idempotencyKey?: string;
+}
+
+export interface JitoBundleOptions extends PaymasterSubmitOptions {
+  /** Jito tip lamports. Defaults to the SDK's current bundle tip amount. */
+  tipLamports?: number | bigint;
+}
+
+export interface SponsorBundleResult {
+  /** Unique request ID for tracking */
+  requestId: string;
+  /** Jito bundle ID */
+  bundleId: string;
+  /** Transaction signatures in submitted bundle order */
+  signatures: string[];
+  /** Amount of lamports spent by the paymaster */
+  spentByPaymaster: number;
+}
+
 /**
  * Error thrown by the PaymasterClient when API requests or operations fail.
  *

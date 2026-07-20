@@ -2,6 +2,7 @@ import { address } from '@solana/kit';
 import {
   Connection,
   PublicKey,
+  SystemProgram,
   Transaction,
   TransactionInstruction,
   TransactionMessage,
@@ -10,11 +11,23 @@ import {
   type TransactionSignature,
 } from '@solana/web3.js';
 import {
+  getJitoTipAccount,
   PaymasterClient as PaymasterClientInternal,
+  PaymasterError,
+  resolveJitoTipLamports,
+  serializedBundleHasJitoTip,
+  type JitoBundleOptions,
   type PaymasterConfig,
+  type PaymasterSubmitOptions,
+  type SponsorBundleResult,
 } from '@swig-wallet/paymaster-core';
 
-export { type PaymasterConfig } from '@swig-wallet/paymaster-core';
+export {
+  type JitoBundleOptions,
+  type PaymasterConfig,
+  type PaymasterSubmitOptions,
+  type SponsorBundleResult,
+} from '@swig-wallet/paymaster-core';
 
 /**
  * Creates a new PaymasterClient instance for use with @solana/web3.js 1.x.
@@ -123,9 +136,33 @@ export class PaymasterClient {
    *
    * @see {@link signAndSend} for signing and sending transaction objects
    */
-  signAndSendSerializedTransaction = (serializedTransaction: Uint8Array) => {
+  signAndSendSerializedTransaction = (
+    serializedTransaction: Uint8Array,
+    options?: PaymasterSubmitOptions,
+  ) => {
     return this.#paymasterClientInternal.signAndSendSerializedTransaction(
       serializedTransaction,
+      options,
+    );
+  };
+
+  /**
+   * Signs and sends serialized transactions as a Jito bundle.
+   *
+   * If no transaction contains a Jito tip, the core client appends a separate
+   * paymaster-only tip transaction when the bundle still has room.
+   *
+   * @param serializedTransactions - Serialized transaction bytes
+   * @param options - Optional Jito bundle settings
+   * @returns Jito bundle submission result
+   */
+  signAndSendBundleSerializedTransactions = (
+    serializedTransactions: Uint8Array[],
+    options?: JitoBundleOptions,
+  ): Promise<SponsorBundleResult> => {
+    return this.#paymasterClientInternal.signAndSendBundleSerializedTransactions(
+      serializedTransactions,
+      options,
     );
   };
 
@@ -231,6 +268,87 @@ export class PaymasterClient {
   };
 
   /**
+   * Creates a Jito tip instruction funded by the paymaster.
+   *
+   * Use this when constructing a bundle manually before user signatures are
+   * collected.
+   *
+   * @param options - Optional Jito bundle settings
+   * @returns System transfer instruction to a Jito tip account
+   */
+  createJitoTipInstruction = (
+    options?: JitoBundleOptions,
+  ): TransactionInstruction => {
+    return SystemProgram.transfer({
+      fromPubkey: new PublicKey(this.#config.paymasterPubkey),
+      toPubkey: new PublicKey(getJitoTipAccount()),
+      lamports: resolveJitoTipLamports(options),
+    });
+  };
+
+  /**
+   * Adds a Jito tip instruction to the last legacy transaction in a bundle.
+   *
+   * Call this before collecting user signatures. The method will not mutate a
+   * transaction that already has signatures, because changing the message would
+   * invalidate them.
+   *
+   * @param transactions - Unsigned legacy transactions to prepare
+   * @param options - Optional Jito bundle settings
+   * @returns The same transactions, with the tip added when needed
+   */
+  prepareJitoBundleTransactions = <T extends Transaction>(
+    transactions: T[],
+    options?: JitoBundleOptions,
+  ): T[] => {
+    if (transactions.length === 0) {
+      throw new PaymasterError('At least one transaction is required');
+    }
+
+    if (transactions.length > 5) {
+      throw new PaymasterError('Jito bundles support at most 5 transactions');
+    }
+
+    const serializedTransactions = transactions.map((transaction) =>
+      transaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      }),
+    );
+    if (
+      serializedBundleHasJitoTip(
+        serializedTransactions,
+        this.#config.paymasterPubkey,
+      )
+    ) {
+      return transactions;
+    }
+
+    const lastTransaction = transactions[transactions.length - 1]!;
+    if (lastTransaction.signatures.some(({ signature }) => signature)) {
+      throw new PaymasterError(
+        'prepareJitoBundleTransactions must be called before signing transactions',
+      );
+    }
+
+    lastTransaction.add(this.createJitoTipInstruction(options));
+    try {
+      lastTransaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+    } catch (error) {
+      throw new PaymasterError(
+        error instanceof Error
+          ? `Unable to fit Jito tip instruction in the last transaction: ${error.message}`
+          : 'Unable to fit Jito tip instruction in the last transaction',
+      );
+    }
+
+    return transactions;
+  };
+
+  /**
    * Signs a transaction with the paymaster's signature.
    *
    * Takes a transaction (legacy or versioned) that has been signed by the
@@ -291,12 +409,40 @@ export class PaymasterClient {
    */
   signAndSend = <T extends Transaction | VersionedTransaction>(
     transaction: T,
+    options?: PaymasterSubmitOptions,
   ): Promise<TransactionSignature> => {
     return this.#paymasterClientInternal.signAndSendSerializedTransaction(
       transaction.serialize({
         requireAllSignatures: false,
         verifySignatures: false,
       }),
+      options,
+    );
+  };
+
+  /**
+   * Signs transactions with the paymaster and submits them as a Jito bundle.
+   *
+   * Provided transactions are submitted unchanged. If none contains a valid
+   * Jito tip, the SDK appends a separate paymaster-only tip transaction when
+   * the bundle still has room.
+   *
+   * @param transactions - User-signed transactions ready for paymaster signature
+   * @param options - Optional Jito bundle settings
+   * @returns Jito bundle submission result
+   */
+  signAndSendBundle = <T extends Transaction | VersionedTransaction>(
+    transactions: T[],
+    options?: JitoBundleOptions,
+  ): Promise<SponsorBundleResult> => {
+    return this.#paymasterClientInternal.signAndSendBundleSerializedTransactions(
+      transactions.map((transaction) =>
+        transaction.serialize({
+          requireAllSignatures: false,
+          verifySignatures: false,
+        }),
+      ),
+      options,
     );
   };
 }

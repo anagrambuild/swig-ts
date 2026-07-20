@@ -4,10 +4,33 @@
  * @packageDocumentation
  */
 
-import { getBase58Codec } from '@solana/kit';
+import {
+  address,
+  appendTransactionMessageInstructions,
+  assertIsTransactionWithinSizeLimit,
+  compileTransaction,
+  createSolanaRpc,
+  createTransactionMessage,
+  getBase58Codec,
+  getTransactionEncoder,
+  pipe,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+} from '@solana/kit';
 import { SwigApiClient } from '@swig-wallet/api';
 import { isPaymasterFeePayer } from './helpers.js';
-import type { PaymasterConfig, SerializedTransaction } from './types.js';
+import { createIdempotencyKey } from './idempotency.js';
+import {
+  createJitoTipInstruction,
+  serializedBundleHasJitoTip,
+} from './jito.js';
+import type {
+  JitoBundleOptions,
+  PaymasterConfig,
+  PaymasterSubmitOptions,
+  SerializedTransaction,
+  SponsorBundleResult,
+} from './types.js';
 import { PaymasterError } from './types.js';
 
 /**
@@ -19,6 +42,7 @@ export class PaymasterClient {
   readonly #api: SwigApiClient;
   readonly #paymasterPubkey: string;
   readonly #network: 'mainnet' | 'devnet';
+  readonly #rpcUrl: string;
 
   /**
    * Creates a new PaymasterClient instance.
@@ -43,6 +67,11 @@ export class PaymasterClient {
     });
     this.#paymasterPubkey = config.paymasterPubkey;
     this.#network = config.network;
+    this.#rpcUrl =
+      config.customRpcUrl ??
+      (config.network === 'devnet'
+        ? 'https://api.devnet.solana.com'
+        : 'https://api.mainnet-beta.solana.com');
   }
 
   /**
@@ -126,6 +155,7 @@ export class PaymasterClient {
    */
   public async signAndSendSerializedTransaction(
     serializedTx: SerializedTransaction,
+    options?: PaymasterSubmitOptions,
   ): Promise<string> {
     if (!this.isPaymasterFeePayer(serializedTx)) {
       throw new PaymasterError('Paymaster public key not set as fee payer');
@@ -135,6 +165,7 @@ export class PaymasterClient {
     const { data, error } = await this.#api.paymaster.sponsor(
       base58Tx,
       this.#network,
+      options?.idempotencyKey ?? createIdempotencyKey(),
     );
 
     if (error || !data) {
@@ -142,5 +173,100 @@ export class PaymasterClient {
     }
 
     return data.signature;
+  }
+
+  /**
+   * Signs serialized transactions with the paymaster and submits them as a
+   * Jito bundle.
+   *
+   * Already-signed user transactions are never mutated. If none of the provided
+   * transactions contains a valid Jito tip transfer, the SDK appends a separate
+   * paymaster-only tip transaction when the bundle still has room.
+   *
+   * @param serializedTransactions - Serialized transactions with paymaster as fee payer
+   * @param options - Optional Jito bundle settings
+   * @returns Jito bundle submission result
+   */
+  public async signAndSendBundleSerializedTransactions(
+    serializedTransactions: SerializedTransaction[],
+    options?: JitoBundleOptions,
+  ): Promise<SponsorBundleResult> {
+    if (this.#network !== 'mainnet') {
+      throw new PaymasterError('Jito bundles are only supported on mainnet');
+    }
+
+    if (serializedTransactions.length === 0) {
+      throw new PaymasterError('At least one transaction is required');
+    }
+
+    if (serializedTransactions.length > 5) {
+      throw new PaymasterError('Jito bundles support at most 5 transactions');
+    }
+
+    for (const [index, transaction] of serializedTransactions.entries()) {
+      if (!this.isPaymasterFeePayer(transaction)) {
+        throw new PaymasterError(
+          `Paymaster public key not set as fee payer for transaction ${index}`,
+        );
+      }
+    }
+
+    const bundle = [...serializedTransactions];
+    if (!serializedBundleHasJitoTip(bundle, this.#paymasterPubkey)) {
+      if (bundle.length === 5) {
+        throw new PaymasterError(
+          'Jito bundle requires a tip, but no tip was found and the bundle already has 5 transactions',
+        );
+      }
+
+      bundle.push(await this.#createSerializedJitoTipTransaction(options));
+    }
+
+    const base58Transactions = bundle.map((transaction) =>
+      getBase58Codec().decode(transaction),
+    );
+    const { data, error } = await this.#api.paymaster.sponsorBundle(
+      base58Transactions,
+      this.#network,
+      options?.idempotencyKey ?? createIdempotencyKey(),
+    );
+
+    if (error || !data) {
+      throw PaymasterError.fromApiError(error!);
+    }
+
+    return {
+      requestId: data.request_id,
+      bundleId: data.bundle_id,
+      signatures: data.signatures,
+      spentByPaymaster: data.spent_by_paymaster,
+    };
+  }
+
+  async #createSerializedJitoTipTransaction(
+    options?: JitoBundleOptions,
+  ): Promise<SerializedTransaction> {
+    const { value: latestBlockhash } = await createSolanaRpc(this.#rpcUrl)
+      .getLatestBlockhash()
+      .send();
+    const transactionMessage = pipe(
+      createTransactionMessage({ version: 0 }),
+      (tx) => setTransactionMessageFeePayer(address(this.#paymasterPubkey), tx),
+      (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+      (tx) =>
+        appendTransactionMessageInstructions(
+          [
+            createJitoTipInstruction({
+              paymasterPubkey: this.#paymasterPubkey,
+              tipLamports: options?.tipLamports,
+            }),
+          ],
+          tx,
+        ),
+    );
+    const transaction = compileTransaction(transactionMessage);
+    assertIsTransactionWithinSizeLimit(transaction);
+
+    return new Uint8Array(getTransactionEncoder().encode(transaction));
   }
 }

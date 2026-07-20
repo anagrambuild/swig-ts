@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "classic": "bun run classic.ts",
+    "jito:classic": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; bun run jito-classic.ts",
     "kit": "bun run kit.ts"
   },
   "dependencies": {

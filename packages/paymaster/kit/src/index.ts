@@ -23,11 +23,21 @@ import {
   type TransactionWithLifetime,
 } from '@solana/kit';
 import {
+  createJitoTipInstruction as createCoreJitoTipInstruction,
+  type JitoBundleOptions,
   PaymasterClient as PaymasterClientInternal,
   type PaymasterConfig,
+  type PaymasterSubmitOptions,
+  type SponsorBundleResult,
+  transactionMessageHasJitoTip,
 } from '@swig-wallet/paymaster-core';
 
-export { type PaymasterConfig } from '@swig-wallet/paymaster-core';
+export {
+  type JitoBundleOptions,
+  type PaymasterConfig,
+  type PaymasterSubmitOptions,
+  type SponsorBundleResult,
+} from '@swig-wallet/paymaster-core';
 
 /**
  * Creates a new PaymasterClient instance for use with @solana/kit (web3.js 2.0).
@@ -181,10 +191,102 @@ export class PaymasterClient {
    *
    * @see {@link signAndSend} for signing and sending transaction objects
    */
-  signAndSendSerializedTransaction = (serializedTransaction: Uint8Array) => {
+  signAndSendSerializedTransaction = (
+    serializedTransaction: Uint8Array,
+    options?: PaymasterSubmitOptions,
+  ) => {
     return this.#paymasterClientInternal.signAndSendSerializedTransaction(
       serializedTransaction,
+      options,
     );
+  };
+
+  /**
+   * Signs and sends serialized transactions as a Jito bundle.
+   *
+   * If no transaction contains a Jito tip, the core client appends a separate
+   * paymaster-only tip transaction when the bundle still has room.
+   *
+   * @param serializedTransactions - Serialized transaction bytes
+   * @param options - Optional Jito bundle settings
+   * @returns Jito bundle submission result
+   */
+  signAndSendBundleSerializedTransactions = (
+    serializedTransactions: Uint8Array[],
+    options?: JitoBundleOptions,
+  ): Promise<SponsorBundleResult> => {
+    return this.#paymasterClientInternal.signAndSendBundleSerializedTransactions(
+      serializedTransactions,
+      options,
+    );
+  };
+
+  /**
+   * Creates a Jito tip instruction funded by the paymaster.
+   *
+   * Use this when constructing a bundle manually before user signatures are
+   * collected.
+   *
+   * @param options - Optional Jito bundle settings
+   * @returns System transfer instruction to a Jito tip account
+   */
+  createJitoTipInstruction = (options?: JitoBundleOptions): Instruction => {
+    return createCoreJitoTipInstruction({
+      paymasterPubkey: this.#config.paymasterPubkey,
+      tipLamports: options?.tipLamports,
+    });
+  };
+
+  /**
+   * Adds a Jito tip instruction to the last transaction message in a bundle.
+   *
+   * Call this before collecting user signatures. If a valid Jito tip is already
+   * present, the messages are returned unchanged.
+   *
+   * @param transactionMessages - Transaction messages to prepare
+   * @param options - Optional Jito bundle settings
+   * @returns Transaction messages with the tip added when needed
+   */
+  prepareJitoBundleTransactionMessages = <
+    M extends CompilableTransactionMessage &
+      TransactionMessageWithBlockhashLifetime,
+  >(
+    transactionMessages: M[],
+    options?: JitoBundleOptions,
+  ): M[] => {
+    if (transactionMessages.length === 0) {
+      throw new Error('At least one transaction message is required');
+    }
+
+    if (transactionMessages.length > 5) {
+      throw new Error('Jito bundles support at most 5 transactions');
+    }
+
+    if (
+      transactionMessages.some((transactionMessage) =>
+        transactionMessageHasJitoTip(
+          transactionMessage,
+          this.#config.paymasterPubkey,
+        ),
+      )
+    ) {
+      return transactionMessages;
+    }
+
+    const lastIndex = transactionMessages.length - 1;
+    const preparedMessages = transactionMessages.map(
+      (transactionMessage, index) =>
+        index === lastIndex
+          ? (appendTransactionMessageInstructions(
+              [this.createJitoTipInstruction(options)],
+              transactionMessage,
+            ) as unknown as M)
+          : transactionMessage,
+    );
+    const transaction = compileTransaction(preparedMessages[lastIndex]!);
+    assertIsTransactionWithinSizeLimit(transaction);
+
+    return preparedMessages;
   };
 
   /**
@@ -330,12 +432,39 @@ export class PaymasterClient {
    */
   signAndSend = async <T extends Transaction & TransactionWithLifetime>(
     partiallySignedTransaction: T & TransactionWithinSizeLimit,
+    options?: PaymasterSubmitOptions,
   ): Promise<string> => {
     const serializedTx = new Uint8Array(
       getTransactionCodec().encode(partiallySignedTransaction),
     );
     return this.#paymasterClientInternal.signAndSendSerializedTransaction(
       serializedTx,
+      options,
+    );
+  };
+
+  /**
+   * Signs transactions with the paymaster and submits them as a Jito bundle.
+   *
+   * Provided transactions are submitted unchanged. If none contains a valid
+   * Jito tip, the SDK appends a separate paymaster-only tip transaction when
+   * the bundle still has room.
+   *
+   * @param partiallySignedTransactions - User-signed transactions ready for paymaster signature
+   * @param options - Optional Jito bundle settings
+   * @returns Jito bundle submission result
+   */
+  signAndSendBundle = async <T extends Transaction & TransactionWithLifetime>(
+    partiallySignedTransactions: Array<T & TransactionWithinSizeLimit>,
+    options?: JitoBundleOptions,
+  ): Promise<SponsorBundleResult> => {
+    const serializedTransactions = partiallySignedTransactions.map(
+      (transaction) =>
+        new Uint8Array(getTransactionCodec().encode(transaction)),
+    );
+    return this.#paymasterClientInternal.signAndSendBundleSerializedTransactions(
+      serializedTransactions,
+      options,
     );
   };
 }

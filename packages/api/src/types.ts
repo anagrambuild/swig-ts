@@ -16,25 +16,34 @@ export class ApiError extends Error {
 
   static fromResponse(response: Response, body?: unknown): ApiError {
     const errorBody = body as Record<string, unknown> | undefined;
+    const grpcMessage = response.headers.get('grpc-message');
+    const grpcStatus = response.headers.get('grpc-status');
+    const decodedGrpcMessage = grpcMessage
+      ? decodeURIComponent(grpcMessage)
+      : undefined;
 
     const nestedError = errorBody?.error as
       | { code?: string; message?: string }
       | undefined;
     if (nestedError && typeof nestedError === 'object') {
       const message =
-        nestedError.message ?? `Request failed with status ${response.status}`;
-      const code = nestedError.code ?? `HTTP_${response.status}`;
+        nestedError.message ??
+        decodedGrpcMessage ??
+        `Request failed with status ${response.status}`;
+      const code = nestedError.code ?? grpcStatus ?? `HTTP_${response.status}`;
       return new ApiError(message, code, response.status, errorBody);
     }
 
     const message =
       (errorBody?.message as string) ||
       (errorBody?.error as string) ||
+      decodedGrpcMessage ||
       `Request failed with status ${response.status}`;
 
     const code =
       (errorBody?.error_code as string) ||
       (errorBody?.code as string) ||
+      grpcStatus ||
       `HTTP_${response.status}`;
 
     return new ApiError(message, code, response.status, errorBody?.details);

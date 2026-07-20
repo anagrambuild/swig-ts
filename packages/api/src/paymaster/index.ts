@@ -5,6 +5,8 @@ export type {
   ServiceStatus,
   SignRequest,
   SignResponse,
+  SponsorBundleRequest,
+  SponsorBundleResponse,
   SponsorRequest,
   SponsorResponse,
 } from './types.js';
