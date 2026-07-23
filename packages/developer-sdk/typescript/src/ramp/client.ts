@@ -19,6 +19,8 @@ import type {
   QuoteRampRequestWire,
   QuoteRampResult,
   QuoteRampResultWire,
+  RampCountryOption,
+  RampCountryOptionWire,
   RampCustomerContext,
   RampCustomerContextWire,
   RampCustomerTypeWire,
@@ -30,6 +32,8 @@ import type {
   RampQuoteWire,
   RampServiceProvider,
   RampServiceProviderWire,
+  RampSubdivisionOption,
+  RampSubdivisionOptionWire,
   RampTransaction,
   RampTransactionStatus,
   RampTransactionStatusWire,
@@ -98,8 +102,10 @@ export class RampClient {
 export function normalizeRampOptions(
   response: GetRampOptionsResultWire,
 ): GetRampOptionsResult {
+  const countryCodes = response.countryCodes ?? response.country_codes ?? [];
   return {
-    countryCodes: response.countryCodes ?? response.country_codes ?? [],
+    countryCodes,
+    countries: normalizeRampCountryOptions(response.countries, countryCodes),
     fiatCurrencyCodes:
       response.fiatCurrencyCodes ?? response.fiat_currency_codes ?? [],
     paymentMethodTypes: (
@@ -109,6 +115,75 @@ export function normalizeRampOptions(
     ).map(normalizeRampPaymentMethodType),
     cryptoCurrencyCodes:
       response.cryptoCurrencyCodes ?? response.crypto_currency_codes ?? [],
+  };
+}
+
+function normalizeRampCountryOptions(
+  countries: RampCountryOptionWire[] | undefined,
+  countryCodes: string[],
+): RampCountryOption[] {
+  if (countries === undefined) {
+    return countryCodeFallbackOptions(countryCodes);
+  }
+
+  if (!Array.isArray(countries)) {
+    throw new Error('Ramp response has invalid countries');
+  }
+
+  if (countries.length > 0) {
+    return countries.map(normalizeRampCountryOption);
+  }
+
+  return countryCodeFallbackOptions(countryCodes);
+}
+
+function countryCodeFallbackOptions(
+  countryCodes: string[],
+): RampCountryOption[] {
+  return countryCodes.map((countryCode) => ({
+    countryCode,
+    countryName: countryCode,
+    subdivisions: [],
+  }));
+}
+
+function normalizeRampCountryOption(
+  country: RampCountryOptionWire,
+): RampCountryOption {
+  const countryCode = readNonEmptyString(
+    country.countryCode ?? country.country_code,
+    'countryCode',
+  );
+  const countryName = readNonEmptyString(
+    country.countryName ?? country.country_name,
+    'countryName',
+  );
+  if (!Array.isArray(country.subdivisions)) {
+    throw new Error('Ramp response has invalid subdivisions');
+  }
+
+  return {
+    countryCode,
+    countryName,
+    subdivisions: country.subdivisions.map(normalizeRampSubdivisionOption),
+  };
+}
+
+function normalizeRampSubdivisionOption(
+  subdivision: RampSubdivisionOptionWire,
+): RampSubdivisionOption {
+  const subdivisionCode = readNonEmptyString(
+    subdivision.subdivisionCode ?? subdivision.subdivision_code,
+    'subdivisionCode',
+  );
+  const subdivisionName = readNonEmptyString(
+    subdivision.subdivisionName ?? subdivision.subdivision_name,
+    'subdivisionName',
+  );
+
+  return {
+    subdivisionCode,
+    subdivisionName,
   };
 }
 
@@ -259,6 +334,8 @@ function rampWalletContextRequest(
 function normalizeRampQuote(response: RampQuoteWire): RampQuote {
   const rampScore = response.rampScore ?? response.ramp_score;
   const lowKyc = response.lowKyc ?? response.low_kyc;
+  const serviceProviderCode =
+    response.serviceProviderCode ?? response.service_provider_code;
   return {
     quoteId: readString(response.quoteId ?? response.quote_id, 'quoteId'),
     direction: normalizeRampDirection(response.direction),
@@ -303,6 +380,10 @@ function normalizeRampQuote(response: RampQuoteWire): RampQuote {
     ),
     ...(rampScore ? { rampScore } : {}),
     ...(lowKyc === undefined ? {} : { lowKyc }),
+    serviceProviderCode: readNonEmptyString(
+      serviceProviderCode,
+      'serviceProviderCode',
+    ),
   };
 }
 
@@ -709,6 +790,13 @@ function readString(value: unknown, field: string): string {
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
+  }
+  throw new Error(`Ramp response is missing ${field}`);
+}
+
+function readNonEmptyString(value: unknown, field: string): string {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
   }
   throw new Error(`Ramp response is missing ${field}`);
 }

@@ -8,6 +8,8 @@ from urllib.parse import quote, urlencode
 from .common import Network, require_network, to_proto_network
 from .core import HttpClient
 
+_MISSING = object()
+
 RampDirection: TypeAlias = Literal["onramp", "offramp", "transfer", "unspecified"]
 ActiveRampDirection: TypeAlias = Literal["onramp", "offramp", "transfer"]
 RampCustomerType: TypeAlias = Literal["individual", "business", "unspecified"]
@@ -70,8 +72,22 @@ class RampWalletContext:
 
 
 @dataclass(frozen=True, slots=True)
+class RampSubdivisionOption:
+    subdivision_code: str
+    subdivision_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class RampCountryOption:
+    country_code: str
+    country_name: str
+    subdivisions: tuple[RampSubdivisionOption, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class GetRampOptionsResult:
     country_codes: tuple[str, ...]
+    countries: tuple[RampCountryOption, ...]
     fiat_currency_codes: tuple[str, ...]
     payment_method_types: tuple[RampPaymentMethodType, ...]
     crypto_currency_codes: tuple[str, ...]
@@ -106,6 +122,7 @@ class RampQuote:
     network_fee: str
     transaction_fee: str
     partner_fee: str
+    service_provider_code: str
     ramp_score: str | None = None
     low_kyc: bool | None = None
 
@@ -332,9 +349,14 @@ class RampClient:
 
 def normalize_ramp_options(response: object) -> GetRampOptionsResult:
     body = _mapping(response, "Ramp options response")
+    country_codes = _string_tuple(
+        body.get("countryCodes", body.get("country_codes", []))
+    )
     return GetRampOptionsResult(
-        country_codes=_string_tuple(
-            body.get("countryCodes", body.get("country_codes", []))
+        country_codes=country_codes,
+        countries=_normalize_country_options(
+            body.get("countries", _MISSING),
+            country_codes,
         ),
         fiat_currency_codes=_string_tuple(
             body.get("fiatCurrencyCodes", body.get("fiat_currency_codes", []))
@@ -362,6 +384,69 @@ def normalize_quote_ramp_result(response: object) -> QuoteRampResult:
             _normalize_ramp_quote(item)
             for item in _sequence(body.get("quotes", []), "quotes")
         )
+    )
+
+
+def _normalize_country_options(
+    value: object,
+    country_codes: tuple[str, ...],
+) -> tuple[RampCountryOption, ...]:
+    if value is _MISSING:
+        return _country_options_from_codes(country_codes)
+
+    countries = _sequence(value, "countries")
+    if len(countries) == 0:
+        return _country_options_from_codes(country_codes)
+
+    return tuple(_normalize_country_option(item) for item in countries)
+
+
+def _country_options_from_codes(
+    country_codes: tuple[str, ...],
+) -> tuple[RampCountryOption, ...]:
+    return tuple(
+        RampCountryOption(
+            country_code=country_code,
+            country_name=country_code,
+            subdivisions=(),
+        )
+        for country_code in country_codes
+    )
+
+
+def _normalize_country_option(value: object) -> RampCountryOption:
+    body = _mapping(value, "Ramp country option")
+    country_code = _required_non_empty_string(
+        _pick(body, "countryCode", "country_code"),
+        "countryCode",
+    )
+    country_name = _required_non_empty_string(
+        _pick(body, "countryName", "country_name"),
+        "countryName",
+    )
+    return RampCountryOption(
+        country_code=country_code,
+        country_name=country_name,
+        subdivisions=tuple(
+            _normalize_subdivision_option(item)
+            for item in _sequence(body.get("subdivisions"), "subdivisions")
+        ),
+    )
+
+
+def _normalize_subdivision_option(value: object) -> RampSubdivisionOption:
+    body = _mapping(value, "Ramp subdivision option")
+    subdivision_code = _required_non_empty_string(
+        _pick(body, "subdivisionCode", "subdivision_code"),
+        "subdivisionCode",
+    )
+    subdivision_name = _required_non_empty_string(
+        _pick(body, "subdivisionName", "subdivision_name"),
+        "subdivisionName",
+    )
+    return RampSubdivisionOption(
+        subdivision_code=subdivision_code,
+        subdivision_name=subdivision_name,
     )
 
 
@@ -469,6 +554,10 @@ def _normalize_ramp_quote(value: object) -> RampQuote:
         ),
         ramp_score=_optional_string(_pick(body, "rampScore", "ramp_score")),
         low_kyc=low_kyc,
+        service_provider_code=_required_non_empty_string(
+            _pick(body, "serviceProviderCode", "service_provider_code"),
+            "serviceProviderCode",
+        ),
     )
 
 
@@ -704,6 +793,12 @@ def _required_string(value: object, field: str) -> str:
         return value
     if isinstance(value, (int, bool)):
         return str(value)
+    raise ValueError(f"Ramp response is missing {field}")
+
+
+def _required_non_empty_string(value: object, field: str) -> str:
+    if isinstance(value, str) and value.strip():
+        return value
     raise ValueError(f"Ramp response is missing {field}")
 
 
