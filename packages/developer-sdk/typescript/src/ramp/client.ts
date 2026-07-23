@@ -122,12 +122,24 @@ function normalizeRampCountryOptions(
   countries: RampCountryOptionWire[] | undefined,
   countryCodes: string[],
 ): RampCountryOption[] {
-  if (countries?.length) {
-    return countries
-      .map(normalizeRampCountryOption)
-      .filter((country): country is RampCountryOption => country !== undefined);
+  if (countries === undefined) {
+    return countryCodeFallbackOptions(countryCodes);
   }
 
+  if (!Array.isArray(countries)) {
+    throw new Error('Ramp response has invalid countries');
+  }
+
+  if (countries.length > 0) {
+    return countries.map(normalizeRampCountryOption);
+  }
+
+  return countryCodeFallbackOptions(countryCodes);
+}
+
+function countryCodeFallbackOptions(
+  countryCodes: string[],
+): RampCountryOption[] {
   return countryCodes.map((countryCode) => ({
     countryCode,
     countryName: countryCode,
@@ -137,41 +149,41 @@ function normalizeRampCountryOptions(
 
 function normalizeRampCountryOption(
   country: RampCountryOptionWire,
-): RampCountryOption | undefined {
-  const countryCode = country.countryCode ?? country.country_code;
-  if (!countryCode) {
-    return undefined;
+): RampCountryOption {
+  const countryCode = readNonEmptyString(
+    country.countryCode ?? country.country_code,
+    'countryCode',
+  );
+  const countryName = readNonEmptyString(
+    country.countryName ?? country.country_name,
+    'countryName',
+  );
+  if (!Array.isArray(country.subdivisions)) {
+    throw new Error('Ramp response has invalid subdivisions');
   }
-  const countryName =
-    country.countryName ?? country.country_name ?? countryCode;
 
   return {
     countryCode,
     countryName,
-    subdivisions: (country.subdivisions ?? [])
-      .map(normalizeRampSubdivisionOption)
-      .filter(
-        (subdivision): subdivision is RampSubdivisionOption =>
-          subdivision !== undefined,
-      ),
+    subdivisions: country.subdivisions.map(normalizeRampSubdivisionOption),
   };
 }
 
 function normalizeRampSubdivisionOption(
   subdivision: RampSubdivisionOptionWire,
-): RampSubdivisionOption | undefined {
-  const subdivisionCode =
-    subdivision.subdivisionCode ?? subdivision.subdivision_code;
-  if (!subdivisionCode) {
-    return undefined;
-  }
+): RampSubdivisionOption {
+  const subdivisionCode = readNonEmptyString(
+    subdivision.subdivisionCode ?? subdivision.subdivision_code,
+    'subdivisionCode',
+  );
+  const subdivisionName = readNonEmptyString(
+    subdivision.subdivisionName ?? subdivision.subdivision_name,
+    'subdivisionName',
+  );
 
   return {
     subdivisionCode,
-    subdivisionName:
-      subdivision.subdivisionName ??
-      subdivision.subdivision_name ??
-      subdivisionCode,
+    subdivisionName,
   };
 }
 
@@ -368,7 +380,10 @@ function normalizeRampQuote(response: RampQuoteWire): RampQuote {
     ),
     ...(rampScore ? { rampScore } : {}),
     ...(lowKyc === undefined ? {} : { lowKyc }),
-    serviceProviderCode: readString(serviceProviderCode, 'serviceProviderCode'),
+    serviceProviderCode: readNonEmptyString(
+      serviceProviderCode,
+      'serviceProviderCode',
+    ),
   };
 }
 
@@ -775,6 +790,13 @@ function readString(value: unknown, field: string): string {
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
+  }
+  throw new Error(`Ramp response is missing ${field}`);
+}
+
+function readNonEmptyString(value: unknown, field: string): string {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
   }
   throw new Error(`Ramp response is missing ${field}`);
 }

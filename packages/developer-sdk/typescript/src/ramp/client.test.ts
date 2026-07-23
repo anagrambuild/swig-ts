@@ -135,6 +135,92 @@ describe('RampClient', () => {
     });
   });
 
+  test('falls back to country codes when country options are empty', async () => {
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch(() => ({
+        country_codes: ['BR'],
+        countries: [],
+        fiat_currency_codes: ['BRL'],
+        payment_method_types: ['RAMP_PAYMENT_METHOD_TYPE_PIX'],
+        crypto_currency_codes: ['USDC_SOLANA'],
+      })),
+    });
+
+    await expect(swig.ramp.getOptions({})).resolves.toMatchObject({
+      countryCodes: ['BR'],
+      countries: [
+        {
+          countryCode: 'BR',
+          countryName: 'BR',
+          subdivisions: [],
+        },
+      ],
+    });
+  });
+
+  test('rejects malformed country subdivision options', async () => {
+    const cases: [string, unknown, string][] = [
+      [
+        'country code',
+        [{ country_name: 'United States', subdivisions: [] }],
+        'countryCode',
+      ],
+      [
+        'country name',
+        [{ country_code: 'US', subdivisions: [] }],
+        'countryName',
+      ],
+      [
+        'subdivisions',
+        [{ country_code: 'US', country_name: 'United States' }],
+        'subdivisions',
+      ],
+      [
+        'subdivision code',
+        [
+          {
+            country_code: 'US',
+            country_name: 'United States',
+            subdivisions: [{ subdivision_name: 'California' }],
+          },
+        ],
+        'subdivisionCode',
+      ],
+      [
+        'subdivision name',
+        [
+          {
+            country_code: 'US',
+            country_name: 'United States',
+            subdivisions: [{ subdivision_code: 'US-CA' }],
+          },
+        ],
+        'subdivisionName',
+      ],
+      ['countries', null, 'countries'],
+    ];
+
+    for (const [label, countries, message] of cases) {
+      const swig = new SwigClient({
+        apiKey: 'sk_test',
+        baseUrl: 'http://localhost:8080',
+        network: 'devnet',
+        fetch: jsonFetch(() => ({
+          country_codes: ['US'],
+          countries,
+          fiat_currency_codes: ['USD'],
+          payment_method_types: ['RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD'],
+          crypto_currency_codes: ['USDC_SOLANA'],
+        })),
+      });
+
+      await expect(swig.ramp.getOptions({}), label).rejects.toThrow(message);
+    }
+  });
+
   test('quotes ramp options through the backend API with proto wire enums', async () => {
     const calls: CapturedRequest[] = [];
     const swig = new SwigClient({
@@ -223,51 +309,64 @@ describe('RampClient', () => {
     });
   });
 
-  test('requires provider code on ramp quotes', async () => {
-    const swig = new SwigClient({
-      apiKey: 'sk_test',
-      baseUrl: 'http://localhost:8080',
-      network: 'devnet',
-      fetch: jsonFetch(() => ({
-        quotes: [
-          {
-            quote_id: 'quote_123',
-            direction: 'RAMP_DIRECTION_ONRAMP',
-            service_provider: 'RAMP_SERVICE_PROVIDER_OTHER',
-            payment_method_type: 'RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD',
-            source_amount: '100.00',
-            source_currency_code: 'USD',
-            destination_amount: '99.00',
-            destination_currency_code: 'USDC_SOLANA',
-            exchange_rate: '0.99',
-            total_fee: '1.00',
-            network_fee: '0.10',
-            transaction_fee: '0.70',
-            partner_fee: '0.20',
-          },
-        ],
-      })),
-    });
+  test('requires non-empty string provider code on ramp quotes', async () => {
+    const cases: [string, unknown][] = [
+      ['missing', undefined],
+      ['empty', ''],
+      ['number', 123],
+      ['boolean', true],
+    ];
 
-    await expect(
-      swig.ramp.quote({
-        customer: {
-          partnerApplicationId: 'app_123',
-          swigUserId: 'user_123',
-          customerType: 'individual',
-        },
-        wallet: {
-          walletId: 'wallet_123',
-          walletAddress: 'wallet_address_123',
-          network: 'devnet',
-        },
-        direction: 'onramp',
-        sourceAmount: '100.00',
-        sourceCurrencyCode: 'USD',
-        destinationCurrencyCode: 'USDC_SOLANA',
-        countryCode: 'US',
-      }),
-    ).rejects.toThrow('Ramp response is missing serviceProviderCode');
+    for (const [label, providerCode] of cases) {
+      const quote = {
+        quote_id: 'quote_123',
+        direction: 'RAMP_DIRECTION_ONRAMP',
+        service_provider: 'RAMP_SERVICE_PROVIDER_OTHER',
+        payment_method_type: 'RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD',
+        source_amount: '100.00',
+        source_currency_code: 'USD',
+        destination_amount: '99.00',
+        destination_currency_code: 'USDC_SOLANA',
+        exchange_rate: '0.99',
+        total_fee: '1.00',
+        network_fee: '0.10',
+        transaction_fee: '0.70',
+        partner_fee: '0.20',
+        ...(providerCode === undefined
+          ? {}
+          : { service_provider_code: providerCode }),
+      };
+
+      const swig = new SwigClient({
+        apiKey: 'sk_test',
+        baseUrl: 'http://localhost:8080',
+        network: 'devnet',
+        fetch: jsonFetch(() => ({
+          quotes: [quote],
+        })),
+      });
+
+      await expect(
+        swig.ramp.quote({
+          customer: {
+            partnerApplicationId: 'app_123',
+            swigUserId: 'user_123',
+            customerType: 'individual',
+          },
+          wallet: {
+            walletId: 'wallet_123',
+            walletAddress: 'wallet_address_123',
+            network: 'devnet',
+          },
+          direction: 'onramp',
+          sourceAmount: '100.00',
+          sourceCurrencyCode: 'USD',
+          destinationCurrencyCode: 'USDC_SOLANA',
+          countryCode: 'US',
+        }),
+        label,
+      ).rejects.toThrow('Ramp response is missing serviceProviderCode');
+    }
   });
 
   test('creates sessions and lists ramp transaction history', async () => {

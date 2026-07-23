@@ -59,7 +59,7 @@ async def test_ramp_options_subdivisions_and_legacy_fallback() -> None:
                             {
                                 "country_code": "GB",
                                 "country_name": "United Kingdom",
-                                "subdivisions": None,
+                                "subdivisions": [],
                             },
                             {
                                 "country_code": "US",
@@ -121,6 +121,63 @@ async def test_ramp_options_subdivisions_and_legacy_fallback() -> None:
     assert legacy_options.countries[0].country_code == "BR"
     assert legacy_options.countries[0].country_name == "BR"
     assert legacy_options.countries[0].subdivisions == ()
+
+
+async def test_ramp_options_reject_malformed_country_options() -> None:
+    def client_with_countries(countries: object) -> SwigClient:
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "country_codes": ["US"],
+                        "countries": countries,
+                        "fiat_currency_codes": ["USD"],
+                        "payment_method_types": [
+                            "RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD"
+                        ],
+                        "crypto_currency_codes": ["USDC_SOLANA"],
+                    }
+                },
+            )
+
+        return SwigClient(
+            api_key="secret",
+            base_url="https://example.test",
+            network="devnet",
+            transport=httpx.MockTransport(handler),
+        )
+
+    cases: list[tuple[object, str]] = [
+        ([{"country_name": "United States", "subdivisions": []}], "countryCode"),
+        ([{"country_code": "US", "subdivisions": []}], "countryName"),
+        ([{"country_code": "US", "country_name": "United States"}], "subdivisions"),
+        (
+            [
+                {
+                    "country_code": "US",
+                    "country_name": "United States",
+                    "subdivisions": [{"subdivision_name": "California"}],
+                }
+            ],
+            "subdivisionCode",
+        ),
+        (
+            [
+                {
+                    "country_code": "US",
+                    "country_name": "United States",
+                    "subdivisions": [{"subdivision_code": "US-CA"}],
+                }
+            ],
+            "subdivisionName",
+        ),
+        (None, "countries"),
+    ]
+
+    for countries, error in cases:
+        with pytest.raises(ValueError, match=error):
+            await client_with_countries(countries).ramp.get_options()
 
 
 async def test_ramp_quote_matches_enum_and_normalization_contract() -> None:
@@ -203,33 +260,30 @@ async def test_ramp_quote_matches_enum_and_normalization_contract() -> None:
     assert body["serviceProviders"] == ["RAMP_SERVICE_PROVIDER_OTHER"]
 
 
-async def test_ramp_quote_requires_provider_code() -> None:
+@pytest.mark.parametrize("provider_code", [None, "", 123, True])
+async def test_ramp_quote_requires_provider_code(provider_code: object) -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
+        quote = {
+            "quote_id": "quote",
+            "direction": "RAMP_DIRECTION_ONRAMP",
+            "service_provider": "RAMP_SERVICE_PROVIDER_OTHER",
+            "payment_method_type": "RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD",
+            "source_amount": "100",
+            "source_currency_code": "USD",
+            "destination_amount": "99",
+            "destination_currency_code": "USDC",
+            "exchange_rate": "1",
+            "total_fee": "1",
+            "network_fee": "0.1",
+            "transaction_fee": "0.8",
+            "partner_fee": "0.1",
+        }
+        if provider_code is not None:
+            quote["service_provider_code"] = provider_code
+
         return httpx.Response(
             200,
-            json={
-                "data": {
-                    "quotes": [
-                        {
-                            "quote_id": "quote",
-                            "direction": "RAMP_DIRECTION_ONRAMP",
-                            "service_provider": "RAMP_SERVICE_PROVIDER_OTHER",
-                            "payment_method_type": (
-                                "RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD"
-                            ),
-                            "source_amount": "100",
-                            "source_currency_code": "USD",
-                            "destination_amount": "99",
-                            "destination_currency_code": "USDC",
-                            "exchange_rate": "1",
-                            "total_fee": "1",
-                            "network_fee": "0.1",
-                            "transaction_fee": "0.8",
-                            "partner_fee": "0.1",
-                        }
-                    ]
-                }
-            },
+            json={"data": {"quotes": [quote]}},
         )
 
     swig = SwigClient(
