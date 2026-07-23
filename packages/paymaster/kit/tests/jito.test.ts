@@ -16,6 +16,8 @@ import { createPaymasterClient } from '../src/index.js';
 const PAYMASTER_ADDRESS = 'Ac2z6B25qv5rHprsMi7mcGo1LgkJ5kdxaUejxFcKGxZS';
 const JITO_TIP_ADDRESS = '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5';
 const LOOKUP_TABLE_ADDRESS = 'Hex8Pe25n1yhMcQGVSfJUUKo2EqRv6MQDMYGZkwQpVpG';
+const LOOKUP_ACCOUNT_ADDRESS = 'EtES4FyCEegf71P6NGFsWTabyJPeaq5kJz7UkJvSD21Z';
+const MEMO_PROGRAM_ADDRESS = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
 const SYSTEM_PROGRAM_ADDRESS = '11111111111111111111111111111111';
 const TEST_BLOCKHASH = blockhash('11111111111111111111111111111111');
 
@@ -34,7 +36,7 @@ describe('PaymasterClient.prepareJitoBundleTransactionMessages', () => {
     expect(prepared[1]?.instructions).toBeArrayOfSize(1);
   });
 
-  test('does not count an ALT-loaded tip destination as a static tip', () => {
+  test('rejects a paymaster tip whose destination is ALT-loaded', () => {
     const client = createClient();
     const message = compressTransactionMessageUsingAddressLookupTables(
       createMessage(createTipInstruction(1_000n)),
@@ -44,9 +46,28 @@ describe('PaymasterClient.prepareJitoBundleTransactionMessages', () => {
     );
     const messages = [message];
 
+    expect(() => client.prepareJitoBundleTransactionMessages(messages)).toThrow(
+      'Jito bundle instructions that reference the paymaster must use static accounts',
+    );
+    expect(message.instructions).toBeArrayOfSize(1);
+  });
+
+  test('allows unrelated ALT-loaded accounts alongside a static tip', () => {
+    const client = createClient();
+    const message = compressTransactionMessageUsingAddressLookupTables(
+      createMessage(
+        createTipInstruction(1_000n),
+        createUnrelatedLookupInstruction(),
+      ),
+      {
+        [address(LOOKUP_TABLE_ADDRESS)]: [address(LOOKUP_ACCOUNT_ADDRESS)],
+      },
+    );
+    const messages = [message];
+
     const prepared = client.prepareJitoBundleTransactionMessages(messages);
 
-    expect(prepared).not.toBe(messages);
+    expect(prepared).toBe(messages);
     expect(prepared[0]?.instructions).toBeArrayOfSize(2);
   });
 });
@@ -60,7 +81,7 @@ function createClient() {
   });
 }
 
-function createMessage(instruction: Instruction) {
+function createMessage(...instructions: Instruction[]) {
   return pipe(
     createTransactionMessage({ version: 0 }),
     (message) =>
@@ -73,7 +94,7 @@ function createMessage(instruction: Instruction) {
         },
         message,
       ),
-    (message) => appendTransactionMessageInstructions([instruction], message),
+    (message) => appendTransactionMessageInstructions(instructions, message),
   );
 }
 
@@ -91,6 +112,19 @@ function createTipInstruction(lamports: bigint): Instruction {
       },
     ],
     data: encodeSystemTransfer(lamports),
+  };
+}
+
+function createUnrelatedLookupInstruction(): Instruction {
+  return {
+    programAddress: address(MEMO_PROGRAM_ADDRESS),
+    accounts: [
+      {
+        address: address(LOOKUP_ACCOUNT_ADDRESS),
+        role: AccountRole.READONLY,
+      },
+    ],
+    data: new Uint8Array([1]),
   };
 }
 

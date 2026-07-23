@@ -8,7 +8,10 @@ import { getBase58Codec } from '@solana/kit';
 import { SwigApiClient } from '@swig-wallet/api';
 import { isPaymasterFeePayer } from './helpers.js';
 import { createIdempotencyKey } from './idempotency.js';
-import { serializedBundleHasSufficientJitoTip } from './jito.js';
+import {
+  serializedBundleHasSufficientJitoTip,
+  serializedTransactionHasLookupLoadedPaymasterInstruction,
+} from './jito.js';
 import type {
   PaymasterConfig,
   PaymasterSubmitOptions,
@@ -16,6 +19,9 @@ import type {
   SponsorBundleResult,
 } from './types.js';
 import { PaymasterError } from './types.js';
+
+const DECIMAL_U64_PATTERN = /^[0-9]+$/;
+const MAX_U64 = 18_446_744_073_709_551_615n;
 
 /**
  * Client for interacting with the Swig Paymaster service.
@@ -186,6 +192,16 @@ export class PaymasterClient {
           `Paymaster public key not set as fee payer for transaction ${index}`,
         );
       }
+      if (
+        serializedTransactionHasLookupLoadedPaymasterInstruction(
+          transaction,
+          this.#paymasterPubkey,
+        )
+      ) {
+        throw new PaymasterError(
+          `Jito bundle transaction ${index} contains an ALT-loaded instruction that references the paymaster`,
+        );
+      }
     }
 
     if (
@@ -212,11 +228,68 @@ export class PaymasterClient {
       throw PaymasterError.fromApiError(error!);
     }
 
-    return {
-      requestId: data.request_id,
-      bundleId: data.bundle_id,
-      signatures: data.signatures,
-      estimatedSpentByPaymaster: BigInt(data.estimated_spent_by_paymaster),
-    };
+    return parseSponsorBundleResponse(data, serializedTransactions.length);
   }
+}
+
+function parseSponsorBundleResponse(
+  response: unknown,
+  expectedSignatureCount: number,
+): SponsorBundleResult {
+  if (!isRecord(response)) {
+    throw invalidSponsorBundleResponse('expected an object');
+  }
+
+  const requestId = requireNonEmptyString(response.request_id, 'request_id');
+  const bundleId = requireNonEmptyString(response.bundle_id, 'bundle_id');
+  const signatures = response.signatures;
+  if (!Array.isArray(signatures)) {
+    throw invalidSponsorBundleResponse('signatures must be an array');
+  }
+  if (signatures.length !== expectedSignatureCount) {
+    throw invalidSponsorBundleResponse(
+      `expected ${expectedSignatureCount} signatures, received ${signatures.length}`,
+    );
+  }
+  const parsedSignatures = signatures.map((signature, index) =>
+    requireNonEmptyString(signature, `signatures[${index}]`),
+  );
+
+  const estimatedSpend = response.estimated_spent_by_paymaster;
+  if (
+    typeof estimatedSpend !== 'string' ||
+    !DECIMAL_U64_PATTERN.test(estimatedSpend)
+  ) {
+    throw invalidSponsorBundleResponse(
+      'estimated_spent_by_paymaster must be a decimal u64 string',
+    );
+  }
+  const estimatedSpentByPaymaster = BigInt(estimatedSpend);
+  if (estimatedSpentByPaymaster > MAX_U64) {
+    throw invalidSponsorBundleResponse(
+      'estimated_spent_by_paymaster must be a decimal u64 string',
+    );
+  }
+
+  return {
+    requestId,
+    bundleId,
+    signatures: parsedSignatures,
+    estimatedSpentByPaymaster,
+  };
+}
+
+function requireNonEmptyString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw invalidSponsorBundleResponse(`${field} must be a non-empty string`);
+  }
+  return value;
+}
+
+function invalidSponsorBundleResponse(reason: string): PaymasterError {
+  return new PaymasterError(`Invalid sponsor bundle response: ${reason}`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

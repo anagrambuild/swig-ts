@@ -122,6 +122,42 @@ export function transactionMessageJitoTipLamports(
   );
 }
 
+export function serializedTransactionHasLookupLoadedPaymasterInstruction(
+  serializedTx: Uint8Array,
+  paymasterPubkey: string,
+): boolean {
+  const transaction = getTransactionDecoder().decode(serializedTx);
+  const message = getCompiledTransactionMessageDecoder().decode(
+    transaction.messageBytes,
+  );
+
+  return message.instructions.some((instruction) => {
+    const accountIndices = instruction.accountIndices;
+    return (
+      accountIndices?.some(
+        (index) =>
+          message.staticAccounts[index]?.toString() === paymasterPubkey,
+      ) === true &&
+      (instruction.programAddressIndex >= message.staticAccounts.length ||
+        accountIndices.some((index) => index >= message.staticAccounts.length))
+    );
+  });
+}
+
+export function transactionMessageHasLookupLoadedPaymasterInstruction(
+  transactionMessage: { instructions: readonly Instruction[] },
+  paymasterPubkey: string,
+): boolean {
+  return transactionMessage.instructions.some((instruction) => {
+    const accounts = instruction.accounts;
+    return (
+      accounts?.some(
+        (account) => account.address.toString() === paymasterPubkey,
+      ) === true && accounts.some((account) => 'lookupTableAddress' in account)
+    );
+  });
+}
+
 export function isValidJitoTipTotal(tipLamports: bigint): boolean {
   return tipLamports >= MIN_JITO_TIP_LAMPORTS && tipLamports <= MAX_U64;
 }

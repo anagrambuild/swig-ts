@@ -28,8 +28,10 @@ import {
   type JitoBundleOptions,
   PaymasterClient as PaymasterClientInternal,
   type PaymasterConfig,
+  PaymasterError,
   type PaymasterSubmitOptions,
   type SponsorBundleResult,
+  transactionMessageHasLookupLoadedPaymasterInstruction,
   transactionMessageJitoTipLamports,
 } from '@swig-wallet/paymaster-core';
 
@@ -258,6 +260,19 @@ export class PaymasterClient {
 
     if (transactionMessages.length > 5) {
       throw new Error('Jito bundles support at most 5 transactions');
+    }
+
+    if (
+      transactionMessages.some((transactionMessage) =>
+        transactionMessageHasLookupLoadedPaymasterInstruction(
+          transactionMessage,
+          this.#config.paymasterPubkey,
+        ),
+      )
+    ) {
+      throw new PaymasterError(
+        'Jito bundle instructions that reference the paymaster must use static accounts',
+      );
     }
 
     const tipLamports = transactionMessages.reduce(

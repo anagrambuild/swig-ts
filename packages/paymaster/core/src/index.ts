@@ -20,6 +20,7 @@ export {
   resolveJitoTipLamports,
   serializedBundleHasSufficientJitoTip,
   serializedTransactionJitoTipLamports,
+  transactionMessageHasLookupLoadedPaymasterInstruction,
   transactionMessageJitoTipLamports,
 } from './jito.js';
 
