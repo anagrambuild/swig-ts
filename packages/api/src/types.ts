@@ -18,9 +18,7 @@ export class ApiError extends Error {
     const errorBody = body as Record<string, unknown> | undefined;
     const grpcMessage = response.headers.get('grpc-message');
     const grpcStatus = response.headers.get('grpc-status');
-    const decodedGrpcMessage = grpcMessage
-      ? decodeURIComponent(grpcMessage)
-      : undefined;
+    const decodedGrpcMessage = safelyDecodeGrpcMessage(grpcMessage);
 
     const nestedError = errorBody?.error as
       | { code?: string; message?: string }
@@ -59,6 +57,18 @@ export class ApiError extends Error {
     }
 
     return new ApiError('An unknown error occurred', 'UNKNOWN_ERROR', 0);
+  }
+}
+
+function safelyDecodeGrpcMessage(message: string | null): string | undefined {
+  if (!message) {
+    return undefined;
+  }
+
+  try {
+    return decodeURIComponent(message);
+  } catch {
+    return message;
   }
 }
 

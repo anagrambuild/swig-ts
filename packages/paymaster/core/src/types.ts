@@ -45,7 +45,7 @@ export interface PaymasterSubmitOptions {
   idempotencyKey?: string;
 }
 
-export interface JitoBundleOptions extends PaymasterSubmitOptions {
+export interface JitoBundleOptions {
   /** Jito tip lamports. Defaults to the SDK's current bundle tip amount. */
   tipLamports?: number | bigint;
 }

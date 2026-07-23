@@ -15,7 +15,7 @@ import {
   PaymasterClient as PaymasterClientInternal,
   PaymasterError,
   resolveJitoTipLamports,
-  serializedBundleHasJitoTip,
+  serializedBundleHasSufficientJitoTip,
   type JitoBundleOptions,
   type PaymasterConfig,
   type PaymasterSubmitOptions,
@@ -149,16 +149,13 @@ export class PaymasterClient {
   /**
    * Signs and sends serialized transactions as a Jito bundle.
    *
-   * If no transaction contains a Jito tip, the core client appends a separate
-   * paymaster-only tip transaction when the bundle still has room.
-   *
    * @param serializedTransactions - Serialized transaction bytes
-   * @param options - Optional Jito bundle settings
-   * @returns Jito bundle submission result
+   * @param options - Optional submission settings
+   * @returns Jito Block Engine acceptance result
    */
   signAndSendBundleSerializedTransactions = (
     serializedTransactions: Uint8Array[],
-    options?: JitoBundleOptions,
+    options?: PaymasterSubmitOptions,
   ): Promise<SponsorBundleResult> => {
     return this.#paymasterClientInternal.signAndSendBundleSerializedTransactions(
       serializedTransactions,
@@ -316,7 +313,7 @@ export class PaymasterClient {
       }),
     );
     if (
-      serializedBundleHasJitoTip(
+      serializedBundleHasSufficientJitoTip(
         serializedTransactions,
         this.#config.paymasterPubkey,
       )
@@ -338,6 +335,7 @@ export class PaymasterClient {
         verifySignatures: false,
       });
     } catch (error) {
+      lastTransaction.instructions.pop();
       throw new PaymasterError(
         error instanceof Error
           ? `Unable to fit Jito tip instruction in the last transaction: ${error.message}`
@@ -423,17 +421,16 @@ export class PaymasterClient {
   /**
    * Signs transactions with the paymaster and submits them as a Jito bundle.
    *
-   * Provided transactions are submitted unchanged. If none contains a valid
-   * Jito tip, the SDK appends a separate paymaster-only tip transaction when
-   * the bundle still has room.
+   * Provided transactions are submitted unchanged and must already contain at
+   * least 1,000 aggregate Jito tip lamports.
    *
    * @param transactions - User-signed transactions ready for paymaster signature
-   * @param options - Optional Jito bundle settings
-   * @returns Jito bundle submission result
+   * @param options - Optional submission settings
+   * @returns Jito Block Engine acceptance result
    */
   signAndSendBundle = <T extends Transaction | VersionedTransaction>(
     transactions: T[],
-    options?: JitoBundleOptions,
+    options?: PaymasterSubmitOptions,
   ): Promise<SponsorBundleResult> => {
     return this.#paymasterClientInternal.signAndSendBundleSerializedTransactions(
       transactions.map((transaction) =>

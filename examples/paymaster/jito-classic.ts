@@ -93,7 +93,6 @@ for (const [index, transaction] of transactions.entries()) {
 }
 
 const result = await paymaster.signAndSendBundle(transactions, {
-  tipLamports: JITO_TIP_LAMPORTS,
   idempotencyKey: PAYMASTER_IDEMPOTENCY_KEY,
 });
 

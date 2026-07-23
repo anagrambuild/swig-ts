@@ -1,5 +1,4 @@
 import {
-  decompileTransactionMessage,
   getCompiledTransactionMessageDecoder,
   getTransactionDecoder,
 } from '@solana/kit';
@@ -27,17 +26,11 @@ export function isPaymasterFeePayer(
   serializedTx: SerializedTransaction,
   paymasterPubkey: string,
 ): boolean {
-  // Decode the transaction from bytes
   const transaction = getTransactionDecoder().decode(serializedTx);
-
   const compiledTransactionMessage =
     getCompiledTransactionMessageDecoder().decode(transaction.messageBytes);
 
-  // Decompile the transaction to get the transaction message
-  const transactionMessage = decompileTransactionMessage(
-    compiledTransactionMessage,
+  return (
+    compiledTransactionMessage.staticAccounts[0]?.toString() === paymasterPubkey
   );
-
-  // Check if the fee payer matches the paymaster public key
-  return transactionMessage.feePayer.address.toString() === paymasterPubkey;
 }

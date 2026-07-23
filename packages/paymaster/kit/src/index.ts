@@ -24,12 +24,13 @@ import {
 } from '@solana/kit';
 import {
   createJitoTipInstruction as createCoreJitoTipInstruction,
+  isValidJitoTipTotal,
   type JitoBundleOptions,
   PaymasterClient as PaymasterClientInternal,
   type PaymasterConfig,
   type PaymasterSubmitOptions,
   type SponsorBundleResult,
-  transactionMessageHasJitoTip,
+  transactionMessageJitoTipLamports,
 } from '@swig-wallet/paymaster-core';
 
 export {
@@ -204,16 +205,13 @@ export class PaymasterClient {
   /**
    * Signs and sends serialized transactions as a Jito bundle.
    *
-   * If no transaction contains a Jito tip, the core client appends a separate
-   * paymaster-only tip transaction when the bundle still has room.
-   *
    * @param serializedTransactions - Serialized transaction bytes
-   * @param options - Optional Jito bundle settings
-   * @returns Jito bundle submission result
+   * @param options - Optional submission settings
+   * @returns Jito Block Engine acceptance result
    */
   signAndSendBundleSerializedTransactions = (
     serializedTransactions: Uint8Array[],
-    options?: JitoBundleOptions,
+    options?: PaymasterSubmitOptions,
   ): Promise<SponsorBundleResult> => {
     return this.#paymasterClientInternal.signAndSendBundleSerializedTransactions(
       serializedTransactions,
@@ -262,14 +260,16 @@ export class PaymasterClient {
       throw new Error('Jito bundles support at most 5 transactions');
     }
 
-    if (
-      transactionMessages.some((transactionMessage) =>
-        transactionMessageHasJitoTip(
+    const tipLamports = transactionMessages.reduce(
+      (total, transactionMessage) =>
+        total +
+        transactionMessageJitoTipLamports(
           transactionMessage,
           this.#config.paymasterPubkey,
         ),
-      )
-    ) {
+      0n,
+    );
+    if (isValidJitoTipTotal(tipLamports)) {
       return transactionMessages;
     }
 
@@ -446,17 +446,16 @@ export class PaymasterClient {
   /**
    * Signs transactions with the paymaster and submits them as a Jito bundle.
    *
-   * Provided transactions are submitted unchanged. If none contains a valid
-   * Jito tip, the SDK appends a separate paymaster-only tip transaction when
-   * the bundle still has room.
+   * Provided transactions are submitted unchanged and must already contain at
+   * least 1,000 aggregate Jito tip lamports.
    *
    * @param partiallySignedTransactions - User-signed transactions ready for paymaster signature
-   * @param options - Optional Jito bundle settings
-   * @returns Jito bundle submission result
+   * @param options - Optional submission settings
+   * @returns Jito Block Engine acceptance result
    */
   signAndSendBundle = async <T extends Transaction & TransactionWithLifetime>(
     partiallySignedTransactions: Array<T & TransactionWithinSizeLimit>,
-    options?: JitoBundleOptions,
+    options?: PaymasterSubmitOptions,
   ): Promise<SponsorBundleResult> => {
     const serializedTransactions = partiallySignedTransactions.map(
       (transaction) =>

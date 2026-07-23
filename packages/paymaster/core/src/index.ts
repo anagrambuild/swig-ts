@@ -16,10 +16,11 @@ export {
   createJitoTipInstruction,
   getJitoTipAccount,
   isJitoTipAccount,
+  isValidJitoTipTotal,
   resolveJitoTipLamports,
-  serializedBundleHasJitoTip,
-  serializedTransactionHasJitoTip,
-  transactionMessageHasJitoTip,
+  serializedBundleHasSufficientJitoTip,
+  serializedTransactionJitoTipLamports,
+  transactionMessageJitoTipLamports,
 } from './jito.js';
 
 // Export types

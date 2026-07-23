@@ -4,28 +4,12 @@
  * @packageDocumentation
  */
 
-import {
-  address,
-  appendTransactionMessageInstructions,
-  assertIsTransactionWithinSizeLimit,
-  compileTransaction,
-  createSolanaRpc,
-  createTransactionMessage,
-  getBase58Codec,
-  getTransactionEncoder,
-  pipe,
-  setTransactionMessageFeePayer,
-  setTransactionMessageLifetimeUsingBlockhash,
-} from '@solana/kit';
+import { getBase58Codec } from '@solana/kit';
 import { SwigApiClient } from '@swig-wallet/api';
 import { isPaymasterFeePayer } from './helpers.js';
 import { createIdempotencyKey } from './idempotency.js';
-import {
-  createJitoTipInstruction,
-  serializedBundleHasJitoTip,
-} from './jito.js';
+import { serializedBundleHasSufficientJitoTip } from './jito.js';
 import type {
-  JitoBundleOptions,
   PaymasterConfig,
   PaymasterSubmitOptions,
   SerializedTransaction,
@@ -42,7 +26,6 @@ export class PaymasterClient {
   readonly #api: SwigApiClient;
   readonly #paymasterPubkey: string;
   readonly #network: 'mainnet' | 'devnet';
-  readonly #rpcUrl: string;
 
   /**
    * Creates a new PaymasterClient instance.
@@ -67,11 +50,6 @@ export class PaymasterClient {
     });
     this.#paymasterPubkey = config.paymasterPubkey;
     this.#network = config.network;
-    this.#rpcUrl =
-      config.customRpcUrl ??
-      (config.network === 'devnet'
-        ? 'https://api.devnet.solana.com'
-        : 'https://api.mainnet-beta.solana.com');
   }
 
   /**
@@ -179,17 +157,16 @@ export class PaymasterClient {
    * Signs serialized transactions with the paymaster and submits them as a
    * Jito bundle.
    *
-   * Already-signed user transactions are never mutated. If none of the provided
-   * transactions contains a valid Jito tip transfer, the SDK appends a separate
-   * paymaster-only tip transaction when the bundle still has room.
+   * Already-signed user transactions are never mutated. The submitted bundle
+   * must already contain at least 1,000 aggregate Jito tip lamports.
    *
    * @param serializedTransactions - Serialized transactions with paymaster as fee payer
-   * @param options - Optional Jito bundle settings
+   * @param options - Optional submission settings
    * @returns Jito Block Engine acceptance result. The bundle may still be pending.
    */
   public async signAndSendBundleSerializedTransactions(
     serializedTransactions: SerializedTransaction[],
-    options?: JitoBundleOptions,
+    options?: PaymasterSubmitOptions,
   ): Promise<SponsorBundleResult> {
     if (this.#network !== 'mainnet') {
       throw new PaymasterError('Jito bundles are only supported on mainnet');
@@ -211,18 +188,18 @@ export class PaymasterClient {
       }
     }
 
-    const bundle = [...serializedTransactions];
-    if (!serializedBundleHasJitoTip(bundle, this.#paymasterPubkey)) {
-      if (bundle.length === 5) {
-        throw new PaymasterError(
-          'Jito bundle requires a tip, but no tip was found and the bundle already has 5 transactions',
-        );
-      }
-
-      bundle.push(await this.#createSerializedJitoTipTransaction(options));
+    if (
+      !serializedBundleHasSufficientJitoTip(
+        serializedTransactions,
+        this.#paymasterPubkey,
+      )
+    ) {
+      throw new PaymasterError(
+        'Jito bundle must include at least 1000 lamports in recognized tip instructions',
+      );
     }
 
-    const base58Transactions = bundle.map((transaction) =>
+    const base58Transactions = serializedTransactions.map((transaction) =>
       getBase58Codec().decode(transaction),
     );
     const { data, error } = await this.#api.paymaster.sponsorBundle(
@@ -241,32 +218,5 @@ export class PaymasterClient {
       signatures: data.signatures,
       estimatedSpentByPaymaster: BigInt(data.estimated_spent_by_paymaster),
     };
-  }
-
-  async #createSerializedJitoTipTransaction(
-    options?: JitoBundleOptions,
-  ): Promise<SerializedTransaction> {
-    const { value: latestBlockhash } = await createSolanaRpc(this.#rpcUrl)
-      .getLatestBlockhash()
-      .send();
-    const transactionMessage = pipe(
-      createTransactionMessage({ version: 0 }),
-      (tx) => setTransactionMessageFeePayer(address(this.#paymasterPubkey), tx),
-      (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-      (tx) =>
-        appendTransactionMessageInstructions(
-          [
-            createJitoTipInstruction({
-              paymasterPubkey: this.#paymasterPubkey,
-              tipLamports: options?.tipLamports,
-            }),
-          ],
-          tx,
-        ),
-    );
-    const transaction = compileTransaction(transactionMessage);
-    assertIsTransactionWithinSizeLimit(transaction);
-
-    return new Uint8Array(getTransactionEncoder().encode(transaction));
   }
 }

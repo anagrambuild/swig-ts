@@ -1,9 +1,9 @@
 import {
   AccountRole,
   address,
-  decompileTransactionMessage,
   getCompiledTransactionMessageDecoder,
   getTransactionDecoder,
+  type CompiledTransactionMessage,
   type Instruction,
 } from '@solana/kit';
 import { PaymasterError, type JitoBundleOptions } from './types.js';
@@ -77,54 +77,96 @@ export function createJitoTipInstruction(args: {
   };
 }
 
-export function serializedTransactionHasJitoTip(
+export function serializedTransactionJitoTipLamports(
   serializedTx: Uint8Array,
   paymasterPubkey: string,
-): boolean {
+): bigint {
   const transaction = getTransactionDecoder().decode(serializedTx);
   const compiledTransactionMessage =
     getCompiledTransactionMessageDecoder().decode(transaction.messageBytes);
-  const transactionMessage = decompileTransactionMessage(
-    compiledTransactionMessage,
-  );
 
-  return transactionMessageHasJitoTip(transactionMessage, paymasterPubkey);
+  return compiledTransactionMessage.instructions.reduce(
+    (total, instruction) =>
+      total +
+      compiledInstructionJitoTipLamports(
+        compiledTransactionMessage,
+        instruction,
+        paymasterPubkey,
+      ),
+    0n,
+  );
 }
 
-export function serializedBundleHasJitoTip(
+export function serializedBundleHasSufficientJitoTip(
   serializedTransactions: Uint8Array[],
   paymasterPubkey: string,
 ): boolean {
-  return serializedTransactions.some((transaction) =>
-    serializedTransactionHasJitoTip(transaction, paymasterPubkey),
+  const tipLamports = serializedTransactions.reduce(
+    (total, transaction) =>
+      total +
+      serializedTransactionJitoTipLamports(transaction, paymasterPubkey),
+    0n,
   );
+
+  return isValidJitoTipTotal(tipLamports);
 }
 
-export function transactionMessageHasJitoTip(
+export function transactionMessageJitoTipLamports(
   transactionMessage: { instructions: readonly Instruction[] },
   paymasterPubkey: string,
-): boolean {
-  return transactionMessage.instructions.some((instruction) =>
-    instructionIsJitoTip(instruction, paymasterPubkey),
+): bigint {
+  return transactionMessage.instructions.reduce(
+    (total, instruction) =>
+      total + instructionJitoTipLamports(instruction, paymasterPubkey),
+    0n,
   );
 }
 
-function instructionIsJitoTip(
+export function isValidJitoTipTotal(tipLamports: bigint): boolean {
+  return tipLamports >= MIN_JITO_TIP_LAMPORTS && tipLamports <= MAX_U64;
+}
+
+function instructionJitoTipLamports(
   instruction: Instruction,
   paymasterPubkey: string,
-): boolean {
+): bigint {
   const accounts = instruction.accounts;
   if (
     instruction.programAddress.toString() !== SYSTEM_PROGRAM_ADDRESS_STRING ||
     !accounts ||
     accounts.length < 2 ||
+    accounts.some((account) => 'lookupTableAddress' in account) ||
     accounts[0]?.address.toString() !== paymasterPubkey ||
     !isJitoTipAccount(accounts[1]?.address.toString() ?? '')
   ) {
-    return false;
+    return 0n;
   }
 
-  return decodeSystemTransferLamports(instruction.data) > 0n;
+  return decodeSystemTransferLamports(instruction.data);
+}
+
+function compiledInstructionJitoTipLamports(
+  message: CompiledTransactionMessage,
+  instruction: CompiledTransactionMessage['instructions'][number],
+  paymasterPubkey: string,
+): bigint {
+  const accountIndices = instruction.accountIndices;
+  if (
+    message.staticAccounts[instruction.programAddressIndex]?.toString() !==
+      SYSTEM_PROGRAM_ADDRESS_STRING ||
+    !accountIndices ||
+    accountIndices.length < 2 ||
+    accountIndices.some((index) => index >= message.staticAccounts.length) ||
+    message.staticAccounts[accountIndices[0]!]?.toString() !==
+      paymasterPubkey ||
+    !isJitoTipAccount(
+      message.staticAccounts[accountIndices[1]!]?.toString() ?? '',
+    )
+  ) {
+    return 0n;
+  }
+
+  return decodeSystemTransferLamports(instruction.data);
 }
 
 function encodeSystemTransferInstruction(lamports: bigint): Uint8Array {

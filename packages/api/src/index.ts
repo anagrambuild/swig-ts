@@ -26,6 +26,8 @@ export type {
   ServiceStatus,
   SignRequest,
   SignResponse,
+  SponsorBundleRequest,
+  SponsorBundleResponse,
   SponsorRequest,
   SponsorResponse,
 } from './paymaster/types.js';
