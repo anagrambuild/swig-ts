@@ -78,7 +78,7 @@ async def test_ramp_options_subdivisions_and_legacy_fallback() -> None:
                         ],
                         "fiat_currency_codes": ["USD"],
                         "payment_method_types": [
-                            "RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD"
+                            "RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD",
                         ],
                         "crypto_currency_codes": ["USDC_SOLANA"],
                     }
@@ -134,7 +134,7 @@ async def test_ramp_options_reject_malformed_country_options() -> None:
                         "countries": countries,
                         "fiat_currency_codes": ["USD"],
                         "payment_method_types": [
-                            "RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD"
+                            "RAMP_PAYMENT_METHOD_TYPE_CREDIT_DEBIT_CARD",
                         ],
                         "crypto_currency_codes": ["USDC_SOLANA"],
                     }
@@ -149,9 +149,18 @@ async def test_ramp_options_reject_malformed_country_options() -> None:
         )
 
     cases: list[tuple[object, str]] = [
-        ([{"country_name": "United States", "subdivisions": []}], "countryCode"),
-        ([{"country_code": "US", "subdivisions": []}], "countryName"),
-        ([{"country_code": "US", "country_name": "United States"}], "subdivisions"),
+        (
+            [{"country_name": "United States", "subdivisions": []}],
+            "countryCode",
+        ),
+        (
+            [{"country_code": "US", "subdivisions": []}],
+            "countryName",
+        ),
+        (
+            [{"country_code": "US", "country_name": "United States"}],
+            "subdivisions",
+        ),
         (
             [
                 {
@@ -172,7 +181,10 @@ async def test_ramp_options_reject_malformed_country_options() -> None:
             ],
             "subdivisionName",
         ),
-        (None, "countries"),
+        (
+            None,
+            "countries",
+        ),
     ]
 
     for countries, error in cases:
@@ -221,7 +233,7 @@ async def test_ramp_quote_matches_enum_and_normalization_contract() -> None:
                             "transactionFee": "1.8",
                             "partnerFee": "0.1",
                             "serviceProviderCode": "TRANSFI",
-                        }
+                        },
                     ]
                 }
             },
