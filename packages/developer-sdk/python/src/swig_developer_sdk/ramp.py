@@ -70,8 +70,22 @@ class RampWalletContext:
 
 
 @dataclass(frozen=True, slots=True)
+class RampSubdivisionOption:
+    subdivision_code: str
+    subdivision_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class RampCountryOption:
+    country_code: str
+    country_name: str
+    subdivisions: tuple[RampSubdivisionOption, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class GetRampOptionsResult:
     country_codes: tuple[str, ...]
+    countries: tuple[RampCountryOption, ...]
     fiat_currency_codes: tuple[str, ...]
     payment_method_types: tuple[RampPaymentMethodType, ...]
     crypto_currency_codes: tuple[str, ...]
@@ -106,6 +120,7 @@ class RampQuote:
     network_fee: str
     transaction_fee: str
     partner_fee: str
+    service_provider_code: str
     ramp_score: str | None = None
     low_kyc: bool | None = None
 
@@ -332,10 +347,12 @@ class RampClient:
 
 def normalize_ramp_options(response: object) -> GetRampOptionsResult:
     body = _mapping(response, "Ramp options response")
+    country_codes = _string_tuple(
+        body.get("countryCodes", body.get("country_codes", []))
+    )
     return GetRampOptionsResult(
-        country_codes=_string_tuple(
-            body.get("countryCodes", body.get("country_codes", []))
-        ),
+        country_codes=country_codes,
+        countries=_normalize_country_options(body.get("countries"), country_codes),
         fiat_currency_codes=_string_tuple(
             body.get("fiatCurrencyCodes", body.get("fiat_currency_codes", []))
         ),
@@ -362,6 +379,76 @@ def normalize_quote_ramp_result(response: object) -> QuoteRampResult:
             _normalize_ramp_quote(item)
             for item in _sequence(body.get("quotes", []), "quotes")
         )
+    )
+
+
+def _normalize_country_options(
+    value: object,
+    country_codes: tuple[str, ...],
+) -> tuple[RampCountryOption, ...]:
+    if value is None:
+        return _country_options_from_codes(country_codes)
+
+    countries = []
+    for item in _sequence(value, "countries"):
+        country = _normalize_country_option(item)
+        if country is not None:
+            countries.append(country)
+    return tuple(countries) or _country_options_from_codes(country_codes)
+
+
+def _country_options_from_codes(
+    country_codes: tuple[str, ...],
+) -> tuple[RampCountryOption, ...]:
+    return tuple(
+        RampCountryOption(
+            country_code=country_code,
+            country_name=country_code,
+            subdivisions=(),
+        )
+        for country_code in country_codes
+    )
+
+
+def _normalize_country_option(value: object) -> RampCountryOption | None:
+    body = _mapping(value, "Ramp country option")
+    country_code = _optional_string(_pick(body, "countryCode", "country_code"))
+    if not country_code:
+        return None
+    subdivisions_value = body.get("subdivisions")
+    return RampCountryOption(
+        country_code=country_code,
+        country_name=(
+            _optional_string(_pick(body, "countryName", "country_name"))
+            or country_code
+        ),
+        subdivisions=tuple(
+            subdivision
+            for subdivision in (
+                _normalize_subdivision_option(item)
+                for item in _sequence(
+                    subdivisions_value if subdivisions_value is not None else [],
+                    "subdivisions",
+                )
+            )
+            if subdivision is not None
+        ),
+    )
+
+
+def _normalize_subdivision_option(value: object) -> RampSubdivisionOption | None:
+    body = _mapping(value, "Ramp subdivision option")
+    subdivision_code = _optional_string(
+        _pick(body, "subdivisionCode", "subdivision_code")
+    )
+    if not subdivision_code:
+        return None
+    return RampSubdivisionOption(
+        subdivision_code=subdivision_code,
+        subdivision_name=(
+            _optional_string(_pick(body, "subdivisionName", "subdivision_name"))
+            or subdivision_code
+        ),
     )
 
 
@@ -469,6 +556,10 @@ def _normalize_ramp_quote(value: object) -> RampQuote:
         ),
         ramp_score=_optional_string(_pick(body, "rampScore", "ramp_score")),
         low_kyc=low_kyc,
+        service_provider_code=_required_string(
+            _pick(body, "serviceProviderCode", "service_provider_code"),
+            "serviceProviderCode",
+        ),
     )
 
 
