@@ -355,7 +355,7 @@ def normalize_ramp_options(response: object) -> GetRampOptionsResult:
     return GetRampOptionsResult(
         country_codes=country_codes,
         countries=_normalize_country_options(
-            body["countries"] if "countries" in body else _MISSING,
+            body.get("countries", _MISSING),
             country_codes,
         ),
         fiat_currency_codes=_string_tuple(
