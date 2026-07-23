@@ -37,12 +37,12 @@ export interface SponsorResponse {
 export interface SponsorBundleResponse {
   /** Unique request ID for tracking */
   request_id: string;
-  /** Jito bundle ID */
+  /** Jito bundle ID accepted by the Block Engine */
   bundle_id: string;
   /** Transaction signatures in bundle order */
   signatures: string[];
-  /** Amount of lamports spent by the paymaster */
-  spent_by_paymaster: number;
+  /** Pre-submission estimate of paymaster-funded fees and Jito tips */
+  estimated_spent_by_paymaster: string;
 }
 
 export interface SignResponse {

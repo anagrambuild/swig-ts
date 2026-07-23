@@ -185,7 +185,7 @@ export class PaymasterClient {
    *
    * @param serializedTransactions - Serialized transactions with paymaster as fee payer
    * @param options - Optional Jito bundle settings
-   * @returns Jito bundle submission result
+   * @returns Jito Block Engine acceptance result. The bundle may still be pending.
    */
   public async signAndSendBundleSerializedTransactions(
     serializedTransactions: SerializedTransaction[],
@@ -239,7 +239,7 @@ export class PaymasterClient {
       requestId: data.request_id,
       bundleId: data.bundle_id,
       signatures: data.signatures,
-      spentByPaymaster: data.spent_by_paymaster,
+      estimatedSpentByPaymaster: BigInt(data.estimated_spent_by_paymaster),
     };
   }
 

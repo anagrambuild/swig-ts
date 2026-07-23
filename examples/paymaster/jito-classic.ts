@@ -100,7 +100,9 @@ const result = await paymaster.signAndSendBundle(transactions, {
 console.log('Bundle submitted');
 console.log(`Request ID: ${result.requestId}`);
 console.log(`Bundle ID: ${result.bundleId}`);
-console.log(`Spent by paymaster: ${result.spentByPaymaster}`);
+console.log(
+  `Estimated spent by paymaster: ${result.estimatedSpentByPaymaster} lamports`,
+);
 for (const [index, signature] of result.signatures.entries()) {
   console.log(`Signature ${index + 1}: ${signature}`);
 }

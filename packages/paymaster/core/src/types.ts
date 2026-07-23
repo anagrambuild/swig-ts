@@ -53,12 +53,15 @@ export interface JitoBundleOptions extends PaymasterSubmitOptions {
 export interface SponsorBundleResult {
   /** Unique request ID for tracking */
   requestId: string;
-  /** Jito bundle ID */
+  /** Jito bundle ID accepted by the Block Engine */
   bundleId: string;
   /** Transaction signatures in submitted bundle order */
   signatures: string[];
-  /** Amount of lamports spent by the paymaster */
-  spentByPaymaster: number;
+  /**
+   * Pre-submission estimate of paymaster-funded transaction fees and Jito tips.
+   * Confirmed fee-payer balance-delta settlement remains authoritative.
+   */
+  estimatedSpentByPaymaster: bigint;
 }
 
 /**
