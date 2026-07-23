@@ -1,7 +1,12 @@
 import type { SwigApiClient } from '../client.js';
 import { ApiError, type ApiResponse, type Network } from '../types.js';
 import { request } from '../utils/request.js';
-import type { HealthResponse, SignResponse, SponsorResponse } from './types.js';
+import type {
+  HealthResponse,
+  SignResponse,
+  SponsorBundleResponse,
+  SponsorResponse,
+} from './types.js';
 
 export class PaymasterApi {
   constructor(private readonly client: SwigApiClient) {}
@@ -25,6 +30,7 @@ export class PaymasterApi {
   async sponsor(
     transaction: string,
     network: Network,
+    idempotencyKey?: string,
   ): Promise<ApiResponse<SponsorResponse>> {
     const baseUrl = this.#requirePaymasterUrl();
     const url = `${baseUrl}/sponsor`;
@@ -38,6 +44,36 @@ export class PaymasterApi {
         body: JSON.stringify({
           base58_encoded_transaction: transaction,
           network,
+          ...(idempotencyKey ? { idempotencyKey } : {}),
+        }),
+      },
+      this.client.retry,
+    );
+  }
+
+  /**
+   * Sponsor transactions as a Jito bundle.
+   * @param transactions - Base58-encoded serialized transactions
+   * @param network - Network to use ('mainnet' only)
+   */
+  async sponsorBundle(
+    transactions: string[],
+    network: Network,
+    idempotencyKey?: string,
+  ): Promise<ApiResponse<SponsorBundleResponse>> {
+    const baseUrl = this.#requirePaymasterUrl();
+    const url = `${baseUrl}/paymaster/sponsor/bundle`;
+    return request<SponsorBundleResponse>(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.client.apiKey}`,
+        },
+        body: JSON.stringify({
+          base58_encoded_transactions: transactions,
+          network,
+          ...(idempotencyKey ? { idempotencyKey } : {}),
         }),
       },
       this.client.retry,

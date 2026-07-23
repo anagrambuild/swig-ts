@@ -37,6 +37,33 @@ export interface PaymasterConfig {
  */
 export type SerializedTransaction = Uint8Array;
 
+export interface PaymasterSubmitOptions {
+  /**
+   * Optional opaque idempotency key for submit operations.
+   * If omitted, the SDK generates one per submit call.
+   */
+  idempotencyKey?: string;
+}
+
+export interface JitoBundleOptions {
+  /** Jito tip lamports. Defaults to the SDK's current bundle tip amount. */
+  tipLamports?: number | bigint;
+}
+
+export interface SponsorBundleResult {
+  /** Unique request ID for tracking */
+  requestId: string;
+  /** Jito bundle ID accepted by the Block Engine */
+  bundleId: string;
+  /** Transaction signatures in submitted bundle order */
+  signatures: string[];
+  /**
+   * Pre-submission estimate of paymaster-funded transaction fees and Jito tips.
+   * Confirmed fee-payer balance-delta settlement remains authoritative.
+   */
+  estimatedSpentByPaymaster: bigint;
+}
+
 /**
  * Error thrown by the PaymasterClient when API requests or operations fail.
  *

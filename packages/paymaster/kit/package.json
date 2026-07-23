@@ -12,8 +12,8 @@
     "build-pkg": "tsup-node",
     "build": "tsup-node",
     "dev": "tsup-node --watch",
-    "lint": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src",
-    "lint:fix": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src --fix",
+    "lint": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src tests",
+    "lint:fix": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src tests --fix",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

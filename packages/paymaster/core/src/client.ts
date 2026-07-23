@@ -7,8 +7,21 @@
 import { getBase58Codec } from '@solana/kit';
 import { SwigApiClient } from '@swig-wallet/api';
 import { isPaymasterFeePayer } from './helpers.js';
-import type { PaymasterConfig, SerializedTransaction } from './types.js';
+import { createIdempotencyKey } from './idempotency.js';
+import {
+  serializedBundleHasSufficientJitoTip,
+  serializedTransactionHasLookupLoadedPaymasterInstruction,
+} from './jito.js';
+import type {
+  PaymasterConfig,
+  PaymasterSubmitOptions,
+  SerializedTransaction,
+  SponsorBundleResult,
+} from './types.js';
 import { PaymasterError } from './types.js';
+
+const DECIMAL_U64_PATTERN = /^[0-9]+$/;
+const MAX_U64 = 18_446_744_073_709_551_615n;
 
 /**
  * Client for interacting with the Swig Paymaster service.
@@ -126,6 +139,7 @@ export class PaymasterClient {
    */
   public async signAndSendSerializedTransaction(
     serializedTx: SerializedTransaction,
+    options?: PaymasterSubmitOptions,
   ): Promise<string> {
     if (!this.isPaymasterFeePayer(serializedTx)) {
       throw new PaymasterError('Paymaster public key not set as fee payer');
@@ -135,6 +149,7 @@ export class PaymasterClient {
     const { data, error } = await this.#api.paymaster.sponsor(
       base58Tx,
       this.#network,
+      options?.idempotencyKey ?? createIdempotencyKey(),
     );
 
     if (error || !data) {
@@ -143,4 +158,138 @@ export class PaymasterClient {
 
     return data.signature;
   }
+
+  /**
+   * Signs serialized transactions with the paymaster and submits them as a
+   * Jito bundle.
+   *
+   * Already-signed user transactions are never mutated. The submitted bundle
+   * must already contain at least 1,000 aggregate Jito tip lamports.
+   *
+   * @param serializedTransactions - Serialized transactions with paymaster as fee payer
+   * @param options - Optional submission settings
+   * @returns Jito Block Engine acceptance result. The bundle may still be pending.
+   */
+  public async signAndSendBundleSerializedTransactions(
+    serializedTransactions: SerializedTransaction[],
+    options?: PaymasterSubmitOptions,
+  ): Promise<SponsorBundleResult> {
+    if (this.#network !== 'mainnet') {
+      throw new PaymasterError('Jito bundles are only supported on mainnet');
+    }
+
+    if (serializedTransactions.length === 0) {
+      throw new PaymasterError('At least one transaction is required');
+    }
+
+    if (serializedTransactions.length > 5) {
+      throw new PaymasterError('Jito bundles support at most 5 transactions');
+    }
+
+    for (const [index, transaction] of serializedTransactions.entries()) {
+      if (!this.isPaymasterFeePayer(transaction)) {
+        throw new PaymasterError(
+          `Paymaster public key not set as fee payer for transaction ${index}`,
+        );
+      }
+      if (
+        serializedTransactionHasLookupLoadedPaymasterInstruction(
+          transaction,
+          this.#paymasterPubkey,
+        )
+      ) {
+        throw new PaymasterError(
+          `Jito bundle transaction ${index} contains an ALT-loaded instruction that references the paymaster`,
+        );
+      }
+    }
+
+    if (
+      !serializedBundleHasSufficientJitoTip(
+        serializedTransactions,
+        this.#paymasterPubkey,
+      )
+    ) {
+      throw new PaymasterError(
+        'Jito bundle must include at least 1000 lamports in recognized tip instructions',
+      );
+    }
+
+    const base58Transactions = serializedTransactions.map((transaction) =>
+      getBase58Codec().decode(transaction),
+    );
+    const { data, error } = await this.#api.paymaster.sponsorBundle(
+      base58Transactions,
+      this.#network,
+      options?.idempotencyKey ?? createIdempotencyKey(),
+    );
+
+    if (error || !data) {
+      throw PaymasterError.fromApiError(error!);
+    }
+
+    return parseSponsorBundleResponse(data, serializedTransactions.length);
+  }
+}
+
+function parseSponsorBundleResponse(
+  response: unknown,
+  expectedSignatureCount: number,
+): SponsorBundleResult {
+  if (!isRecord(response)) {
+    throw invalidSponsorBundleResponse('expected an object');
+  }
+
+  const requestId = requireNonEmptyString(response.request_id, 'request_id');
+  const bundleId = requireNonEmptyString(response.bundle_id, 'bundle_id');
+  const signatures = response.signatures;
+  if (!Array.isArray(signatures)) {
+    throw invalidSponsorBundleResponse('signatures must be an array');
+  }
+  if (signatures.length !== expectedSignatureCount) {
+    throw invalidSponsorBundleResponse(
+      `expected ${expectedSignatureCount} signatures, received ${signatures.length}`,
+    );
+  }
+  const parsedSignatures = signatures.map((signature, index) =>
+    requireNonEmptyString(signature, `signatures[${index}]`),
+  );
+
+  const estimatedSpend = response.estimated_spent_by_paymaster;
+  if (
+    typeof estimatedSpend !== 'string' ||
+    !DECIMAL_U64_PATTERN.test(estimatedSpend)
+  ) {
+    throw invalidSponsorBundleResponse(
+      'estimated_spent_by_paymaster must be a decimal u64 string',
+    );
+  }
+  const estimatedSpentByPaymaster = BigInt(estimatedSpend);
+  if (estimatedSpentByPaymaster > MAX_U64) {
+    throw invalidSponsorBundleResponse(
+      'estimated_spent_by_paymaster must be a decimal u64 string',
+    );
+  }
+
+  return {
+    requestId,
+    bundleId,
+    signatures: parsedSignatures,
+    estimatedSpentByPaymaster,
+  };
+}
+
+function requireNonEmptyString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw invalidSponsorBundleResponse(`${field} must be a non-empty string`);
+  }
+  return value;
+}
+
+function invalidSponsorBundleResponse(reason: string): PaymasterError {
+  return new PaymasterError(`Invalid sponsor bundle response: ${reason}`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

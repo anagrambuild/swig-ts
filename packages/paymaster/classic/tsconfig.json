@@ -22,6 +22,10 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
-  }
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Add this for test globals
+    "types": ["bun", "node"]
+  },
+  "include": ["src", "tests"]
 }
