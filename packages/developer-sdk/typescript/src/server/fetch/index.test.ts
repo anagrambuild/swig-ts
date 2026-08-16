@@ -212,6 +212,61 @@ describe('createSwigFetchHandler', () => {
     expect(transactionApiCalls).toBe(0);
   });
 
+  test.each([null, '0', {}, -1, 1.5, 0x1_0000_0000])(
+    'rejects a present invalid x402 acceptedIndex %p',
+    async (acceptedIndex) => {
+      let transactionApiCalls = 0;
+      let requesterAuthorityResolverCalls = 0;
+      const handler = createSwigFetchHandler({
+        apiKey: 'sk_test',
+        transactionApiUrl: 'http://localhost:8080',
+        resolveRequesterAuthority: () => {
+          requesterAuthorityResolverCalls += 1;
+          return {
+            ed25519: { publicKey: 'requester_123' },
+          };
+        },
+        fetch: jsonFetch(() => {
+          transactionApiCalls += 1;
+          return {};
+        }),
+      });
+
+      const response = await handler(
+        new Request('https://app.example/api/swig/x402/prepare', {
+          method: 'POST',
+          body: JSON.stringify({
+            wallet: { swigConfigAddress: 'swig_config_123' },
+            network: 'devnet',
+            acceptedIndex,
+            paymentRequired: {
+              x402Version: 2,
+              resource: { url: 'https://merchant.example/resource' },
+              accepts: [
+                {
+                  scheme: 'exact',
+                  network: 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
+                  amount: '1000',
+                  asset: 'mint_123',
+                  payTo: 'merchant_123',
+                  maxTimeoutSeconds: 300,
+                  extra: { feePayer: 'x402_sponsor_123' },
+                },
+              ],
+            },
+          }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: 'acceptedIndex must be a non-negative uint32',
+      });
+      expect(requesterAuthorityResolverCalls).toBe(0);
+      expect(transactionApiCalls).toBe(0);
+    },
+  );
+
   test('prepares wallet creation with the multi-transaction create response', async () => {
     const calls: CapturedRequest[] = [];
     const handler = createSwigFetchHandler({

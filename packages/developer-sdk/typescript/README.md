@@ -208,6 +208,11 @@ const wallet = swig.wallets.use({
   swigConfigAddress,
   walletAddress,
   roleId,
+  requesterAuthority: {
+    ed25519: {
+      publicKey: userPublicKey,
+    },
+  },
 });
 
 const challenge = await fetch(resourceUrl);

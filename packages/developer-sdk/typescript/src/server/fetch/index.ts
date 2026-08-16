@@ -202,7 +202,19 @@ async function prepareX402Payment(
     throw new SwigRouteError('paymentRequired is required');
   }
   const paymentRequired = validatePaymentRequiredV2(body.paymentRequired);
-  const acceptedIndex = readOptionalNumber(body, 'acceptedIndex');
+  let acceptedIndex: number | undefined;
+  if (Object.hasOwn(body, 'acceptedIndex')) {
+    const value = body.acceptedIndex;
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < 0 ||
+      value > 0xffff_ffff
+    ) {
+      throw new SwigRouteError('acceptedIndex must be a non-negative uint32');
+    }
+    acceptedIndex = value;
+  }
   const requesterAuthority = await resolveRequesterAuthority(context, config);
   const handle = swig.wallets.use(
     {
