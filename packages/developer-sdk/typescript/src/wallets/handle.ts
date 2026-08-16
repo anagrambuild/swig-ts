@@ -19,6 +19,7 @@ import type {
   TransferTokenArgs,
   WalletReadArgs,
   WalletReference,
+  WalletX402Client,
 } from '../types/index.js';
 import type { WalletsClient } from './client.js';
 
@@ -53,6 +54,7 @@ export class WalletHandle {
   readonly transfer: WalletTransferClient;
   readonly swap: WalletSwapClient;
   readonly recovery: WalletRecoveryClient;
+  readonly x402: WalletX402Client;
 
   constructor(
     private readonly wallets: WalletsClient,
@@ -65,6 +67,7 @@ export class WalletHandle {
     this.transfer = createWalletTransferClient(wallets, this);
     this.swap = createWalletSwapClient(wallets, this);
     this.recovery = createWalletRecoveryClient(wallets, this);
+    this.x402 = createWalletX402Client(wallets, this);
   }
 
   prepare = (args: PrepareArgs): Promise<PreparedTransactionsResult> =>
@@ -101,6 +104,16 @@ function createWalletTransferClient(
   transfer.splToken = transfer.token;
 
   return transfer;
+}
+
+function createWalletX402Client(
+  wallets: WalletsClient,
+  wallet: WalletHandle,
+): WalletX402Client {
+  return {
+    prepareFromResponse: (response, options) =>
+      wallets.prepareX402PaymentFromResponse(wallet, response, options),
+  };
 }
 
 function createWalletSwapClient(

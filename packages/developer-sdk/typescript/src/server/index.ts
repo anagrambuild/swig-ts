@@ -2,6 +2,7 @@ export { DEFAULT_BACKEND_URL, SwigDeveloperSdkError } from '../core/index.js';
 export { RampClient, rampCustomer } from '../ramp/index.js';
 export { TransactionsClient } from '../transactions/index.js';
 export { WalletHandle, WalletsClient } from '../wallets/index.js';
+export { createX402Payment } from '../x402/index.js';
 export {
   SwigClient,
   SwigClient as SwigServerClient,
@@ -29,9 +30,12 @@ export type {
   ListRampTransactionsArgs,
   ListRampTransactionsResult,
   Network,
+  PaymentPayloadV2,
+  PaymentRequiredV2,
   Policy,
   PolicyAuthority,
   PrepareRecoverySetupArgs,
+  PrepareX402PaymentOptions,
   PreparedRecoverySetupResult,
   PreparedTransaction,
   PreparedTransactionWire,
@@ -63,6 +67,9 @@ export type {
   WalletAddressInfo,
   WalletHandleOptions,
   WalletReference,
+  WalletX402Client,
+  X402PaymentSubmission,
+  X402PreparationResult,
 } from '../types/index.js';
 
 export type {

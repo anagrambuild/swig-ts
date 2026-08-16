@@ -14,10 +14,12 @@ import type {
   WalletAuthority,
   WalletReference,
 } from '../../types/index.js';
+import { validatePaymentRequiredV2 } from '../../x402/index.js';
 import { SwigClient } from '../typescript/index.js';
 
 export type SwigPostProxyRoute =
   | 'wallet/create'
+  | 'x402/prepare'
   | 'prepare'
   | 'transfer/sol'
   | 'transfer/spl-token'
@@ -85,6 +87,7 @@ class SwigRouteError extends Error {
 
 const swigPostProxyRoutes: SwigPostProxyRoute[] = [
   'wallet/create',
+  'x402/prepare',
   'prepare',
   'transfer/sol',
   'transfer/spl-token',
@@ -139,6 +142,10 @@ async function handlePost(
         return json({
           prepared: await prepareWalletCreation(swig, body, context, config),
         });
+      case 'x402/prepare':
+        return json({
+          prepared: await prepareX402Payment(swig, body, context, config),
+        });
       case 'prepare':
         return json({
           prepared: await prepareGroupedOperations(swig, body, context, config),
@@ -182,6 +189,38 @@ async function handlePost(
     const status = error instanceof SwigRouteError ? error.status : 400;
     return json({ error: message }, status);
   }
+}
+
+async function prepareX402Payment(
+  swig: SwigClient,
+  body: Record<string, unknown>,
+  context: SwigRouteContext,
+  config: CreateSwigFetchHandlerConfig,
+) {
+  const wallet = requireWallet(context.wallet);
+  if (!Object.hasOwn(body, 'paymentRequired')) {
+    throw new SwigRouteError('paymentRequired is required');
+  }
+  const paymentRequired = validatePaymentRequiredV2(body.paymentRequired);
+  const acceptedIndex = readOptionalNumber(body, 'acceptedIndex');
+  const requesterAuthority = await resolveRequesterAuthority(context, config);
+  const handle = swig.wallets.use(
+    {
+      ...wallet,
+      requesterAuthority,
+    },
+    { network: context.network },
+  );
+  const result = await swig.wallets.prepareX402Payment(
+    handle,
+    paymentRequired,
+    acceptedIndex,
+  );
+
+  return {
+    preparedTransaction: result.preparedTransaction,
+    acceptedIndex: result.acceptedIndex,
+  };
 }
 
 async function handleGet(

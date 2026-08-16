@@ -27,6 +27,49 @@ describe('wallet normalizers', () => {
     });
   });
 
+  test('normalizes the x402 prepared-transaction kind string', () => {
+    expect(
+      normalizePreparedTransaction({
+        transaction: 'base64-x402-tx',
+        kind: 'PREPARED_TRANSACTION_KIND_X402_PAYMENT',
+      }).kind,
+    ).toBe('x402-payment');
+  });
+
+  test('normalizes the numeric x402 prepared-transaction kind', () => {
+    expect(
+      normalizePreparedTransaction({
+        transaction: 'base64-x402-tx',
+        kind: 4,
+      }).kind,
+    ).toBe('x402-payment');
+  });
+
+  test('accepts already-normalized signature requests from the local proxy', () => {
+    expect(
+      normalizePreparedTransaction({
+        transaction: 'base64-x402-tx',
+        signatureRequests: [
+          {
+            scheme: 'secp256r1',
+            signer: 'requester_123',
+            messageHash: 'hash_123',
+            slot: 42,
+            counter: 7,
+          },
+        ],
+      }).signatureRequests,
+    ).toEqual([
+      {
+        scheme: 'secp256r1',
+        signer: 'requester_123',
+        messageHash: 'hash_123',
+        slot: 42,
+        counter: 7,
+      },
+    ]);
+  });
+
   test('normalizes create wallet responses with multiple prepared transactions', () => {
     expect(
       normalizeCreateWalletResponse({

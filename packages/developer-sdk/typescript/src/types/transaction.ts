@@ -20,12 +20,14 @@ export type NetworkWire = Network | ProtoNetwork | number;
 export type PreparedTransactionKind =
   | 'create-swig-wallet'
   | 'add-authority'
-  | 'configure-recovery';
+  | 'configure-recovery'
+  | 'x402-payment';
 export type ProtoPreparedTransactionKind =
   | 'PREPARED_TRANSACTION_KIND_UNSPECIFIED'
   | 'PREPARED_TRANSACTION_KIND_CREATE_SWIG_WALLET'
   | 'PREPARED_TRANSACTION_KIND_ADD_AUTHORITY'
-  | 'PREPARED_TRANSACTION_KIND_CONFIGURE_RECOVERY';
+  | 'PREPARED_TRANSACTION_KIND_CONFIGURE_RECOVERY'
+  | 'PREPARED_TRANSACTION_KIND_X402_PAYMENT';
 export type PreparedTransactionKindWire =
   | PreparedTransactionKind
   | ProtoPreparedTransactionKind
@@ -69,6 +71,7 @@ export interface ClientSignatureRequest {
 
 export interface ClientSignatureRequestWire {
   scheme?:
+    | ClientSignatureRequest['scheme']
     | 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1'
     | 'AUTHORITY_SIGNATURE_SCHEME_SECP256K1'
     | number;

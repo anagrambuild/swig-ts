@@ -367,6 +367,10 @@ function normalizePreparedTransactionKind(
     case 'PREPARED_TRANSACTION_KIND_CONFIGURE_RECOVERY':
     case 3:
       return 'configure-recovery';
+    case 'x402-payment':
+    case 'PREPARED_TRANSACTION_KIND_X402_PAYMENT':
+    case 4:
+      return 'x402-payment';
     default:
       return undefined;
   }
@@ -454,9 +458,11 @@ function normalizeAuthoritySignatureScheme(
   scheme: ClientSignatureRequestWire['scheme'],
 ): ClientSignatureRequest['scheme'] | undefined {
   switch (scheme) {
+    case 'secp256r1':
     case 'AUTHORITY_SIGNATURE_SCHEME_SECP256R1':
     case 1:
       return 'secp256r1';
+    case 'secp256k1':
     case 'AUTHORITY_SIGNATURE_SCHEME_SECP256K1':
     case 2:
       return 'secp256k1';

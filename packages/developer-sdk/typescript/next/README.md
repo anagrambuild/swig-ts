@@ -23,6 +23,7 @@ The helper handles:
 
 ```text
 POST /api/swig/wallet/create
+POST /api/swig/x402/prepare
 POST /api/swig/prepare
 POST /api/swig/transfer/sol
 POST /api/swig/transfer/spl-token
