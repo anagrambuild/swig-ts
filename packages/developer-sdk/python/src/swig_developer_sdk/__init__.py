@@ -95,6 +95,12 @@ from .wallets import (
     WalletReference,
     WalletsClient,
 )
+from .x402 import (
+    WalletX402Client,
+    X402PaymentSubmission,
+    X402PreparationResult,
+    create_x402_payment,
+)
 
 __all__ = [
     "DEFAULT_BACKEND_URL",
@@ -167,13 +173,17 @@ __all__ = [
     "WalletAuthority",
     "WalletHandle",
     "WalletReference",
+    "WalletX402Client",
     "WalletsClient",
     "WebAuthnAssertion",
+    "X402PaymentSubmission",
+    "X402PreparationResult",
     "build_one_business_grant_access_url",
     "complete_one_business_grant_access",
     "create_secp256k1_evm_signing_fn",
     "create_secp256r1_passkey_signing_fn",
     "create_swig_proxy_handler",
+    "create_x402_payment",
     "ramp_customer",
     "redirect_to_one_business_grant_access",
     "secp256r1_der_to_raw_signature",

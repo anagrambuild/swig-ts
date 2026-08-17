@@ -13,6 +13,7 @@ uses snake_case names while TypeScript uses camelCase.
 | Jupiter swap        | `wallet.swap.jupiter`                            | `wallet.swap.jupiter`                               | same optional swap controls                             |
 | Recovery            | `wallet.recovery.*`                              | `wallet.recovery.*`                                 | same prepare, start, cancel, and execute behavior       |
 | Custom transaction  | `wallet.buildTransaction`                        | `wallet.build_transaction`                          | same custom preparation request and instruction shape   |
+| x402 payments       | `wallet.x402.prepareFromResponse`                | `wallet.x402.prepare_from_response`                  | same selection, preparation, and payment-header assembly |
 | Wallet reads        | balance, token balances, transactions            | balance, token balances, transactions               | same required-field validation                          |
 | Paymaster           | balance and IDP balance                          | balance and IDP balance                             | same query and normalization                            |
 | Sponsorship         | `transactions.sponsor`                           | `transactions.sponsor`                              | same base58 conversion and idempotency-key forwarding   |

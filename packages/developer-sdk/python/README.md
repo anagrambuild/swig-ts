@@ -34,6 +34,46 @@ signed and submitted client-side.
 TypeScript counterparts. Their explicit `sol`, `token`, `spl_token`, and
 `jupiter` methods are available as well.
 
+## Prepare an x402 payment
+
+Pass the resource server's `402 Payment Required` response directly to the
+wallet. When `accepted_index` is omitted, Swig selects the first eligible exact
+Solana requirement and returns its original array index.
+
+```python
+import httpx
+
+from swig_developer_sdk import (
+    create_x402_payment,
+    sign_prepared_transaction,
+)
+
+async with httpx.AsyncClient() as http:
+    challenge = await http.get(resource_url)
+    prepared = await wallet.x402.prepare_from_response(challenge)
+    signed = await sign_prepared_transaction(
+        prepared.prepared_transaction,
+        sign_transaction=sign_transaction,
+    )
+    payment = create_x402_payment(prepared, signed)
+    response = await http.get(
+        resource_url,
+        headers=payment.payment_signature_headers,
+    )
+```
+
+To choose a specific offer from the original `accepts` array:
+
+```python
+prepared = await wallet.x402.prepare_from_response(
+    challenge,
+    accepted_index=accepted_index,
+)
+```
+
+Use `sign_prepared_transaction` for Ed25519 authorities and
+`sign_prepared_swig_transaction` for Secp256r1/passkey authorities.
+
 ## Sign locally
 
 The generic signer helper works with an application-owned Ed25519 signer. The

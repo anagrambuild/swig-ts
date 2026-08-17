@@ -24,6 +24,7 @@ from .transactions import (
     normalize_prepared_transaction,
     normalize_prepared_transactions_result,
 )
+from .x402 import WalletX402Client
 
 
 @dataclass(frozen=True, slots=True)
@@ -663,6 +664,13 @@ class WalletHandle:
         self.transfer = WalletTransferClient(wallets, self)
         self.swap = WalletSwapClient(wallets, self)
         self.recovery = WalletRecoveryClient(wallets, self)
+        self.x402 = WalletX402Client(
+            wallets._http,
+            swig_config_address=self.swig_config_address,
+            wallet_network=self.network,
+            default_network=wallets._default_network,
+            requester_authority=self.requester_authority,
+        )
 
     async def prepare(
         self,

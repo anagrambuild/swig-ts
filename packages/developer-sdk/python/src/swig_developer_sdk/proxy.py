@@ -9,6 +9,7 @@ from typing import Literal, TypeAlias, TypeVar, cast
 from urllib.parse import unquote
 
 import httpx
+from pydantic import BaseModel
 
 from .client import SwigClient
 from .common import DEFAULT_BACKEND_URL, Network, WalletAuthority, normalize_network
@@ -29,6 +30,7 @@ from .wallets import (
     TransferTokenOperation,
     WalletReference,
 )
+from .x402 import validate_payment_required
 
 PostProxyRoute: TypeAlias = Literal[
     "wallet/create",
@@ -36,6 +38,7 @@ PostProxyRoute: TypeAlias = Literal[
     "transfer/sol",
     "transfer/spl-token",
     "swap/jupiter",
+    "x402/prepare",
     "ramp/quote",
     "ramp/sessions",
 ]
@@ -184,13 +187,26 @@ class SwigProxyHandler:
 
         required_wallet = _require_wallet(wallet)
         requester_authority = await self._requester_authority(context)
-        fee_payer = await self._fee_payer(context)
         handle = swig.wallets.use(
             required_wallet,
             network=network,
             requester_authority=requester_authority,
         )
+        if route == "x402/prepare":
+            accepted_index_value = body.get("acceptedIndex")
+            if accepted_index_value is not None and (
+                not isinstance(accepted_index_value, int)
+                or isinstance(accepted_index_value, bool)
+            ):
+                raise SwigProxyRouteError("acceptedIndex must be a non-negative uint32")
+            x402_prepared = await handle.x402._prepare_payment_required(
+                validate_payment_required(body.get("paymentRequired")),
+                accepted_index=accepted_index_value,
+            )
+            return {"prepared": x402_prepared}
+
         idempotency_key = _optional_string(body.get("idempotencyKey"))
+        fee_payer = await self._fee_payer(context)
         prepared: object
         if route == "prepare":
             prepared = await handle.prepare(
@@ -402,6 +418,7 @@ def create_swig_proxy_handler(
 def _resolve_post_route(path: str) -> PostProxyRoute:
     routes: tuple[PostProxyRoute, ...] = (
         "wallet/create",
+        "x402/prepare",
         "prepare",
         "transfer/sol",
         "transfer/spl-token",
@@ -697,6 +714,8 @@ def _read_env(*names: str) -> str | None:
 
 
 def _to_wire(value: object) -> object:
+    if isinstance(value, BaseModel):
+        return value.model_dump(by_alias=True, exclude_unset=True)
     if is_dataclass(value) and not isinstance(value, type):
         result: dict[str, object] = {}
         for field in fields(value):
