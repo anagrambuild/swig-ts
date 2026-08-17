@@ -5,13 +5,16 @@ import {
 import {
   PaymentPayloadV2Schema,
   PaymentRequiredV2Schema,
-  type PaymentRequiredV2,
+  type PaymentPayloadV2 as CorePaymentPayloadV2,
+  type PaymentRequiredV2 as CorePaymentRequiredV2,
 } from '@x402/core/schemas';
 import type { PaymentRequired } from '@x402/core/types';
 import { describe, expect, test } from 'bun:test';
 
 import { signPreparedTransaction } from '../client/index.js';
 import type {
+  PaymentPayloadV2,
+  PaymentRequiredV2,
   PreparedTransaction,
   X402PreparationResult,
 } from '../types/index.js';
@@ -22,6 +25,28 @@ import {
 } from './index.js';
 
 const DEVNET = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
+
+describe('public x402 types', () => {
+  test('remain compatible with the pinned official schema output', () => {
+    const corePaymentRequired: CorePaymentRequiredV2 =
+      PaymentRequiredV2Schema.parse(paymentRequiredFixture());
+    const sdkPaymentRequired: PaymentRequiredV2 = corePaymentRequired;
+    const corePaymentRequiredAgain: CorePaymentRequiredV2 = sdkPaymentRequired;
+
+    const corePaymentPayload: CorePaymentPayloadV2 =
+      PaymentPayloadV2Schema.parse({
+        x402Version: 2,
+        resource: sdkPaymentRequired.resource,
+        accepted: sdkPaymentRequired.accepts[0],
+        payload: { transaction: bytesToBase64(Uint8Array.of(1)) },
+      });
+    const sdkPaymentPayload: PaymentPayloadV2 = corePaymentPayload;
+    const corePaymentPayloadAgain: CorePaymentPayloadV2 = sdkPaymentPayload;
+
+    expect(corePaymentRequiredAgain).toEqual(corePaymentRequired);
+    expect(corePaymentPayloadAgain).toEqual(corePaymentPayload);
+  });
+});
 
 describe('parsePaymentRequiredFromResponse', () => {
   test('requires a 402 response with a PAYMENT-REQUIRED header', () => {

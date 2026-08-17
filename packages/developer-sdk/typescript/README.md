@@ -240,8 +240,9 @@ Use `signPreparedTransaction` for Ed25519 authorities. For
 Secp256r1/passkey authorities, use `signPreparedSwigTransaction` to fulfill
 the prepared transaction's signature requests.
 
-Browser integrations require the merchant to expose `PAYMENT-REQUIRED`
-through CORS.
+Browser integrations require the resource server to expose
+`PAYMENT-REQUIRED` through `Access-Control-Expose-Headers` and allow
+`PAYMENT-SIGNATURE` through `Access-Control-Allow-Headers` for paid requests.
 
 ### Prepare Swap
 

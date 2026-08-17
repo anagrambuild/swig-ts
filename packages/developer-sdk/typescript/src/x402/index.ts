@@ -5,7 +5,6 @@ import {
 import {
   PaymentPayloadV2Schema,
   PaymentRequiredV2Schema,
-  type PaymentRequiredV2,
 } from '@x402/core/schemas';
 import type { PaymentPayload } from '@x402/core/types';
 
@@ -13,6 +12,7 @@ import type { SignedPreparedTransaction } from '../client/index.js';
 import type { HttpClient } from '../core/index.js';
 import type {
   Network,
+  PaymentRequiredV2,
   PrepareX402PaymentOptions,
   PreparedTransactionWire,
   WalletReference,

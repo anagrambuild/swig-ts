@@ -32,6 +32,7 @@ The handler expects routes like:
 
 ```text
 POST /swig/wallet/create
+POST /swig/x402/prepare
 POST /swig/prepare
 POST /swig/transfer/sol
 POST /swig/transfer/spl-token

@@ -1,4 +1,3 @@
-import type { PaymentRequiredV2 } from '@x402/core/schemas';
 import type { HttpClient } from '../core/index.js';
 import type {
   AddRecoveryAuthorityArgs,
@@ -16,6 +15,7 @@ import type {
   ListSwigTokenTransactionsResult,
   ListSwigTokenTransactionsWire,
   Network,
+  PaymentRequiredV2,
   Policy,
   PrepareArgs,
   PreparedRecoverySetupResult,

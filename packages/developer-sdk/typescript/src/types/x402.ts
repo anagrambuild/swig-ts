@@ -1,7 +1,39 @@
-import type { PaymentPayloadV2, PaymentRequiredV2 } from '@x402/core/schemas';
 import type { PreparedTransaction } from './transaction.js';
 
-export type { PaymentPayloadV2, PaymentRequiredV2 } from '@x402/core/schemas';
+export interface X402ResourceInfoV2 {
+  url: string;
+  description?: string | undefined;
+  mimeType?: string | undefined;
+  serviceName?: string | undefined;
+  tags?: string[] | undefined;
+  iconUrl?: string | undefined;
+}
+
+export interface X402PaymentRequirementV2 {
+  scheme: string;
+  network: string;
+  amount: string;
+  asset: string;
+  payTo: string;
+  maxTimeoutSeconds: number;
+  extra?: Record<string, unknown> | null | undefined;
+}
+
+export interface PaymentRequiredV2 {
+  x402Version: 2;
+  error?: string | undefined;
+  resource: X402ResourceInfoV2;
+  accepts: X402PaymentRequirementV2[];
+  extensions?: Record<string, unknown> | null | undefined;
+}
+
+export interface PaymentPayloadV2 {
+  x402Version: 2;
+  resource?: X402ResourceInfoV2 | undefined;
+  accepted: X402PaymentRequirementV2;
+  payload: Record<string, unknown>;
+  extensions?: Record<string, unknown> | null | undefined;
+}
 
 export interface PrepareX402PaymentOptions {
   acceptedIndex?: number;

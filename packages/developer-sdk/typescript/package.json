@@ -16,7 +16,7 @@
     "lint:fix": "eslint --config ../../../eslint.config.mjs --ext js,ts,tsx src --fix",
     "smoke:local": "bun run scripts/local-transaction-smoke.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.x402.json"
   },
   "main": "dist/index.cjs",
   "module": "dist/index.js",
