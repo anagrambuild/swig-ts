@@ -17,7 +17,7 @@ from .core import HttpClient
 
 TransactionEncoding = Literal["base64"]
 PreparedTransactionKind = Literal[
-    "create-swig-wallet", "add-authority", "configure-recovery"
+    "create-swig-wallet", "add-authority", "configure-recovery", "x402-payment"
 ]
 SignatureScheme = Literal["secp256r1", "secp256k1"]
 
@@ -257,6 +257,12 @@ def _normalize_kind(value: object) -> PreparedTransactionKind | None:
         3,
     ):
         return "configure-recovery"
+    if value in (
+        "x402-payment",
+        "PREPARED_TRANSACTION_KIND_X402_PAYMENT",
+        4,
+    ):
+        return "x402-payment"
     return None
 
 
