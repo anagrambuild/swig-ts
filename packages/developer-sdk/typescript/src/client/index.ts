@@ -7,11 +7,18 @@ export type {
   Eip1193Provider,
   PasskeySigningFn,
   PasskeySigningResult,
+  PaymentPayloadV2,
+  PaymentRequiredV2,
   PreparedTransaction,
+  PrepareX402PaymentOptions,
   Secp256k1SigningFn,
   Secp256k1SigningResult,
   TransactionEncoding,
+  WalletX402Client,
+  X402PaymentSubmission,
+  X402PreparationResult,
 } from '../types/index.js';
+export { createX402Payment } from '../x402/index.js';
 export {
   signPreparedSwigTransaction,
   signPreparedSwigTransactions,

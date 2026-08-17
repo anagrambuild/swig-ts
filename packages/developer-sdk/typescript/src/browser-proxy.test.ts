@@ -1,3 +1,6 @@
+import { encodePaymentRequiredHeader } from '@x402/core/http';
+import type { PaymentRequiredV2 } from '@x402/core/schemas';
+import type { PaymentRequired } from '@x402/core/types';
 import { describe, expect, test } from 'bun:test';
 
 import { SwigBrowserClient, SwigBrowserProxyError } from './browser.js';
@@ -145,6 +148,108 @@ describe('SwigBrowserClient', () => {
       },
     });
     expect(prepared.transaction).toBe('base64-token-transfer-tx');
+  });
+
+  test('prepares x402 payments through the local proxy without an API key', async () => {
+    const calls: CapturedRequest[] = [];
+    const paymentRequired = x402PaymentRequired();
+    paymentRequired.accepts.reverse();
+    const swig = new SwigBrowserClient({
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          prepared: {
+            preparedTransaction: {
+              transaction: 'base64-x402-tx',
+              transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+              network: 'NETWORK_DEVNET',
+              kind: 'PREPARED_TRANSACTION_KIND_X402_PAYMENT',
+              wallet: {
+                swigConfigAddress: 'swig_config_123',
+                walletAddress: 'wallet_123',
+              },
+              signatureRequests: [
+                {
+                  scheme: 'secp256r1',
+                  signer: 'requester_123',
+                  messageHash: 'message_hash_123',
+                  slot: 42,
+                  counter: 7,
+                },
+              ],
+            },
+            acceptedIndex: 0,
+          },
+        };
+      }),
+    });
+    const wallet = swig.wallets.fromIdpSession({
+      configAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      roleId: 2,
+      authFlow: 'role',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+
+    const prepared = await wallet.x402.prepareFromResponse(
+      x402Response(paymentRequired),
+      {
+        acceptedIndex: 0,
+      },
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      url: 'https://app.example/api/swig/x402/prepare',
+      method: 'POST',
+      body: {
+        wallet: {
+          swigConfigAddress: 'swig_config_123',
+          walletAddress: 'wallet_123',
+          roleId: 2,
+          network: 'devnet',
+          requesterAuthority: {
+            ed25519: { publicKey: 'requester_123' },
+          },
+        },
+        network: 'devnet',
+        requesterAuthority: {
+          ed25519: { publicKey: 'requester_123' },
+        },
+        paymentRequired,
+        acceptedIndex: 0,
+      },
+    });
+    expect(calls[0]?.headers.has('authorization')).toBe(false);
+    expect(prepared.acceptedIndex).toBe(0);
+    expect(prepared.preparedTransaction.signatureRequests).toEqual([
+      {
+        scheme: 'secp256r1',
+        signer: 'requester_123',
+        messageHash: 'message_hash_123',
+        slot: 42,
+        counter: 7,
+      },
+    ]);
+    expect(prepared.paymentRequired).toEqual(paymentRequired);
+  });
+
+  test('rejects malformed x402 responses before calling the local proxy', async () => {
+    let proxyCalls = 0;
+    const swig = new SwigBrowserClient({
+      network: 'devnet',
+      fetch: (async () => {
+        proxyCalls += 1;
+        return new Response();
+      }) as unknown as typeof fetch,
+    });
+    const wallet = swig.wallets.use('swig_config_123');
+
+    await expect(
+      wallet.x402.prepareFromResponse(new Response(null, { status: 402 })),
+    ).rejects.toThrow('missing PAYMENT-REQUIRED');
+    expect(proxyCalls).toBe(0);
   });
 
   test('prepares grouped wallet operations through the proxy route', async () => {
@@ -534,6 +639,52 @@ function absoluteUrl(input: RequestInfo | URL): RequestInfo | URL {
     return `https://app.example${input}`;
   }
   return input;
+}
+
+function x402Response(paymentRequired: PaymentRequiredV2): Response {
+  return new Response(null, {
+    status: 402,
+    headers: {
+      'PAYMENT-REQUIRED': encodePaymentRequiredHeader(
+        paymentRequired as unknown as PaymentRequired,
+      ),
+    },
+  });
+}
+
+function x402PaymentRequired(): PaymentRequiredV2 {
+  return {
+    x402Version: 2,
+    resource: {
+      url: 'https://merchant.example/protected',
+      description: 'Protected resource',
+    },
+    accepts: [
+      {
+        scheme: 'exact',
+        network: 'eip155:8453',
+        amount: '1000',
+        asset: '0xasset',
+        payTo: '0xmerchant',
+        maxTimeoutSeconds: 300,
+        extra: {
+          assetTransferMethod: 'eip3009',
+        },
+      },
+      {
+        scheme: 'exact',
+        network: 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
+        amount: '42',
+        asset: 'mint_123',
+        payTo: 'merchant_123',
+        maxTimeoutSeconds: 300,
+        extra: {
+          feePayer: 'payer_123',
+          memo: 'merchant-reference',
+        },
+      },
+    ],
+  };
 }
 
 function isJsonFetchResponse(

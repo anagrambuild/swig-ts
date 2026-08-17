@@ -1,3 +1,9 @@
+import { encodePaymentRequiredHeader } from '@x402/core/http';
+import {
+  PaymentRequiredV2Schema,
+  type PaymentRequiredV2,
+} from '@x402/core/schemas';
+import type { PaymentRequired } from '@x402/core/types';
 import { describe, expect, test } from 'bun:test';
 
 import { SwigClient } from '../server/typescript/index.js';
@@ -42,6 +48,54 @@ function jsonFetch(
       },
     );
   }) as typeof fetch;
+}
+
+function x402Response(paymentRequired: unknown): Response {
+  return new Response(null, {
+    status: 402,
+    headers: {
+      'PAYMENT-REQUIRED': encodePaymentRequiredHeader(
+        paymentRequired as unknown as PaymentRequired,
+      ),
+    },
+  });
+}
+
+function x402PaymentRequired(
+  options: { svmFirst?: boolean } = {},
+): PaymentRequiredV2 {
+  const svm = {
+    scheme: 'exact',
+    network: 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
+    amount: '42',
+    asset: 'mint_123',
+    payTo: 'merchant_123',
+    maxTimeoutSeconds: 300,
+    extra: {
+      feePayer: 'payer_123',
+      memo: 'merchant-reference',
+    },
+  } satisfies PaymentRequiredV2['accepts'][number];
+  const evm = {
+    scheme: 'exact',
+    network: 'eip155:8453',
+    amount: '1000',
+    asset: '0xasset',
+    payTo: '0xmerchant',
+    maxTimeoutSeconds: 300,
+    extra: {
+      assetTransferMethod: 'eip3009',
+    },
+  } satisfies PaymentRequiredV2['accepts'][number];
+
+  return {
+    x402Version: 2,
+    resource: {
+      url: 'https://merchant.example/protected',
+      description: 'Protected resource',
+    },
+    accepts: options.svmFirst ? [svm, evm] : [evm, svm],
+  };
 }
 
 describe('WalletsClient', () => {
@@ -601,6 +655,166 @@ describe('WalletsClient', () => {
       network: 'devnet',
       recentBlockhash: 'blockhash_456',
     });
+  });
+
+  test('prepares an x402 payment and retains the backend-selected index', async () => {
+    const calls: CapturedRequest[] = [];
+    const paymentRequired = x402PaymentRequired();
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          preparedTransaction: {
+            transaction: 'base64-x402-tx',
+            transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+            network: 'NETWORK_DEVNET',
+            kind: 'PREPARED_TRANSACTION_KIND_X402_PAYMENT',
+            wallet: {
+              swigConfigAddress: 'swig_config_123',
+              walletAddress: 'wallet_123',
+            },
+          },
+          acceptedIndex: 1,
+        };
+      }),
+    });
+    const wallet = swig.wallets.use({
+      swigConfigAddress: 'swig_config_123',
+      walletAddress: 'wallet_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+
+    const prepared = await wallet.x402.prepareFromResponse(
+      x402Response(paymentRequired),
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      url: 'http://localhost:8080/transaction/payment/x402/prepare',
+      method: 'POST',
+      body: {
+        paymentRequired,
+        network: 'NETWORK_DEVNET',
+        swigAddress: 'swig_config_123',
+        requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+      },
+    });
+    expect(
+      (calls[0]?.body as Record<string, unknown>).acceptedIndex,
+    ).toBeUndefined();
+    expect(prepared.acceptedIndex).toBe(1);
+    expect(prepared.preparedTransaction).toMatchObject({
+      transaction: 'base64-x402-tx',
+      transactionEncoding: 'base64',
+      network: 'devnet',
+      kind: 'x402-payment',
+    });
+    expect(prepared.paymentRequired).toEqual(paymentRequired);
+  });
+
+  test('forwards an explicit x402 accepted index of zero', async () => {
+    const calls: CapturedRequest[] = [];
+    const paymentRequired = x402PaymentRequired({ svmFirst: true });
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          preparedTransaction: {
+            transaction: 'base64-x402-tx',
+            transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+            network: 'NETWORK_DEVNET',
+            kind: 'PREPARED_TRANSACTION_KIND_X402_PAYMENT',
+            wallet: {
+              swigConfigAddress: 'swig_config_123',
+              walletAddress: 'wallet_123',
+            },
+          },
+          acceptedIndex: 0,
+        };
+      }),
+    });
+    const wallet = swig.wallets.use({
+      swigConfigAddress: 'swig_config_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+
+    const prepared = await wallet.x402.prepareFromResponse(
+      x402Response(paymentRequired),
+      {
+        acceptedIndex: 0,
+      },
+    );
+
+    expect(calls[0]).toMatchObject({
+      body: {
+        paymentRequired,
+        acceptedIndex: 0,
+      },
+    });
+    expect(prepared.acceptedIndex).toBe(0);
+  });
+
+  test('sends the official x402 schema output directly to the backend', async () => {
+    const calls: CapturedRequest[] = [];
+    const base = x402PaymentRequired({ svmFirst: true });
+    const paymentRequiredInput = {
+      ...base,
+      resource: {
+        ...base.resource,
+        merchantResourceData: { correlation: 'resource-1' },
+      },
+      accepts: base.accepts.map((requirement) => ({
+        ...requirement,
+        extra: {
+          ...(requirement.extra ?? {}),
+          merchantExtraData: { correlation: 'requirement-1' },
+        },
+        merchantRequirementData: { keep: true },
+      })),
+      extensions: { merchantExtension: { enabled: true } },
+      merchantEnvelopeData: { keep: true },
+    };
+    const paymentRequired = PaymentRequiredV2Schema.parse(paymentRequiredInput);
+    const swig = new SwigClient({
+      apiKey: 'sk_test',
+      baseUrl: 'http://localhost:8080',
+      network: 'devnet',
+      fetch: jsonFetch((request) => {
+        calls.push(request);
+        return {
+          preparedTransaction: {
+            transaction: 'base64-x402-tx',
+            transactionEncoding: 'TRANSACTION_ENCODING_BASE64',
+            network: 'NETWORK_DEVNET',
+            kind: 'PREPARED_TRANSACTION_KIND_X402_PAYMENT',
+            wallet: { swigConfigAddress: 'swig_config_123' },
+          },
+          acceptedIndex: 0,
+        };
+      }),
+    });
+    const wallet = swig.wallets.use({
+      swigConfigAddress: 'swig_config_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+
+    const prepared = await wallet.x402.prepareFromResponse(
+      x402Response(paymentRequiredInput),
+    );
+
+    expect(calls[0]?.body).toEqual({
+      paymentRequired,
+      network: 'NETWORK_DEVNET',
+      swigAddress: 'swig_config_123',
+      requesterAuthority: { ed25519: { publicKey: 'requester_123' } },
+    });
+    expect(prepared.paymentRequired).toEqual(paymentRequired);
   });
 
   test('prepares token transfers through the opinionated wallet API', async () => {

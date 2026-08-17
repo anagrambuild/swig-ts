@@ -31,6 +31,7 @@ import type {
   PreparedTransactionWire,
   PrepareOperation,
   PrepareTransactionsResponseWire,
+  PrepareX402PaymentOptions,
   QuoteRampArgs,
   QuoteRampResult,
   QuoteRampResultWire,
@@ -42,12 +43,20 @@ import type {
   WalletHandleOptions,
   WalletReadArgs,
   WalletReference,
+  WalletX402Client,
+  X402PreparationResult,
 } from './types/index.js';
 import {
   normalizeAmount,
   normalizePreparedTransaction,
   normalizePrepareTransactionsResponse,
 } from './wallets/normalizers.js';
+import type { PrepareX402PaymentResponseWire } from './x402/index.js';
+import {
+  normalizeX402PreparationResponse,
+  parsePaymentRequiredFromResponse,
+  validateRequestedAcceptedIndex,
+} from './x402/index.js';
 
 export interface SwigBrowserClientConfig {
   /**
@@ -92,6 +101,7 @@ type WithoutFeePayer<TArgs extends { feePayer: string }> = Omit<
 };
 
 type SwigBrowserProxyRoute =
+  | 'x402/prepare'
   | 'prepare'
   | 'transfer/sol'
   | 'transfer/spl-token'
@@ -295,6 +305,38 @@ export class BrowserWalletsClient {
         network: args.network ?? wallet.network ?? this.defaultNetwork,
         limit: args.limit,
       },
+    );
+  };
+
+  prepareX402PaymentFromResponse = async (
+    wallet: BrowserWalletHandle,
+    response: Response,
+    options: PrepareX402PaymentOptions = {},
+  ): Promise<X402PreparationResult> => {
+    const paymentRequired = parsePaymentRequiredFromResponse(response);
+    const network = wallet.network ?? this.defaultNetwork;
+    if (!network) {
+      throw new Error('network is required');
+    }
+    const acceptedIndex = validateRequestedAcceptedIndex(
+      options.acceptedIndex,
+      paymentRequired,
+    );
+    const prepared = await this.http.post<PrepareX402PaymentResponseWire>(
+      'x402/prepare',
+      {
+        ...baseRequest(wallet, {}, this.defaultNetwork),
+        paymentRequired,
+        ...(acceptedIndex === undefined ? {} : { acceptedIndex }),
+      },
+    );
+
+    return normalizeX402PreparationResponse(
+      prepared,
+      paymentRequired,
+      acceptedIndex,
+      network,
+      wallet.swigConfigAddress,
     );
   };
 }
@@ -504,6 +546,7 @@ export class BrowserWalletHandle {
   readonly requesterAuthority?: WalletAuthority;
   readonly transfer: BrowserWalletTransferClient;
   readonly swap: BrowserWalletSwapClient;
+  readonly x402: WalletX402Client;
 
   constructor(
     private readonly wallets: BrowserWalletsClient,
@@ -517,6 +560,7 @@ export class BrowserWalletHandle {
     this.requesterAuthority = init.requesterAuthority;
     this.transfer = createBrowserWalletTransferClient(wallets, this);
     this.swap = createBrowserWalletSwapClient(wallets, this);
+    this.x402 = createBrowserWalletX402Client(wallets, this);
   }
 
   prepare = (args: BrowserPrepareArgs): Promise<PreparedTransactionsResult> =>
@@ -541,6 +585,16 @@ function walletReadRoute(
   route: 'balance/usd' | 'token-balances' | 'token-transactions',
 ): string {
   return `wallet/${encodeURIComponent(wallet.swigConfigAddress)}/${route}`;
+}
+
+function createBrowserWalletX402Client(
+  wallets: BrowserWalletsClient,
+  wallet: BrowserWalletHandle,
+): WalletX402Client {
+  return {
+    prepareFromResponse: (response, options) =>
+      wallets.prepareX402PaymentFromResponse(wallet, response, options),
+  };
 }
 
 function createBrowserWalletTransferClient(
