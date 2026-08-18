@@ -17,6 +17,7 @@ import {
   fetchSwig,
   getCreateSwigInstruction,
   getSignInstructions,
+  getSwigWalletAddress,
 } from '@swig-wallet/classic';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -212,13 +213,15 @@ export function useSwigTransferWithPasskey() {
         );
       }
 
+      const walletAddress = await getSwigWalletAddress(swig);
+
       const ixs = await getSignInstructions(
         swig,
         role.id,
         [
           SystemProgram.transfer({
             lamports: 0.1 * LAMPORTS_PER_SOL,
-            fromPubkey: swigAddress,
+            fromPubkey: walletAddress,
             toPubkey: Keypair.generate().publicKey,
           }),
         ],
