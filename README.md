@@ -1,7 +1,8 @@
 # Swig SDKs
 
-This repository contains Swig SDKs and tooling. The developer SDK is available
-for both TypeScript and Python under [`packages/developer-sdk`](./packages/developer-sdk).
+This repository contains Swig protocol SDKs and tooling. The hosted Developer
+SDK for TypeScript and Python now lives in
+[`anagrambuild/swig-developer-sdk`](https://github.com/anagrambuild/swig-developer-sdk).
 
 ### Run locally
 
