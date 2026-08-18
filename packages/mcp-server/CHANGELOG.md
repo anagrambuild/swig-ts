@@ -1,5 +1,12 @@
 # @swig-wallet/mcp-server
 
+## 1.1.4
+
+### Patch Changes
+
+- Updated dependencies [9225c99]
+  - @swig-wallet/paymaster-classic@1.1.0
+
 ## 1.1.3
 
 ### Patch Changes
