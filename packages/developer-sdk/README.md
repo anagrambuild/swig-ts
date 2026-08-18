@@ -1,12 +1,11 @@
-# Swig Developer SDKs
+# Swig Developer SDK moved
 
-The developer SDK is available in two languages with the same product surface:
+The TypeScript and Python Developer SDKs now live in the standalone
+[`anagrambuild/swig-developer-sdk`](https://github.com/anagrambuild/swig-developer-sdk)
+repository.
 
-- [`typescript`](./typescript): `@swig-wallet/developer-sdk`
-- [`python`](./python): `swig-developer-sdk`
+- TypeScript package: `@swig-wallet/developer-sdk`
+- Python package: `swig-developer-sdk`
 
-Both SDKs keep the same boundary: the Swig API prepares transactions, and the
-application signs and finalizes them locally. TypeScript uses
-`@solana/web3.js`; Python uses `solders`.
-
-See [`PARITY.md`](./PARITY.md) for the cross-language contract.
+This directory is retained only as a relocation pointer. Do not add SDK source,
+tests, documentation, or release automation here.
