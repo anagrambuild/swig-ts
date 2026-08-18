@@ -1,21 +1,94 @@
 ---
 name: swig-smart-wallet
 description: >
-  Create and manage Solana smart wallets using the Swig TypeScript SDK.
-  This skill enables AI agents to generate Swig wallets, manage authorities
-  (add/remove/update with granular permissions), execute transactions through
-  the wallet, and handle gas sponsorship via the Swig Paymaster API, a custom
-  gas server, or self-funded SOL. Works with both @swig-wallet/classic
-  (web3.js 1.x) and @swig-wallet/kit (@solana/kit 2.x).
+  Create and manage Solana smart wallets using the Swig MCP server or the
+  Swig TypeScript SDK. This skill enables AI agents to operate Swig wallets
+  directly through MCP tools or generate SDK-based code to create wallets,
+  manage authorities (add/remove/update with granular permissions), execute
+  transactions through the wallet, and handle gas sponsorship via the Swig
+  Paymaster API, a custom gas server, or self-funded SOL. Works with both
+  @swig-wallet/classic (web3.js 1.x) and @swig-wallet/kit (@solana/kit 2.x).
 ---
 
 # Swig Smart Wallet Skill
 
-You are an AI agent that can create and manage Solana smart wallets using the Swig protocol. Swig wallets are on-chain programmable wallets with granular authority and permission management. You write TypeScript scripts that use the Swig SDK to perform wallet operations.
+You are an AI agent that can create and manage Solana smart wallets using the Swig protocol. Swig wallets are on-chain programmable wallets with granular authority and permission management.
 
-## Prerequisites
+Choose the execution path that matches the user's request:
 
-Before doing anything, you MUST gather the following from the user:
+- Use `@swig-wallet/mcp-server` when the user wants direct wallet operations through MCP tools and does not need application code.
+- Use `@swig-wallet/classic` or `@swig-wallet/kit` when the user wants TypeScript scripts, app integration, or reusable code examples.
+
+Prefer the MCP path for direct operational tasks. Prefer the SDK path when the deliverable is code.
+
+## Getting Started with Swig MCP
+
+Use this path when the user wants the agent to call Swig tools directly instead of generating integration code.
+
+### Step 1: Build the server
+
+```bash
+# From the swig-ts monorepo
+bun install
+bun run build -w @swig-wallet/mcp-server
+```
+
+### Step 2: Configure the MCP client
+
+Add the server to the AI agent:
+
+```bash
+# Claude Code (local/stdio)
+claude mcp add swig-wallet -- node /path/to/packages/mcp-server/dist/index.js
+
+# Claude Code (remote/HTTP)
+claude mcp add swig-wallet --transport http https://your-host.com/mcp
+```
+
+For remote HTTP deployments, require auth with `--api-key` or `SWIG_MCP_API_KEY` and point clients at the `/mcp` endpoint.
+
+### Step 3: Configure RPC
+
+Call `configure_rpc` first. Common networks:
+
+- Mainnet: `https://api.mainnet-beta.solana.com`
+- Devnet: `https://api.devnet.solana.com`
+
+Use a dedicated RPC provider for production workloads.
+
+### Step 4: Set up the agent keypair
+
+Call `generate_agent_keypair` to create a new keypair or `configure_agent_keypair` to load an existing one.
+
+If you are using the self-funded path, fund this address with SOL. It pays transaction fees and the rent needed for Swig wallet creation.
+
+If you want sponsored transactions, also configure one of these before creating or using wallets:
+
+- `configure_paymaster`
+- `configure_gas_sponsor`
+
+### Step 5: Create a Swig wallet
+
+Call `create_swig_wallet`. This creates:
+
+- A **Swig account**: the on-chain config holding roles and authorities
+- A **wallet address**: the PDA that holds funds
+
+Unless the user asks for something else, treat the configured agent keypair as the root authority with full permissions.
+
+### Step 6: Use the wallet
+
+- `fetch_swig_wallet` to inspect wallet details and authorities
+- `get_balance` to check SOL balance for the wallet or agent
+- `transact_sol_transfer` to send SOL from the wallet
+- `transact_custom` to execute arbitrary instructions through the wallet
+- `add_authority`, `remove_authority`, and `update_authority` to manage permissions
+
+For `add_authority`, the `newAuthorityPubkey` format depends on `authorityType`: use Base58 for `ed25519` and `ed25519Session`, a hex-encoded SEC1 public key for `secp256k1`, and a compressed hex-encoded P-256 public key for `secp256r1`.
+
+## Shared Prerequisites
+
+Before performing wallet operations in either MCP or SDK mode, you MUST gather the following from the user unless it is already provided:
 
 ### 1. Solana RPC Endpoint
 
@@ -75,6 +148,8 @@ When using this option:
 4. Ask: "Please send a small amount of SOL (at least 0.01 SOL) to `<agent-public-key>` and let me know when done."
 5. Verify the balance before proceeding
 
+In MCP mode, these map directly to `configure_paymaster`, `configure_gas_sponsor`, `generate_agent_keypair`, and `configure_agent_keypair`.
+
 ## SDK Choice
 
 The Swig SDK comes in two flavors. Choose based on the project:
@@ -86,7 +161,7 @@ The Swig SDK comes in two flavors. Choose based on the project:
 
 If the user has no preference, default to `@swig-wallet/classic` for broader compatibility.
 
-## Installation
+## SDK Installation
 
 ```bash
 # For classic (web3.js 1.x)
@@ -101,7 +176,7 @@ npm install @swig-wallet/paymaster-classic
 npm install @swig-wallet/paymaster-kit
 ```
 
-## Core Operations
+## SDK Core Operations
 
 ### 1. Create a Swig Wallet
 
@@ -504,14 +579,10 @@ const loaded = Keypair.fromSecretKey(
 
 ## Workflow Summary
 
-1. **Gather config**: RPC URL, gas strategy, SDK choice
-2. **Install packages**: `@swig-wallet/classic` or `@swig-wallet/kit` (+ paymaster if needed)
-3. **Set up identity**: Load or generate a keypair
-4. **Create Swig wallet**: Generate ID, derive PDA, send create instruction
-5. **Fund the wallet**: Transfer SOL to the Swig wallet address
-6. **Add authorities**: Grant granular permissions to other keys
-7. **Transact**: Wrap inner instructions with `getSignInstructions` to execute from the wallet
-8. **Manage**: Update or remove authorities as needed
+1. **Choose execution path**: use MCP for direct wallet operations, SDK for code generation or integration
+2. **Gather config**: RPC URL and fee strategy; choose SDK flavor if writing code
+3. **For MCP**: build/register the server, call `configure_rpc`, set up the agent keypair and fee strategy, then use the wallet tools directly
+4. **For SDK**: install packages, load or generate a keypair, create the wallet, add authorities, and wrap inner instructions with `getSignInstructions`
 
 ## Error Handling
 

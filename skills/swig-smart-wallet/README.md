@@ -1,19 +1,20 @@
 # swig-smart-wallet
 
-An [Agent Skill](https://skills.sh) that teaches AI agents how to create and manage [Swig](https://swig.so) smart wallets on Solana using the Swig TypeScript SDK.
+An [Agent Skill](https://skills.sh) that teaches AI agents how to create and manage [Swig](https://swig.so) smart wallets on Solana using the Swig MCP server or the Swig TypeScript SDK.
 
 ## What this skill does
 
 When installed, the skill gives an AI coding agent (Claude Code, Cursor, Codex, OpenClaw, Cline, etc.) the procedural knowledge to:
 
 - **Create Swig wallets** on Solana with on-chain programmable authority and permission controls
+- **Use the Swig MCP server directly** to configure RPC, create wallets, manage authorities, and send transactions without generating integration code
 - **Manage authorities** — add, remove, and update keys with granular permissions (SOL limits, token limits, program access, recurring allowances, and more)
 - **Execute transactions** through the Swig wallet using `getSignInstructions` to wrap any Solana instruction
 - **Handle gas fees** via the Swig Paymaster API, a custom gas sponsorship server, or self-funded SOL
 - **Generate keypairs** for agent identity when self-funding
 - **Choose the right SDK** — code examples for both `@swig-wallet/classic` (web3.js v1.x) and `@swig-wallet/kit` (@solana/kit v2.x)
 
-The agent writes its own TypeScript scripts using the Swig SDK. The skill is a reference document, not executable code.
+The agent can either call the Swig MCP server directly or write TypeScript scripts using the Swig SDK, depending on whether the task is operational or code-focused.
 
 ## Install
 
@@ -53,9 +54,72 @@ curl -sL "https://raw.githubusercontent.com/anagrambuild/swig-ts/main/skills/swi
 
 For the full list of supported agents and paths, see the [skills CLI documentation](https://github.com/vercel-labs/skills#supported-agents).
 
+## Getting Started with Swig MCP
+
+### Step 1: Build the server
+
+```bash
+# From the swig-ts monorepo
+bun install
+bun run build -w @swig-wallet/mcp-server
+```
+
+### Step 2: Configure the MCP client
+
+Add the server to your AI agent:
+
+```bash
+# Claude Code (local/stdio)
+claude mcp add swig-wallet -- node /path/to/packages/mcp-server/dist/index.js
+
+# Claude Code (remote/HTTP)
+claude mcp add swig-wallet --transport http https://your-host.com/mcp
+```
+
+For remote HTTP deployments, require auth with `--api-key` or `SWIG_MCP_API_KEY` and point clients at the `/mcp` endpoint.
+
+### Step 3: Configure RPC
+
+Call `configure_rpc` with your Solana network:
+
+- Mainnet: `https://api.mainnet-beta.solana.com`
+- Devnet: `https://api.devnet.solana.com`
+
+Use a dedicated RPC provider for production workloads.
+
+### Step 4: Set up the agent keypair
+
+Call `generate_agent_keypair` to create a new keypair (optionally save to file), or `configure_agent_keypair` to load an existing one.
+
+If you are using the self-funded path, fund this address with SOL. It pays transaction fees and the rent needed for Swig wallet creation.
+
+If you want sponsored transactions, also call one of these before creating or using wallets:
+
+- `configure_paymaster`
+- `configure_gas_sponsor`
+
+### Step 5: Create a Swig wallet
+
+Call `create_swig_wallet`. This creates:
+
+- A **Swig account**: the on-chain config holding roles and authorities
+- A **wallet address**: the PDA that holds funds
+
+The agent keypair is the root authority by default with full permissions unless you specify otherwise.
+
+### Step 6: Use the wallet
+
+- `fetch_swig_wallet` — view wallet details and authorities
+- `get_balance` — check SOL balance of the wallet or agent
+- `transact_sol_transfer` — send SOL from the wallet
+- `transact_custom` — execute any instruction through the wallet
+- `add_authority` / `remove_authority` / `update_authority` — manage permissions
+
+For `add_authority`, the `newAuthorityPubkey` format depends on `authorityType`: use Base58 for `ed25519` and `ed25519Session`, a hex-encoded SEC1 public key for `secp256k1`, and a compressed hex-encoded P-256 public key for `secp256r1`.
+
 ## What the agent will ask
 
-When the skill activates, the agent follows a structured setup flow before writing any code:
+When the skill activates, the agent follows a structured setup flow before calling tools or writing any code:
 
 ### 1. Solana RPC
 
@@ -75,9 +139,9 @@ The agent presents three options:
 
 The agent picks `@swig-wallet/classic` or `@swig-wallet/kit` based on your project. Defaults to classic for broader compatibility.
 
-## Covered operations
+## Covered SDK operations
 
-The skill includes complete, copy-paste-ready code examples for every operation:
+For SDK-based tasks, the skill includes complete, copy-paste-ready code examples for every operation:
 
 | Operation           | Description                                                         |
 | ------------------- | ------------------------------------------------------------------- |
