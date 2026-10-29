@@ -9,8 +9,8 @@ on:
       - main
 
 env:
-  RUST_VERSION: 1.84.0
-  SOLANA_VERSION: 2.2.17
+  RUST_VERSION: 1.96.1
+  SOLANA_VERSION: 4.2.2
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -147,6 +147,11 @@ jobs:
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
+
+      - name: Install current SBPF compiler
+        run: |
+          cargo install cargo-build-sbf --version 4.0.0 --locked --force
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Update program bin
         run: bun update:program

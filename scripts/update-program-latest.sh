@@ -17,7 +17,9 @@ build_sbf() {
   echo "Building ${build_name}..."
   cd "$build_dir"
 
-  if ! cargo build-sbf --arch v1 "$@" -- -q > "$build_log" 2>&1; then
+  # The TypeScript test suite loads this artifact with LiteSVM's web3.js
+  # bindings, which currently accept SBPF v2 but reject v3 binaries.
+  if ! cargo build-sbf --arch v2 --tools-version v1.53 "$@" -- -q > "$build_log" 2>&1; then
     echo "❌ Failed to build ${build_name}"
     cat "$build_log"
     rm -f "$build_log"
@@ -46,9 +48,6 @@ else
 fi
 
 cd "$PROGRAM_DIR"
-
-echo "Pinning blake3 to v1.8.2 for Solana build compatibility..."
-cargo update -p blake3 --precise 1.8.2 > /dev/null 2>&1
 
 echo "Program directory updated!"
 build_sbf "$PROGRAM_DIR/program" "swig program"

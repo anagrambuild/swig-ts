@@ -170,7 +170,7 @@
         "@typescript-eslint/parser": "^8.26.1",
         "eslint": "^9.22.0",
         "eslint-config-prettier": "^10.1.1",
-        "litesvm": "^0.2.0",
+        "litesvm": "0.8.0",
         "prettier": "^3.3.3",
         "prettier-plugin-organize-imports": "^4.0.0",
         "tsup": "^8.2.0",
@@ -241,7 +241,7 @@
         "@typescript-eslint/parser": "^8.26.1",
         "eslint": "^9.22.0",
         "eslint-config-prettier": "^10.1.1",
-        "litesvm": "^0.2.0",
+        "litesvm": "0.8.0",
         "prettier": "^3.3.3",
         "prettier-plugin-organize-imports": "^4.0.0",
         "tsup": "^8.2.0",
@@ -269,7 +269,7 @@
         "@typescript-eslint/parser": "^8.26.1",
         "eslint": "^9.22.0",
         "eslint-config-prettier": "^10.1.1",
-        "litesvm": "^0.2.0",
+        "litesvm": "0.8.0",
         "prettier": "^3.3.3",
         "prettier-plugin-organize-imports": "^4.0.0",
         "tsup": "^8.2.0",
@@ -285,14 +285,17 @@
       "dependencies": {
         "@modelcontextprotocol/node": "2.1.2",
         "@modelcontextprotocol/server": "2.4.0",
+        "@solana/spl-token": "^0.4.13",
         "@solana/web3.js": "^1.98.0",
         "@swig-wallet/classic": "workspace:*",
         "@swig-wallet/paymaster-classic": "workspace:*",
         "bs58": "^6.0.0",
+        "elliptic": "^6.6.1",
         "zod": "^4.2.0",
       },
       "devDependencies": {
         "@modelcontextprotocol/client": "2.4.0",
+        "@types/elliptic": "^6.4.18",
         "@types/node": "^22.13.10",
         "tsup": "^8.2.0",
         "typescript": "^5.5.3",
@@ -313,7 +316,7 @@
         "@typescript-eslint/parser": "^8.26.1",
         "eslint": "^9.22.0",
         "eslint-config-prettier": "^10.1.1",
-        "litesvm": "^0.2.0",
+        "litesvm": "0.8.0",
         "prettier": "^3.3.3",
         "prettier-plugin-organize-imports": "^4.0.0",
         "tsup": "^8.2.0",
@@ -338,7 +341,7 @@
         "@typescript-eslint/parser": "^8.26.1",
         "eslint": "^9.22.0",
         "eslint-config-prettier": "^10.1.1",
-        "litesvm": "^0.2.0",
+        "litesvm": "0.8.0",
         "prettier": "^3.3.3",
         "prettier-plugin-organize-imports": "^4.0.0",
         "tsup": "^8.2.0",
@@ -360,7 +363,7 @@
         "@typescript-eslint/parser": "^8.26.1",
         "eslint": "^9.22.0",
         "eslint-config-prettier": "^10.1.1",
-        "litesvm": "^0.2.0",
+        "litesvm": "0.8.0",
         "prettier": "^3.3.3",
         "prettier-plugin-organize-imports": "^4.0.0",
         "tsup": "^8.2.0",
@@ -1114,6 +1117,8 @@
     "@types/debug": ["@types/debug@4.1.12", "", { "dependencies": { "@types/ms": "*" } }, "sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ=="],
 
     "@types/deep-eql": ["@types/deep-eql@4.0.2", "", {}, "sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw=="],
+
+    "@types/elliptic": ["@types/elliptic@6.4.18", "", { "dependencies": { "@types/bn.js": "*" } }, "sha512-UseG6H5vjRiNpQvrhy4VF/JXdA3V/Fp5amvveaL+fs28BZ6xIKJBPnUPRlEaZpysD9MbpfaLi8lbl7PGUAkpWw=="],
 
     "@types/estree": ["@types/estree@1.0.8", "", {}, "sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w=="],
 
@@ -2041,17 +2046,19 @@
 
     "lit-html": ["lit-html@3.3.2", "", { "dependencies": { "@types/trusted-types": "^2.0.2" } }, "sha512-Qy9hU88zcmaxBXcc10ZpdK7cOLXvXpRoBxERdtqV9QOrfpMZZ6pSYP91LhpPtap3sFMUiL7Tw2RImbe0Al2/kw=="],
 
-    "litesvm": ["litesvm@0.2.0", "", { "dependencies": { "@solana/web3.js": "^1.68.0", "bs58": "^4.0.1" }, "optionalDependencies": { "litesvm-darwin-arm64": "0.2.0", "litesvm-darwin-universal": "0.2.0", "litesvm-darwin-x64": "0.2.0", "litesvm-linux-x64-gnu": "0.2.0", "litesvm-linux-x64-musl": "0.2.0" } }, "sha512-75+ZMkSFY5ynI3S+vCMnZv1wcILg5iNEj21B+XE/G3/P2dfTPj+rbdNM1q3eLFdlnXdewhiB4BLypKsBnQTSOw=="],
+    "litesvm": ["litesvm@0.8.0", "", { "dependencies": { "@solana/web3.js": "^1.98.4", "fastestsmallesttextencoderdecoder": "^1.0.22" }, "optionalDependencies": { "litesvm-darwin-arm64": "0.8.0", "litesvm-darwin-x64": "0.8.0", "litesvm-linux-arm64-gnu": "0.8.0", "litesvm-linux-arm64-musl": "0.8.0", "litesvm-linux-x64-gnu": "0.8.0", "litesvm-linux-x64-musl": "0.8.0" } }, "sha512-P0Ly11FSr1f77bKwaRf0VQQZYdsw6Oi3OLKBxgBN5iJcB7W7lTjFB1tnVcJqdn1NMz6upqU/04rZFCC/JfYBWg=="],
 
-    "litesvm-darwin-arm64": ["litesvm-darwin-arm64@0.2.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-fqGE7Z6iT+5Xob9o1xs0N7Tf3c1meJxDERf7Z6T7Loqm0seyUsfjM0gTOvMJHiWvvnOx+qIo/Cjhtp84Kb9v8w=="],
+    "litesvm-darwin-arm64": ["litesvm-darwin-arm64@0.8.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-XYa0oOA7FVbMYKvIDbBznWUjkHQD8J/fn5kPMBSX4QWf4yfFda/+L4JHeSngx+dBCM0LyEyLeakVrnmdR1KYPQ=="],
 
-    "litesvm-darwin-universal": ["litesvm-darwin-universal@0.2.0", "", { "os": "darwin" }, "sha512-CNgVrQ9tknv8JbtpmOO0SNXuOQj769A3ufWHrMFEBuFhCr9CJ6RQI9a/HxPWjMHTC7EzlcF8klMupPYpqM8KGA=="],
+    "litesvm-darwin-x64": ["litesvm-darwin-x64@0.8.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-lrxU6VXEqY7MHHIskdjB88xM9OiGR2ZcXf+fMESnetCk6rVUM6Llfb386wsMiqvi1+DowJwShxluBsCutWo2Sw=="],
 
-    "litesvm-darwin-x64": ["litesvm-darwin-x64@0.2.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-blRxD4y0FIx3E27Iv7oX0uz9x3v9KPD+++HLatBx5K5bh57qrAStUINsgT6MchYrxxOE0T2xktJaiSQSEMxWSA=="],
+    "litesvm-linux-arm64-gnu": ["litesvm-linux-arm64-gnu@0.8.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-D0pdYTQkoibPCfza2x1urSjIpHdwHVagHs0fBMHpzxSEvXND2qqDR3jXYf6xcE0sAq0knXjQmGz7WzP/HhFeFw=="],
 
-    "litesvm-linux-x64-gnu": ["litesvm-linux-x64-gnu@0.2.0", "", { "os": "linux", "cpu": "x64" }, "sha512-2PQcLvn5c8GLGPp/vLCFaladWe61wbtwwTlIMLEfPeU5f88jBPOaEryO85+0FHZS1awbT97caa55sFDpAO4CWw=="],
+    "litesvm-linux-arm64-musl": ["litesvm-linux-arm64-musl@0.8.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-g7vgYPJZC6cT1gaWA1M2SbZu+Sngs9FuxsybDSE1Mmelmaejlguf7X/ymUuhehaSjEY+QSi+ydWtwzgE95JL0w=="],
 
-    "litesvm-linux-x64-musl": ["litesvm-linux-x64-musl@0.2.0", "", { "os": "linux", "cpu": "x64" }, "sha512-9vAYFIicGjZIlwoCBii6yJmfIUVS4cdF0CxoAL+DGexTBLECk+Tr+WEFEXsvsYe4s81jxP04TTiUnasj/EaIcw=="],
+    "litesvm-linux-x64-gnu": ["litesvm-linux-x64-gnu@0.8.0", "", { "os": "linux", "cpu": "x64" }, "sha512-nn599p+XuOJoQN2XTSaY4Yz1ZqYxLNUbvt30kImuRUs2ZlIv5FANzM+VUsZgSzWV0phW8m6stX3mpdVv0iIuFQ=="],
+
+    "litesvm-linux-x64-musl": ["litesvm-linux-x64-musl@0.8.0", "", { "os": "linux", "cpu": "x64" }, "sha512-UH4v1GM4hNOjEIzx/dBZQ5mxWGFOd85qs7IBou070dLjH0vdZMh4avQCQyc127+A7aRfdc8+wK7t4SEIn4EEgw=="],
 
     "load-tsconfig": ["load-tsconfig@0.2.5", "", {}, "sha512-IXO6OCs9yg8tMKzfPZ1YmheJbZCiEsnBdcB03l0OcfK9prKnJb96siuHCr5Fl37/yo9DnKU+TLpxzTUspw9shg=="],
 
@@ -3181,8 +3188,6 @@
 
     "lighthouse-logger/debug": ["debug@2.6.9", "", { "dependencies": { "ms": "2.0.0" } }, "sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA=="],
 
-    "litesvm/bs58": ["bs58@4.0.1", "", { "dependencies": { "base-x": "^3.0.2" } }, "sha512-Ok3Wdf5vOIlBrgCvTq96gBkJw+JUEzdBgyaza5HLtPm7yTHkjRy8+JzNyHF7BHa0bNWOQIp3m5YF0nnFcOIKLw=="],
-
     "log-symbols/chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
 
     "metro/chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
@@ -3666,8 +3671,6 @@
     "jest-worker/jest-util/picomatch": ["picomatch@2.3.1", "", {}, "sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA=="],
 
     "lighthouse-logger/debug/ms": ["ms@2.0.0", "", {}, "sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A=="],
-
-    "litesvm/bs58/base-x": ["base-x@3.0.11", "", { "dependencies": { "safe-buffer": "^5.0.1" } }, "sha512-xz7wQ8xDhdyP7tQxwdteLYeFfS68tSMNCZ/Y37WJ4bhGfKPpqEIlmIyueQHqOyoPhE6xNUqjzRr8ra0eF9VRvA=="],
 
     "node-fetch/whatwg-url/tr46": ["tr46@0.0.3", "", {}, "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw=="],
 

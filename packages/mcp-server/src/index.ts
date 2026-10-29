@@ -5,6 +5,7 @@ import {
 } from '@modelcontextprotocol/node';
 import { McpServer, createMcpHandler } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
   Connection,
   Keypair,
@@ -12,6 +13,7 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  TransactionInstruction,
   sendAndConfirmTransaction,
 } from '@solana/web3.js';
 import type { Role } from '@swig-wallet/classic';
@@ -19,13 +21,17 @@ import {
   Actions,
   AuthorityType,
   Permission,
+  SWIG_PROGRAM_ADDRESS,
   createEd25519AuthorityInfo,
   createEd25519SessionAuthorityInfo,
   createSecp256k1AuthorityInfo,
   createSecp256r1AuthorityInfo,
   fetchSwig,
   findSwigPda,
+  findSwigSubAccountPda,
   getAddAuthorityInstructions,
+  getCloseSwigInstructions,
+  getCloseSwigTokenAccountInstructions,
   getCreateSwigInstruction,
   getRemoveAuthorityInstructions,
   getSignInstructions,
@@ -36,12 +42,21 @@ import {
   updateAuthorityRemoveByType,
   updateAuthorityReplaceAllActions,
 } from '@swig-wallet/classic';
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import {
+  closeV1SubAccountInstruction,
+  closeV2SubAccountInstruction,
+  createReservationPackage,
+  createReservedWalletInstruction,
   createV2SubAccountInstruction,
   deriveV2SubAccountAddresses,
+  parseHex,
+  readSwigTail,
   replaceEd25519AuthorityInstruction,
+  reservationFromPackage,
   setRentClaimerInstruction,
+  signV2SubAccountInstruction,
   toggleV2SubAccountInstruction,
   withdrawSolFromV2SubAccountInstruction,
 } from './protocol';
@@ -211,6 +226,60 @@ function serializeRole(role: Role) {
     canSpendSolMax: role.actions.canSpendSolMax(),
     solSpendLimit: role.actions.solSpendLimit()?.toString() ?? null,
     hasProgramAction: role.actions.hasProgramAction(),
+  };
+}
+
+function requireActingEd25519Role(
+  swig: Awaited<ReturnType<typeof fetchSwig>>,
+  signer: PublicKey,
+  roleId: number,
+): Role {
+  const role = swig
+    .findRolesByEd25519SignerPk(signer)
+    .find((candidate) => candidate.id === roleId);
+  if (!role) {
+    throw new Error('Agent keypair does not match the acting Ed25519 role');
+  }
+  return role;
+}
+
+async function swigTail(
+  conn: Connection,
+  address: PublicKey,
+): Promise<ReturnType<typeof readSwigTail>> {
+  const account = await conn.getAccountInfo(address);
+  if (!account || !account.owner.equals(SWIG_PROGRAM_ADDRESS)) {
+    throw new Error('Swig config account not found');
+  }
+  return readSwigTail(account.data);
+}
+
+async function fetchV2SubAccountState(
+  conn: Connection,
+  swig: PublicKey,
+  subAccountId: number,
+): Promise<{
+  state: PublicKey;
+  asset: PublicKey;
+  enabled: boolean;
+}> {
+  const addresses = deriveV2SubAccountAddresses(swig, subAccountId);
+  const account = await conn.getAccountInfo(addresses.state);
+  if (
+    !account ||
+    !account.owner.equals(SWIG_PROGRAM_ADDRESS) ||
+    account.data.length !== 72 ||
+    account.data[0] !== 3 ||
+    account.data.readUInt32LE(4) !== subAccountId ||
+    !account.data.subarray(8, 40).equals(swig.toBuffer()) ||
+    !account.data.subarray(40, 72).equals(addresses.asset.toBuffer()) ||
+    ![0, 1].includes(account.data[3])
+  ) {
+    throw new Error('V2 sub-account state is missing or invalid');
+  }
+  return {
+    ...addresses,
+    enabled: account.data[3] === 1,
   };
 }
 
@@ -579,8 +648,10 @@ function registerAllTools(server: McpServer) {
     },
     async ({ swigAccountAddress }) => {
       const conn = getConnection();
-      const swig = await fetchSwig(conn, new PublicKey(swigAccountAddress));
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
       const walletAddress = await getSwigWalletAddress(swig);
+      const tail = await swigTail(conn, swigAddress);
 
       return {
         content: [
@@ -592,6 +663,8 @@ function registerAllTools(server: McpServer) {
                 swigWalletAddress: walletAddress.toBase58(),
                 accountVersion: swig.accountVersion(),
                 subAccountV2Counter: swig.subAccountV2Counter(),
+                activeSubAccountCount: tail.activeSubAccountCount,
+                rentClaimer: tail.rentClaimer?.toBase58() ?? null,
                 rolesCount: swig.roles.length,
                 roles: swig.roles.map(serializeRole),
               },
@@ -1195,6 +1268,604 @@ function registerAllTools(server: McpServer) {
               signature,
               subAccountId,
               amountLamports,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'fetch_v2_sub_account',
+    {
+      description: 'Read the canonical V2 sub-account state and asset balance.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+      }),
+    },
+    async ({ swigAccountAddress, subAccountId }) => {
+      const conn = getConnection();
+      const swig = new PublicKey(swigAccountAddress);
+      const state = await fetchV2SubAccountState(conn, swig, subAccountId);
+      const balanceLamports = await conn.getBalance(state.asset);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              subAccountId,
+              stateAddress: state.state.toBase58(),
+              assetAddress: state.asset.toBase58(),
+              enabled: state.enabled,
+              balanceLamports,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'transact_v2_sub_account',
+    {
+      description:
+        'Execute one or more inner instructions atomically as a V2 sub-account asset PDA. The acting Ed25519 role needs SubAccountV2Sign or SubAccountV2All scoped to this ID. Only the asset PDA may sign inner instructions.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+        instructions: z
+          .array(
+            z.object({
+              programId: z.string(),
+              accounts: z.array(
+                z.object({
+                  pubkey: z.string(),
+                  isSigner: z.boolean(),
+                  isWritable: z.boolean(),
+                }),
+              ),
+              dataHex: z.string(),
+            }),
+          )
+          .min(1)
+          .max(255),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      subAccountId,
+      instructions,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2') {
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      }
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const state = await fetchV2SubAccountState(
+        conn,
+        swigAddress,
+        subAccountId,
+      );
+      if (!state.enabled) throw new Error('V2 sub-account is disabled');
+      const innerInstructions = instructions.map(
+        ({ programId, accounts, dataHex }) =>
+          new TransactionInstruction({
+            programId: new PublicKey(programId),
+            keys: accounts.map((meta) => ({
+              pubkey: new PublicKey(meta.pubkey),
+              isSigner: meta.isSigner,
+              isWritable: meta.isWritable,
+            })),
+            data: parseHex(dataHex, 'dataHex'),
+          }),
+      );
+      const ix = signV2SubAccountInstruction({
+        swig: swigAddress,
+        signer: signer.publicKey,
+        roleId: signerRoleId,
+        subAccountId,
+        innerInstructions,
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({ success: true, signature, subAccountId }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'transfer_sol_from_v2_sub_account',
+    {
+      description:
+        'Transfer SOL from a V2 sub-account asset PDA to a recipient using SubAccountSignV2. The acting Ed25519 role needs scoped sign permission.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+        recipientAddress: z.string(),
+        amountLamports: z.string(),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      subAccountId,
+      recipientAddress,
+      amountLamports,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2') {
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      }
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const state = await fetchV2SubAccountState(
+        conn,
+        swigAddress,
+        subAccountId,
+      );
+      if (!state.enabled) throw new Error('V2 sub-account is disabled');
+      const inner = SystemProgram.transfer({
+        fromPubkey: state.asset,
+        toPubkey: new PublicKey(recipientAddress),
+        lamports: BigInt(amountLamports),
+      });
+      const ix = signV2SubAccountInstruction({
+        swig: swigAddress,
+        signer: signer.publicKey,
+        roleId: signerRoleId,
+        subAccountId,
+        innerInstructions: [inner],
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              recipientAddress,
+              amountLamports,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'withdraw_token_from_v2_sub_account',
+    {
+      description:
+        'Withdraw SPL Token or Token-2022 units from a V2 sub-account token account to a token account owned by the parent Swig wallet. The acting Ed25519 role needs scoped withdrawal permission.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+        sourceTokenAccount: z.string(),
+        destinationTokenAccount: z.string(),
+        amount: z.string(),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      subAccountId,
+      sourceTokenAccount,
+      destinationTokenAccount,
+      amount,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2') {
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      }
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const state = await fetchV2SubAccountState(
+        conn,
+        swigAddress,
+        subAccountId,
+      );
+      if (!state.enabled) throw new Error('V2 sub-account is disabled');
+      const wallet = await getSwigWalletAddress(swig);
+      const source = new PublicKey(sourceTokenAccount);
+      const destination = new PublicKey(destinationTokenAccount);
+      const [sourceInfo, destinationInfo] = await Promise.all([
+        conn.getAccountInfo(source),
+        conn.getAccountInfo(destination),
+      ]);
+      if (
+        !sourceInfo ||
+        !destinationInfo ||
+        sourceInfo.data.length < 165 ||
+        destinationInfo.data.length < 165 ||
+        !sourceInfo.owner.equals(destinationInfo.owner) ||
+        !(
+          sourceInfo.owner.equals(TOKEN_PROGRAM_ID) ||
+          sourceInfo.owner.equals(TOKEN_2022_PROGRAM_ID)
+        ) ||
+        !sourceInfo.data
+          .subarray(0, 32)
+          .equals(destinationInfo.data.subarray(0, 32)) ||
+        !sourceInfo.data.subarray(32, 64).equals(state.asset.toBuffer()) ||
+        !destinationInfo.data.subarray(32, 64).equals(wallet.toBuffer()) ||
+        sourceInfo.data[108] !== 1 ||
+        destinationInfo.data[108] !== 1
+      ) {
+        throw new Error(
+          'Token accounts must share a mint and be owned by the V2 asset and parent wallet',
+        );
+      }
+      const ix = withdrawSolFromV2SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        swigWalletAddress: wallet,
+        roleId: signerRoleId,
+        subAccountId,
+        amountLamports: BigInt(amount),
+        tokenAccounts: { source, destination, program: sourceInfo.owner },
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              amount,
+              mint: new PublicKey(sourceInfo.data.subarray(0, 32)).toBase58(),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'close_v1_sub_account',
+    {
+      description:
+        'Close a disabled V1 sub-account. Operational SOL returns to the parent wallet; rent returns to its configured rent claimer, if any. The acting Ed25519 role needs close authority.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        childRoleId: z.number().int().min(0).max(0xffffffff),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId, childRoleId }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2')
+        throw new Error('Sub-account closure requires a V2 parent wallet');
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const child = findSwigSubAccountPda(
+        Uint8Array.from(swig.id),
+        childRoleId,
+      );
+      const wallet = await getSwigWalletAddress(swig);
+      const tail = await swigTail(conn, swigAddress);
+      const ix = closeV1SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        actingRoleId: signerRoleId,
+        childRoleId,
+        child,
+        wallet,
+        rentClaimer: tail.rentClaimer,
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              childRoleId,
+              childAddress: child.toBase58(),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'close_v2_sub_account',
+    {
+      description:
+        'Close a disabled V2 sub-account after all its token accounts and positions are closed. Operational SOL returns to the parent wallet; rent returns to its configured rent claimer, if any.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId, subAccountId }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2')
+        throw new Error('V2 sub-accounts require a V2 wallet');
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const state = await fetchV2SubAccountState(
+        conn,
+        swigAddress,
+        subAccountId,
+      );
+      if (state.enabled)
+        throw new Error('Disable the V2 sub-account before closing it');
+      const wallet = await getSwigWalletAddress(swig);
+      const tail = await swigTail(conn, swigAddress);
+      const ix = closeV2SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        actingRoleId: signerRoleId,
+        subAccountId,
+        wallet,
+        rentClaimer: tail.rentClaimer,
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              rentClaimer: tail.rentClaimer?.toBase58() ?? null,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'close_swig_wallet',
+    {
+      description:
+        'Close an empty Swig wallet after its sub-accounts and token accounts are closed. The acting Ed25519 role needs close authority.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        destinationAddress: z.string().optional(),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId, destinationAddress }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swig = await fetchSwig(conn, new PublicKey(swigAccountAddress));
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const tail = await swigTail(conn, new PublicKey(swigAccountAddress));
+      if (
+        tail.activeSubAccountCount !== null &&
+        tail.activeSubAccountCount > 0
+      ) {
+        throw new Error('Close all sub-accounts before closing the wallet');
+      }
+      const destination =
+        tail.rentClaimer ??
+        (destinationAddress ? new PublicKey(destinationAddress) : undefined);
+      if (!destination)
+        throw new Error(
+          'destinationAddress is required when no rent claimer is configured',
+        );
+      if (
+        destinationAddress &&
+        !destination.equals(new PublicKey(destinationAddress))
+      )
+        throw new Error(
+          'destinationAddress must match the configured rent claimer',
+        );
+      const ixs = await getCloseSwigInstructions(swig, signerRoleId, {
+        destination,
+      });
+      const signature = await sendTx(conn, ixs, [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              destinationAddress: destination.toBase58(),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'close_swig_token_accounts',
+    {
+      description:
+        'Close empty SPL Token or Token-2022 accounts owned by a Swig wallet before closing the wallet itself.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        destinationAddress: z.string().optional(),
+        tokenProgramId: z.string(),
+        tokenAccountAddresses: z.array(z.string()).min(1),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      destinationAddress,
+      tokenProgramId,
+      tokenAccountAddresses,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swig = await fetchSwig(conn, new PublicKey(swigAccountAddress));
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const tail = await swigTail(conn, new PublicKey(swigAccountAddress));
+      const destination =
+        tail.rentClaimer ??
+        (destinationAddress ? new PublicKey(destinationAddress) : undefined);
+      if (!destination)
+        throw new Error(
+          'destinationAddress is required when no rent claimer is configured',
+        );
+      if (
+        destinationAddress &&
+        !destination.equals(new PublicKey(destinationAddress))
+      )
+        throw new Error(
+          'destinationAddress must match the configured rent claimer',
+        );
+      const program = new PublicKey(tokenProgramId);
+      if (
+        !(
+          program.equals(TOKEN_PROGRAM_ID) ||
+          program.equals(TOKEN_2022_PROGRAM_ID)
+        )
+      ) {
+        throw new Error('tokenProgramId must be SPL Token or Token-2022');
+      }
+      const ixs = await getCloseSwigTokenAccountInstructions(
+        swig,
+        signerRoleId,
+        {
+          destination,
+          tokenProgram: program,
+          tokenAccounts: tokenAccountAddresses.map(
+            (address) => new PublicKey(address),
+          ),
+        },
+      );
+      const signature = await sendTx(conn, ixs, [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              closed: tokenAccountAddresses,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'reserve_wallet_address',
+    {
+      description:
+        'Derive a zero-cost reserved Swig wallet address and canonical activation package off-chain. This does not submit a transaction; deposit to the returned wallet address before activation if desired.',
+      inputSchema: z.object({
+        authorityType: z
+          .enum(['ed25519', 'secp256k1', 'secp256r1'])
+          .default('ed25519'),
+        authorityPublicKey: z
+          .string()
+          .optional()
+          .describe(
+            'Ed25519 base58 key or compressed SEC1 hex key. Defaults to the configured agent Ed25519 key.',
+          ),
+        saltHex: z
+          .string()
+          .optional()
+          .describe('Optional 32-byte hex salt; random when omitted.'),
+      }),
+    },
+    async ({ authorityType, authorityPublicKey, saltHex }) => {
+      const authority = authorityPublicKey
+        ? authorityType === 'ed25519'
+          ? new PublicKey(authorityPublicKey).toBuffer()
+          : parseHex(authorityPublicKey, 'authorityPublicKey')
+        : authorityType === 'ed25519'
+          ? getAgentKeypair().publicKey.toBuffer()
+          : (() => {
+              throw new Error(
+                'A compressed SEC1 public key is required for secp authorities',
+              );
+            })();
+      const salt = saltHex ? parseHex(saltHex, 'saltHex') : randomBytes(32);
+      const reservation = createReservationPackage({
+        salt,
+        authorityType,
+        authority,
+      });
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              configAddress: reservation.config.toBase58(),
+              walletAddress: reservation.wallet.toBase58(),
+              authorityType,
+              authorityPublicKey:
+                authorityType === 'ed25519'
+                  ? new PublicKey(authority).toBase58()
+                  : authority.toString('hex'),
+              saltHex: salt.toString('hex'),
+              packageHex: reservation.package.toString('hex'),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'activate_reserved_wallet',
+    {
+      description:
+        'Activate a previously derived reserved Swig wallet using its canonical package. The configured agent keypair pays rent; the initial authority comes from the package.',
+      inputSchema: z.object({ packageHex: z.string() }),
+    },
+    async ({ packageHex }) => {
+      const conn = getConnection();
+      const payer = getAgentKeypair();
+      const reservation = reservationFromPackage(
+        parseHex(packageHex, 'packageHex'),
+      );
+      const ix = createReservedWalletInstruction({
+        package: reservation.package,
+        payer: payer.publicKey,
+      });
+      const signature = await sendTx(conn, [ix], [payer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              configAddress: reservation.config.toBase58(),
+              walletAddress: reservation.wallet.toBase58(),
+              authorityType: reservation.authorityType,
             }),
           },
         ],

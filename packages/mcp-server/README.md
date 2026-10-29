@@ -127,7 +127,7 @@ swig-mcp-server --http       Start as Streamable HTTP server
 
 ## Tools
 
-The server exposes 18 tools grouped into three categories.
+The server exposes 28 tools grouped into three categories.
 
 ### Configuration
 
@@ -144,27 +144,37 @@ These tools set up the server's runtime state. Call `configure_rpc` first.
 
 ### Wallet management
 
-| Tool                               | Description                                                                                                 |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `create_swig_wallet`               | Create a new Swig smart wallet on-chain with a root authority and permissions                               |
-| `fetch_swig_wallet`                | Fetch a Swig wallet's details — account version, wallet address, and all roles/authorities                  |
-| `add_authority`                    | Add a new authority to a wallet with specific permissions (Ed25519, Secp256k1, Secp256r1, or session-based) |
-| `remove_authority`                 | Remove an authority by role ID                                                                              |
-| `update_authority`                 | Update an authority's permissions (replace all, add actions, remove by type, or remove by index)            |
-| `replace_ed25519_authority`        | Replace one Ed25519 role signer while preserving its permissions                                            |
-| `set_rent_claimer`                 | Set the immutable rent claimer on a V2 wallet                                                               |
-| `create_v2_sub_account`            | Create a V2 sub-account with the next on-chain ID                                                           |
-| `toggle_v2_sub_account`            | Enable or disable one V2 sub-account                                                                        |
-| `withdraw_sol_from_v2_sub_account` | Withdraw SOL from a V2 sub-account into its parent wallet                                                   |
+| Tool                                 | Description                                                                                                 |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `create_swig_wallet`                 | Create a new Swig smart wallet on-chain with a root authority and permissions                               |
+| `reserve_wallet_address`             | Derive a deterministic reserved V2 wallet address and activation package off-chain                          |
+| `activate_reserved_wallet`           | Activate a reserved wallet after its address is funded                                                      |
+| `fetch_swig_wallet`                  | Fetch a Swig wallet's details — account version, wallet address, and all roles/authorities                  |
+| `add_authority`                      | Add a new authority to a wallet with specific permissions (Ed25519, Secp256k1, Secp256r1, or session-based) |
+| `remove_authority`                   | Remove an authority by role ID                                                                              |
+| `update_authority`                   | Update an authority's permissions (replace all, add actions, remove by type, or remove by index)            |
+| `replace_ed25519_authority`          | Replace one Ed25519 role signer while preserving its permissions                                            |
+| `set_rent_claimer`                   | Set the immutable rent claimer on a V2 wallet                                                               |
+| `create_v2_sub_account`              | Create a V2 sub-account with the next on-chain ID                                                           |
+| `fetch_v2_sub_account`               | Fetch V2 state, asset address, and enabled status                                                           |
+| `toggle_v2_sub_account`              | Enable or disable one V2 sub-account                                                                        |
+| `withdraw_sol_from_v2_sub_account`   | Withdraw SOL from a V2 sub-account into its parent wallet                                                   |
+| `withdraw_token_from_v2_sub_account` | Withdraw SPL Token or Token-2022 assets from a V2 sub-account into a parent wallet token account            |
+| `close_v1_sub_account`               | Close a disabled V1 sub-account and return its SOL to the parent wallet                                     |
+| `close_v2_sub_account`               | Close a disabled V2 sub-account and return its SOL to the parent wallet                                     |
+| `close_swig_token_accounts`          | Close empty token accounts owned by a Swig wallet                                                           |
+| `close_swig_wallet`                  | Close an empty Swig wallet and send rent to its configured rent claimer                                     |
 
 For `add_authority`, the `newAuthorityPubkey` format depends on `authorityType`: use Base58 for `ed25519` and `ed25519Session`, a hex-encoded SEC1 public key for `secp256k1`, and a compressed hex-encoded P-256 public key for `secp256r1`.
 
 ### Transactions
 
-| Tool                    | Description                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| `transact_sol_transfer` | Transfer SOL from the Swig wallet to a recipient                                     |
-| `transact_custom`       | Execute any arbitrary instruction through the Swig wallet (the wallet is the signer) |
+| Tool                               | Description                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------ |
+| `transact_sol_transfer`            | Transfer SOL from the Swig wallet to a recipient                                     |
+| `transact_custom`                  | Execute any arbitrary instruction through the Swig wallet (the wallet is the signer) |
+| `transfer_sol_from_v2_sub_account` | Transfer SOL from a V2 sub-account to a recipient through V2 signing                 |
+| `transact_v2_sub_account`          | Execute one or more instructions with a V2 sub-account asset PDA as signer           |
 
 ## Gas / fee handling
 
@@ -224,7 +234,21 @@ Example:
 
 `rentDestination` was removed from the Swig protocol. Rent routing uses `set_rent_claimer` on V2 wallets.
 
-The MCP currently exposes the existing wallet operations plus Ed25519 signer replacement, rent claimer setup, and V2 sub-account creation, toggle, and SOL withdrawal. V2 sub-account signing, token withdrawal, and reserved wallet creation are not yet MCP tools, though their permission types can be encoded and decoded.
+The V2 sub-account tools cover the current create, toggle, sign, withdraw, and close instructions. A scoped role can use `subAccountV2Sign`, `subAccountV2Withdraw`, or `subAccountV2Toggle` for a single sub-account. `transact_v2_sub_account` accepts an array of instructions and uses the V2 asset PDA as the inner signer. Disable a sub-account before closing it, then drain any excess SOL and token balances before closing the parent wallet. If a rent claimer is configured, close tools use that address as the rent destination.
+
+`reserve_wallet_address` accepts an Ed25519 base58 public key or a compressed secp256k1/secp256r1 public key in hex, and returns an activation package. `activate_reserved_wallet` submits that package on-chain. The payer needs enough SOL for rent and transaction fees; the package's authority does not need to sign activation.
+
+### Local Surfpool verification
+
+After building the MCP server, run the optional on-chain smoke test against a loopback Surfpool instance. It exercises reserved-wallet activation, scoped V2 permissions, signing, SOL and token withdrawals, and close flows. The script refuses a non-loopback or non-Surfpool RPC.
+
+```bash
+SWIG_SURFPOOL_RPC_URL=http://127.0.0.1:18899 \
+  SWIG_PROGRAM_SO=/path/to/swig.so \
+  bun run --cwd packages/mcp-server test:surfpool
+```
+
+`SWIG_PROGRAM_SO` is optional when the desired Swig program is already loaded into Surfpool.
 
 ## Deployment
 

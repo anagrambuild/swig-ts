@@ -84,6 +84,20 @@ describe('wallet MCP transports', () => {
       expect(tools.tools.map((tool) => tool.name)).toContain(
         'withdraw_sol_from_v2_sub_account',
       );
+      for (const name of [
+        'fetch_v2_sub_account',
+        'transact_v2_sub_account',
+        'transfer_sol_from_v2_sub_account',
+        'withdraw_token_from_v2_sub_account',
+        'close_v1_sub_account',
+        'close_v2_sub_account',
+        'close_swig_wallet',
+        'close_swig_token_accounts',
+        'reserve_wallet_address',
+        'activate_reserved_wallet',
+      ]) {
+        expect(tools.tools.map((tool) => tool.name)).toContain(name);
+      }
     } finally {
       await client.close();
     }
@@ -131,7 +145,7 @@ describe('wallet MCP transports', () => {
         expect(client.getProtocolEra()).toBe(
           typeof mode === 'string' ? 'legacy' : 'modern',
         );
-        expect((await client.listTools()).tools.length).toBe(18);
+        expect((await client.listTools()).tools.length).toBe(28);
       } finally {
         await client.close();
       }
