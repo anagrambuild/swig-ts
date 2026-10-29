@@ -105,9 +105,29 @@ export type ActionPayload =
   | {
       permission: Permission.CloseSwigAuthority;
     }
+  | { permission: Permission.ReplaceAuthority; data: { roleId: number } }
+  | { permission: Permission.SubAccountV2Create }
   | {
-      permission: Permission.RentDestination;
+      permission:
+        | Permission.SubAccountV2All
+        | Permission.SubAccountV2Sign
+        | Permission.SubAccountV2Withdraw
+        | Permission.SubAccountV2Toggle;
+      data: { subAccountId: number };
     };
+
+function decodeScopedU32(data: Uint8Array): number {
+  if (
+    data.length !== 8 ||
+    data.some((value, index) => index >= 4 && value !== 0)
+  ) {
+    throw new Error('Invalid scoped permission data');
+  }
+  return new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(
+    0,
+    true,
+  );
+}
 
 export function isActionPayload<P extends ActionPayload['permission']>(
   permission: P,
@@ -206,8 +226,22 @@ export function decodeActionPayload(
     return { permission };
   }
 
-  if (permission === Permission.RentDestination) {
+  if (permission === Permission.ReplaceAuthority) {
+    return { permission, data: { roleId: decodeScopedU32(data) } };
+  }
+
+  if (permission === Permission.SubAccountV2Create) {
+    if (data.length !== 0) throw new Error('Invalid V2 create permission data');
     return { permission };
+  }
+
+  if (
+    permission === Permission.SubAccountV2All ||
+    permission === Permission.SubAccountV2Sign ||
+    permission === Permission.SubAccountV2Withdraw ||
+    permission === Permission.SubAccountV2Toggle
+  ) {
+    return { permission, data: { subAccountId: decodeScopedU32(data) } };
   }
 
   throw new Error('Invalid Permission');

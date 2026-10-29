@@ -1,7 +1,11 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-// StreamableHTTP and node:http are imported dynamically in startHttp() to
-// avoid bundle issues with node builtins in ESM output.
+import {
+  localhostHostValidation,
+  localhostOriginValidation,
+  toNodeHandler,
+} from '@modelcontextprotocol/node';
+import { McpServer, createMcpHandler } from '@modelcontextprotocol/server';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
   Connection,
   Keypair,
@@ -9,19 +13,25 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  TransactionInstruction,
   sendAndConfirmTransaction,
 } from '@solana/web3.js';
 import type { Role } from '@swig-wallet/classic';
 import {
   Actions,
+  AuthorityType,
   Permission,
+  SWIG_PROGRAM_ADDRESS,
   createEd25519AuthorityInfo,
   createEd25519SessionAuthorityInfo,
   createSecp256k1AuthorityInfo,
   createSecp256r1AuthorityInfo,
   fetchSwig,
   findSwigPda,
+  findSwigSubAccountPda,
   getAddAuthorityInstructions,
+  getCloseSwigInstructions,
+  getCloseSwigTokenAccountInstructions,
   getCreateSwigInstruction,
   getRemoveAuthorityInstructions,
   getSignInstructions,
@@ -32,7 +42,25 @@ import {
   updateAuthorityRemoveByType,
   updateAuthorityReplaceAllActions,
 } from '@swig-wallet/classic';
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
+import { appendRentClaimer, requireNoTokenAccounts } from './accounts';
+import {
+  closeV1SubAccountInstruction,
+  closeV2SubAccountInstruction,
+  createReservationPackage,
+  createReservedWalletInstruction,
+  createV2SubAccountInstruction,
+  deriveV2SubAccountAddresses,
+  parseHex,
+  readSwigTail,
+  replaceEd25519AuthorityInstruction,
+  reservationFromPackage,
+  setRentClaimerInstruction,
+  signV2SubAccountInstruction,
+  toggleV2SubAccountInstruction,
+  withdrawSolFromV2SubAccountInstruction,
+} from './protocol';
 
 // ---------------------------------------------------------------------------
 // State
@@ -67,9 +95,22 @@ function getAgentKeypair(): Keypair {
 // Helpers
 // ---------------------------------------------------------------------------
 
+function permissionU32(perm: Record<string, unknown>, field: string): number {
+  const value = perm[field];
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < 0 ||
+    value > 0xffffffff
+  ) {
+    throw new Error(`${field} must be a u32 number`);
+  }
+  return value;
+}
+
 function buildActions(
   permissions: Array<Record<string, unknown>>,
-): ReturnType<typeof Actions.set> extends infer B ? B : never {
+): ReturnType<typeof Actions.set> {
   let builder = Actions.set();
 
   for (const perm of permissions) {
@@ -88,7 +129,36 @@ function buildActions(
         builder = builder.closeSwigAuthority();
         break;
       case 'rentDestination':
-        builder = builder.rentDestination();
+        throw new Error(
+          'rentDestination is not a permission in the current Swig protocol',
+        );
+      case 'replaceAuthority':
+        builder = builder.replaceAuthority({
+          roleId: permissionU32(perm, 'roleId'),
+        });
+        break;
+      case 'subAccountV2Create':
+        builder = builder.subAccountV2Create();
+        break;
+      case 'subAccountV2All':
+        builder = builder.subAccountV2All({
+          subAccountId: permissionU32(perm, 'subAccountId'),
+        });
+        break;
+      case 'subAccountV2Sign':
+        builder = builder.subAccountV2Sign({
+          subAccountId: permissionU32(perm, 'subAccountId'),
+        });
+        break;
+      case 'subAccountV2Withdraw':
+        builder = builder.subAccountV2Withdraw({
+          subAccountId: permissionU32(perm, 'subAccountId'),
+        });
+        break;
+      case 'subAccountV2Toggle':
+        builder = builder.subAccountV2Toggle({
+          subAccountId: permissionU32(perm, 'subAccountId'),
+        });
         break;
       case 'solLimit':
         builder = builder.solLimit({ amount: BigInt(perm.amount as string) });
@@ -145,7 +215,7 @@ function buildActions(
     }
   }
 
-  return builder as any;
+  return builder;
 }
 
 function serializeRole(role: Role) {
@@ -157,6 +227,60 @@ function serializeRole(role: Role) {
     canSpendSolMax: role.actions.canSpendSolMax(),
     solSpendLimit: role.actions.solSpendLimit()?.toString() ?? null,
     hasProgramAction: role.actions.hasProgramAction(),
+  };
+}
+
+function requireActingEd25519Role(
+  swig: Awaited<ReturnType<typeof fetchSwig>>,
+  signer: PublicKey,
+  roleId: number,
+): Role {
+  const role = swig
+    .findRolesByEd25519SignerPk(signer)
+    .find((candidate) => candidate.id === roleId);
+  if (!role) {
+    throw new Error('Agent keypair does not match the acting Ed25519 role');
+  }
+  return role;
+}
+
+async function swigTail(
+  conn: Connection,
+  address: PublicKey,
+): Promise<ReturnType<typeof readSwigTail>> {
+  const account = await conn.getAccountInfo(address);
+  if (!account || !account.owner.equals(SWIG_PROGRAM_ADDRESS)) {
+    throw new Error('Swig config account not found');
+  }
+  return readSwigTail(account.data);
+}
+
+async function fetchV2SubAccountState(
+  conn: Connection,
+  swig: PublicKey,
+  subAccountId: number,
+): Promise<{
+  state: PublicKey;
+  asset: PublicKey;
+  enabled: boolean;
+}> {
+  const addresses = deriveV2SubAccountAddresses(swig, subAccountId);
+  const account = await conn.getAccountInfo(addresses.state);
+  if (
+    !account ||
+    !account.owner.equals(SWIG_PROGRAM_ADDRESS) ||
+    account.data.length !== 72 ||
+    account.data[0] !== 3 ||
+    account.data.readUInt32LE(4) !== subAccountId ||
+    !account.data.subarray(8, 40).equals(swig.toBuffer()) ||
+    !account.data.subarray(40, 72).equals(addresses.asset.toBuffer()) ||
+    ![0, 1].includes(account.data[3])
+  ) {
+    throw new Error('V2 sub-account state is missing or invalid');
+  }
+  return {
+    ...addresses,
+    enabled: account.data[3] === 1,
   };
 }
 
@@ -228,23 +352,27 @@ async function sendTx(
 function registerAllTools(server: McpServer) {
   // ---- Configuration Tools ----
 
-  server.tool(
+  server.registerTool(
     'configure_rpc',
-    'Configure the Solana RPC endpoint. Call this before any other tool.',
     {
-      rpcUrl: z
-        .string()
-        .describe(
-          'Solana RPC URL (e.g. https://api.devnet.solana.com, https://api.mainnet-beta.solana.com, or a custom RPC)',
-        ),
-      commitment: z
-        .enum(['processed', 'confirmed', 'finalized'])
-        .default('confirmed')
-        .describe('Commitment level for transactions'),
+      description:
+        'Configure the Solana RPC endpoint. Call this before any other tool.',
+      inputSchema: z.object({
+        rpcUrl: z
+          .string()
+          .describe(
+            'Solana RPC URL (e.g. https://api.devnet.solana.com, https://api.mainnet-beta.solana.com, or a custom RPC)',
+          ),
+        commitment: z
+          .enum(['processed', 'confirmed', 'finalized'])
+          .default('confirmed')
+          .describe('Commitment level for transactions'),
+      }),
     },
     async ({ rpcUrl, commitment }) => {
-      connection = new Connection(rpcUrl, commitment);
-      const version = await connection.getVersion();
+      const nextConnection = new Connection(rpcUrl, commitment);
+      const version = await nextConnection.getVersion();
+      connection = nextConnection;
       return {
         content: [
           {
@@ -256,17 +384,22 @@ function registerAllTools(server: McpServer) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'configure_paymaster',
-    'Configure Swig Paymaster for gasless transactions. Get credentials from dashboard.onswig.com.',
     {
-      apiKey: z
-        .string()
-        .describe('Paymaster API key from dashboard.onswig.com'),
-      paymasterPubkey: z
-        .string()
-        .describe('Paymaster public key from dashboard.onswig.com'),
-      network: z.enum(['mainnet', 'devnet']).describe('Solana network to use'),
+      description:
+        'Configure Swig Paymaster for gasless transactions. Get credentials from dashboard.onswig.com.',
+      inputSchema: z.object({
+        apiKey: z
+          .string()
+          .describe('Paymaster API key from dashboard.onswig.com'),
+        paymasterPubkey: z
+          .string()
+          .describe('Paymaster public key from dashboard.onswig.com'),
+        network: z
+          .enum(['mainnet', 'devnet'])
+          .describe('Solana network to use'),
+      }),
     },
     async ({ apiKey, paymasterPubkey, network }) => {
       paymasterConfig = { apiKey, pubkey: paymasterPubkey, network };
@@ -282,15 +415,18 @@ function registerAllTools(server: McpServer) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'configure_gas_sponsor',
-    'Configure a custom gas sponsorship server URL for fee-sponsored transactions.',
     {
-      sponsorUrl: z
-        .string()
-        .describe(
-          'URL of the gas sponsorship server (e.g. https://myserver.com/api)',
-        ),
+      description:
+        'Configure a custom gas sponsorship server URL for fee-sponsored transactions.',
+      inputSchema: z.object({
+        sponsorUrl: z
+          .string()
+          .describe(
+            'URL of the gas sponsorship server (e.g. https://myserver.com/api)',
+          ),
+      }),
     },
     async ({ sponsorUrl }) => {
       gasSponsorUrl = sponsorUrl;
@@ -306,28 +442,34 @@ function registerAllTools(server: McpServer) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'generate_agent_keypair',
-    'Generate a new Ed25519 keypair for the agent. Returns the public key. The user must fund this address with SOL before transactions can be sent.',
     {
-      saveToFile: z
-        .string()
-        .optional()
-        .describe(
-          'Optional file path to save the keypair JSON (e.g. agent-keypair.json)',
-        ),
+      description:
+        'Generate a new Ed25519 keypair for the agent. Returns the public key. The user must fund this address with SOL before transactions can be sent.',
+      inputSchema: z.object({
+        saveToFile: z
+          .string()
+          .optional()
+          .describe(
+            'Optional file path to save the keypair JSON (e.g. agent-keypair.json)',
+          ),
+      }),
     },
     async ({ saveToFile }) => {
-      agentKeypair = Keypair.generate();
-      const pubkey = agentKeypair.publicKey.toBase58();
+      const nextKeypair = Keypair.generate();
+      const pubkey = nextKeypair.publicKey.toBase58();
 
       if (saveToFile) {
         const fs = await import('fs');
         fs.writeFileSync(
           saveToFile,
-          JSON.stringify(Array.from(agentKeypair.secretKey)),
+          JSON.stringify(Array.from(nextKeypair.secretKey)),
+          { mode: 0o600, flag: 'wx' },
         );
       }
+
+      agentKeypair = nextKeypair;
 
       return {
         content: [
@@ -340,16 +482,19 @@ function registerAllTools(server: McpServer) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'configure_agent_keypair',
-    'Load an existing keypair for the agent from a JSON file or base58 secret key.',
     {
-      secretKeyJson: z
-        .string()
-        .optional()
-        .describe(
-          'Path to a keypair JSON file (array of numbers), or a base58-encoded secret key',
-        ),
+      description:
+        'Load an existing keypair for the agent from a JSON file or base58 secret key.',
+      inputSchema: z.object({
+        secretKeyJson: z
+          .string()
+          .optional()
+          .describe(
+            'Path to a keypair JSON file (array of numbers), or a base58-encoded secret key',
+          ),
+      }),
     },
     async ({ secretKeyJson }) => {
       if (!secretKeyJson) {
@@ -388,16 +533,18 @@ function registerAllTools(server: McpServer) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'get_balance',
-    'Get the SOL balance of an address.',
     {
-      address: z
-        .string()
-        .optional()
-        .describe(
-          'Base58 public key to check. Defaults to the agent keypair if not provided.',
-        ),
+      description: 'Get the SOL balance of an address.',
+      inputSchema: z.object({
+        address: z
+          .string()
+          .optional()
+          .describe(
+            'Base58 public key to check. Defaults to the agent keypair if not provided.',
+          ),
+      }),
     },
     async ({ address }) => {
       const conn = getConnection();
@@ -418,22 +565,25 @@ function registerAllTools(server: McpServer) {
 
   // ---- Wallet Creation ----
 
-  server.tool(
+  server.registerTool(
     'create_swig_wallet',
-    'Create a new Swig smart wallet on Solana. Returns the Swig account address and wallet address.',
     {
-      ownerPubkey: z
-        .string()
-        .optional()
-        .describe(
-          'Base58 public key of the root authority. Defaults to the agent keypair.',
-        ),
-      permissions: z
-        .array(z.record(z.unknown()))
-        .optional()
-        .describe(
-          'Array of permission objects for the root authority. Defaults to [{type:"all"}] (full control). Each object needs a "type" field and type-specific params.',
-        ),
+      description:
+        'Create a new Swig smart wallet on Solana. Returns the Swig account address and wallet address.',
+      inputSchema: z.object({
+        ownerPubkey: z
+          .string()
+          .optional()
+          .describe(
+            'Base58 public key of the root authority. Defaults to the agent keypair.',
+          ),
+        permissions: z
+          .array(z.record(z.string(), z.unknown()))
+          .optional()
+          .describe(
+            'Array of permission objects for the root authority. Defaults to [{type:"all"}] (full control). Each object needs a "type" field and type-specific params.',
+          ),
+      }),
     },
     async ({ ownerPubkey, permissions }) => {
       const conn = getConnection();
@@ -486,18 +636,23 @@ function registerAllTools(server: McpServer) {
 
   // ---- Fetch Wallet ----
 
-  server.tool(
+  server.registerTool(
     'fetch_swig_wallet',
-    'Fetch a Swig wallet and return its details including all roles/authorities.',
     {
-      swigAccountAddress: z
-        .string()
-        .describe('Base58 address of the Swig account'),
+      description:
+        'Fetch a Swig wallet and return its details including all roles/authorities.',
+      inputSchema: z.object({
+        swigAccountAddress: z
+          .string()
+          .describe('Base58 address of the Swig account'),
+      }),
     },
     async ({ swigAccountAddress }) => {
       const conn = getConnection();
-      const swig = await fetchSwig(conn, new PublicKey(swigAccountAddress));
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
       const walletAddress = await getSwigWalletAddress(swig);
+      const tail = await swigTail(conn, swigAddress);
 
       return {
         content: [
@@ -508,6 +663,9 @@ function registerAllTools(server: McpServer) {
                 swigAccountAddress,
                 swigWalletAddress: walletAddress.toBase58(),
                 accountVersion: swig.accountVersion(),
+                subAccountV2Counter: swig.subAccountV2Counter(),
+                activeSubAccountCount: tail.activeSubAccountCount,
+                rentClaimer: tail.rentClaimer?.toBase58() ?? null,
                 rolesCount: swig.roles.length,
                 roles: swig.roles.map(serializeRole),
               },
@@ -522,39 +680,42 @@ function registerAllTools(server: McpServer) {
 
   // ---- Add Authority ----
 
-  server.tool(
+  server.registerTool(
     'add_authority',
-    'Add a new authority (keypair/key) to a Swig wallet with specific permissions.',
     {
-      swigAccountAddress: z
-        .string()
-        .describe('Base58 address of the Swig account'),
-      signerRoleId: z
-        .number()
-        .optional()
-        .describe(
-          'Role ID of the signing authority (must have manageAuthority permission). Auto-detected if omitted.',
-        ),
-      newAuthorityPubkey: z
-        .string()
-        .describe(
-          'Authority public key. Use Base58 for ed25519/ed25519Session, hex-encoded SEC1 public key for secp256k1, and compressed hex-encoded P-256 public key for secp256r1.',
-        ),
-      authorityType: z
-        .enum(['ed25519', 'ed25519Session', 'secp256k1', 'secp256r1'])
-        .default('ed25519')
-        .describe('Type of authority to add'),
-      maxSessionDuration: z
-        .string()
-        .optional()
-        .describe(
-          'Max session duration in slots (only for session-based authority types)',
-        ),
-      permissions: z
-        .array(z.record(z.unknown()))
-        .describe(
-          'Array of permission objects. Each needs a "type" field. Examples: [{type:"solLimit",amount:"100000000"}], [{type:"all"}], [{type:"programLimit",programId:"..."}]',
-        ),
+      description:
+        'Add a new authority (keypair/key) to a Swig wallet with specific permissions.',
+      inputSchema: z.object({
+        swigAccountAddress: z
+          .string()
+          .describe('Base58 address of the Swig account'),
+        signerRoleId: z
+          .number()
+          .optional()
+          .describe(
+            'Role ID of the signing authority (must have manageAuthority permission). Auto-detected if omitted.',
+          ),
+        newAuthorityPubkey: z
+          .string()
+          .describe(
+            'Authority public key. Use Base58 for ed25519/ed25519Session, hex-encoded SEC1 public key for secp256k1, and compressed hex-encoded P-256 public key for secp256r1.',
+          ),
+        authorityType: z
+          .enum(['ed25519', 'ed25519Session', 'secp256k1', 'secp256r1'])
+          .default('ed25519')
+          .describe('Type of authority to add'),
+        maxSessionDuration: z
+          .string()
+          .optional()
+          .describe(
+            'Max session duration in slots (only for session-based authority types)',
+          ),
+        permissions: z
+          .array(z.record(z.string(), z.unknown()))
+          .describe(
+            'Array of permission objects. Each needs a "type" field. Examples: [{type:"solLimit",amount:"100000000"}], [{type:"all"}], [{type:"programLimit",programId:"..."}]',
+          ),
+      }),
     },
     async ({
       swigAccountAddress,
@@ -639,20 +800,24 @@ function registerAllTools(server: McpServer) {
 
   // ---- Remove Authority ----
 
-  server.tool(
+  server.registerTool(
     'remove_authority',
-    'Remove an authority from a Swig wallet.',
     {
-      swigAccountAddress: z
-        .string()
-        .describe('Base58 address of the Swig account'),
-      signerRoleId: z
-        .number()
-        .optional()
-        .describe(
-          'Role ID of the signing authority. Auto-detected if omitted.',
-        ),
-      roleIdToRemove: z.number().describe('Role ID of the authority to remove'),
+      description: 'Remove an authority from a Swig wallet.',
+      inputSchema: z.object({
+        swigAccountAddress: z
+          .string()
+          .describe('Base58 address of the Swig account'),
+        signerRoleId: z
+          .number()
+          .optional()
+          .describe(
+            'Role ID of the signing authority. Auto-detected if omitted.',
+          ),
+        roleIdToRemove: z
+          .number()
+          .describe('Role ID of the authority to remove'),
+      }),
     },
     async ({ swigAccountAddress, signerRoleId, roleIdToRemove }) => {
       const conn = getConnection();
@@ -678,6 +843,10 @@ function registerAllTools(server: McpServer) {
         roleId,
         roleIdToRemove,
       );
+      appendRentClaimer(
+        ixs,
+        (await swigTail(conn, new PublicKey(swigAccountAddress))).rentClaimer,
+      );
 
       const signature = await sendTx(conn, ixs, [signer]);
 
@@ -698,39 +867,46 @@ function registerAllTools(server: McpServer) {
 
   // ---- Update Authority ----
 
-  server.tool(
+  server.registerTool(
     'update_authority',
-    'Update the permissions of an existing authority on a Swig wallet.',
     {
-      swigAccountAddress: z
-        .string()
-        .describe('Base58 address of the Swig account'),
-      signerRoleId: z
-        .number()
-        .optional()
-        .describe(
-          'Role ID of the signing authority. Auto-detected if omitted.',
-        ),
-      roleIdToUpdate: z.number().describe('Role ID of the authority to update'),
-      updateKind: z
-        .enum(['replaceAll', 'addActions', 'removeByType', 'removeByIndex'])
-        .describe('How to update the permissions'),
-      permissions: z
-        .array(z.record(z.unknown()))
-        .optional()
-        .describe(
-          'Permission objects for replaceAll or addActions update kinds.',
-        ),
-      removeTypes: z
-        .array(z.string())
-        .optional()
-        .describe(
-          'Permission type names to remove (for removeByType). E.g. ["SolLimit", "TokenLimit"]',
-        ),
-      removeIndices: z
-        .array(z.number())
-        .optional()
-        .describe('Action indices to remove (for removeByIndex). E.g. [0, 2]'),
+      description:
+        'Update the permissions of an existing authority on a Swig wallet.',
+      inputSchema: z.object({
+        swigAccountAddress: z
+          .string()
+          .describe('Base58 address of the Swig account'),
+        signerRoleId: z
+          .number()
+          .optional()
+          .describe(
+            'Role ID of the signing authority. Auto-detected if omitted.',
+          ),
+        roleIdToUpdate: z
+          .number()
+          .describe('Role ID of the authority to update'),
+        updateKind: z
+          .enum(['replaceAll', 'addActions', 'removeByType', 'removeByIndex'])
+          .describe('How to update the permissions'),
+        permissions: z
+          .array(z.record(z.string(), z.unknown()))
+          .optional()
+          .describe(
+            'Permission objects for replaceAll or addActions update kinds.',
+          ),
+        removeTypes: z
+          .array(z.string())
+          .optional()
+          .describe(
+            'Permission type names to remove (for removeByType). E.g. ["SolLimit", "TokenLimit"]',
+          ),
+        removeIndices: z
+          .array(z.number())
+          .optional()
+          .describe(
+            'Action indices to remove (for removeByIndex). E.g. [0, 2]',
+          ),
+      }),
     },
     async ({
       swigAccountAddress,
@@ -778,8 +954,13 @@ function registerAllTools(server: McpServer) {
         case 'removeByType': {
           if (!removeTypes) throw new Error('removeTypes required');
           const permissionEnums = removeTypes.map((t) => {
+            if (t === 'RentDestination') {
+              throw new Error(
+                'RentDestination is not a permission in the current Swig protocol',
+              );
+            }
             const val = Permission[t as keyof typeof Permission];
-            if (val === undefined)
+            if (typeof val !== 'number')
               throw new Error(`Unknown permission type: ${t}`);
             return val;
           });
@@ -797,6 +978,10 @@ function registerAllTools(server: McpServer) {
         roleId,
         roleIdToUpdate,
         updateInfo,
+      );
+      appendRentClaimer(
+        ixs,
+        (await swigTail(conn, new PublicKey(swigAccountAddress))).rentClaimer,
       );
 
       const signature = await sendTx(conn, ixs, [signer]);
@@ -821,27 +1006,910 @@ function registerAllTools(server: McpServer) {
     },
   );
 
+  server.registerTool(
+    'replace_ed25519_authority',
+    {
+      description:
+        'Replace the Ed25519 signer of an existing role without changing its permissions. The acting role needs All, ManageAuthority, or ReplaceAuthority scoped to the target role.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string().describe('Base58 Swig config account'),
+        signerRoleId: z
+          .number()
+          .int()
+          .min(0)
+          .describe('Acting Ed25519 role ID'),
+        targetRoleId: z
+          .number()
+          .int()
+          .min(0)
+          .describe('Role whose signer will be replaced'),
+        newSignerPubkey: z.string().describe('New Ed25519 public key'),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      targetRoleId,
+      newSignerPubkey,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      const actingRole = swig
+        .findRolesByEd25519SignerPk(signer.publicKey)
+        .find((role) => role.id === signerRoleId);
+      if (!actingRole)
+        throw new Error('Agent keypair does not match the acting Ed25519 role');
+      const targetRole = swig.findRoleById(targetRoleId);
+      if (!targetRole) throw new Error('Target role not found');
+      if (targetRole.authorityType !== AuthorityType.Ed25519)
+        throw new Error('Target role must be Ed25519');
+      const ix = replaceEd25519AuthorityInstruction({
+        swig: swigAddress,
+        signer: signer.publicKey,
+        actingRoleId: signerRoleId,
+        targetRoleId,
+        newSigner: new PublicKey(newSignerPubkey),
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              targetRoleId,
+              newSignerPubkey,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'set_rent_claimer',
+    {
+      description:
+        'Set the immutable rent claimer on a V2 Swig wallet. The acting Ed25519 role needs All or CloseSwigAuthority.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string().describe('Base58 Swig config account'),
+        signerRoleId: z
+          .number()
+          .int()
+          .min(0)
+          .describe('Acting Ed25519 role ID'),
+        rentClaimer: z
+          .string()
+          .describe('Base58 account that will receive reclaimed rent'),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId, rentClaimer }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2')
+        throw new Error('SetRentClaimerV1 requires a V2 Swig wallet');
+      const actingRole = swig
+        .findRolesByEd25519SignerPk(signer.publicKey)
+        .find((role) => role.id === signerRoleId);
+      if (!actingRole)
+        throw new Error('Agent keypair does not match the acting Ed25519 role');
+      const ix = setRentClaimerInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        roleId: signerRoleId,
+        rentClaimer: new PublicKey(rentClaimer),
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({ success: true, signature, rentClaimer }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'create_v2_sub_account',
+    {
+      description:
+        'Create a V2 sub-account. The acting Ed25519 role needs SubAccountV2Create; All alone does not grant creation. The creator receives SubAccountV2All for the new ID.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string().describe('Base58 Swig config account'),
+        signerRoleId: z
+          .number()
+          .int()
+          .min(0)
+          .describe('Acting Ed25519 role ID'),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2')
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      const actingRole = swig
+        .findRolesByEd25519SignerPk(signer.publicKey)
+        .find((role) => role.id === signerRoleId);
+      if (!actingRole)
+        throw new Error('Agent keypair does not match the acting Ed25519 role');
+      const subAccountId = swig.subAccountV2Counter();
+      if (subAccountId === null)
+        throw new Error('V2 sub-account counter unavailable');
+      const addresses = deriveV2SubAccountAddresses(swigAddress, subAccountId);
+      const ix = createV2SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        roleId: signerRoleId,
+        subAccountId,
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              stateAddress: addresses.state.toBase58(),
+              assetAddress: addresses.asset.toBase58(),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'toggle_v2_sub_account',
+    {
+      description:
+        'Enable or disable a V2 sub-account. The acting Ed25519 role needs SubAccountV2Toggle or SubAccountV2All scoped to this ID.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string().describe('Base58 Swig config account'),
+        signerRoleId: z
+          .number()
+          .int()
+          .min(0)
+          .describe('Acting Ed25519 role ID'),
+        subAccountId: z.number().int().min(0).describe('V2 sub-account ID'),
+        enabled: z.boolean().describe('Desired enabled state'),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId, subAccountId, enabled }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2')
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      const actingRole = swig
+        .findRolesByEd25519SignerPk(signer.publicKey)
+        .find((role) => role.id === signerRoleId);
+      if (!actingRole)
+        throw new Error('Agent keypair does not match the acting Ed25519 role');
+      const ix = toggleV2SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        roleId: signerRoleId,
+        subAccountId,
+        enabled,
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              enabled,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'withdraw_sol_from_v2_sub_account',
+    {
+      description:
+        'Withdraw SOL from one V2 sub-account into its parent Swig wallet address. The acting Ed25519 role needs SubAccountV2Withdraw or SubAccountV2All scoped to this ID.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string().describe('Base58 Swig config account'),
+        signerRoleId: z
+          .number()
+          .int()
+          .min(0)
+          .describe('Acting Ed25519 role ID'),
+        subAccountId: z.number().int().min(0).describe('V2 sub-account ID'),
+        amountLamports: z.string().describe('Unsigned SOL amount in lamports'),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      subAccountId,
+      amountLamports,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2')
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      const actingRole = swig
+        .findRolesByEd25519SignerPk(signer.publicKey)
+        .find((role) => role.id === signerRoleId);
+      if (!actingRole)
+        throw new Error('Agent keypair does not match the acting Ed25519 role');
+      const ix = withdrawSolFromV2SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        swigWalletAddress: await getSwigWalletAddress(swig),
+        roleId: signerRoleId,
+        subAccountId,
+        amountLamports: BigInt(amountLamports),
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              amountLamports,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'fetch_v2_sub_account',
+    {
+      description: 'Read the canonical V2 sub-account state and asset balance.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+      }),
+    },
+    async ({ swigAccountAddress, subAccountId }) => {
+      const conn = getConnection();
+      const swig = new PublicKey(swigAccountAddress);
+      const state = await fetchV2SubAccountState(conn, swig, subAccountId);
+      const balanceLamports = await conn.getBalance(state.asset);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              subAccountId,
+              stateAddress: state.state.toBase58(),
+              assetAddress: state.asset.toBase58(),
+              enabled: state.enabled,
+              balanceLamports,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'transact_v2_sub_account',
+    {
+      description:
+        'Execute one or more inner instructions atomically as a V2 sub-account asset PDA. The acting Ed25519 role needs SubAccountV2Sign or SubAccountV2All scoped to this ID. Only the asset PDA may sign inner instructions.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+        instructions: z
+          .array(
+            z.object({
+              programId: z.string(),
+              accounts: z.array(
+                z.object({
+                  pubkey: z.string(),
+                  isSigner: z.boolean(),
+                  isWritable: z.boolean(),
+                }),
+              ),
+              dataHex: z.string(),
+            }),
+          )
+          .min(1)
+          .max(255),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      subAccountId,
+      instructions,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2') {
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      }
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const state = await fetchV2SubAccountState(
+        conn,
+        swigAddress,
+        subAccountId,
+      );
+      if (!state.enabled) throw new Error('V2 sub-account is disabled');
+      const innerInstructions = instructions.map(
+        ({ programId, accounts, dataHex }) =>
+          new TransactionInstruction({
+            programId: new PublicKey(programId),
+            keys: accounts.map((meta) => ({
+              pubkey: new PublicKey(meta.pubkey),
+              isSigner: meta.isSigner,
+              isWritable: meta.isWritable,
+            })),
+            data: parseHex(dataHex, 'dataHex'),
+          }),
+      );
+      const ix = signV2SubAccountInstruction({
+        swig: swigAddress,
+        signer: signer.publicKey,
+        roleId: signerRoleId,
+        subAccountId,
+        innerInstructions,
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({ success: true, signature, subAccountId }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'transfer_sol_from_v2_sub_account',
+    {
+      description:
+        'Transfer SOL from a V2 sub-account asset PDA to a recipient using SubAccountSignV2. The acting Ed25519 role needs scoped sign permission.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+        recipientAddress: z.string(),
+        amountLamports: z.string(),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      subAccountId,
+      recipientAddress,
+      amountLamports,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2') {
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      }
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const state = await fetchV2SubAccountState(
+        conn,
+        swigAddress,
+        subAccountId,
+      );
+      if (!state.enabled) throw new Error('V2 sub-account is disabled');
+      const inner = SystemProgram.transfer({
+        fromPubkey: state.asset,
+        toPubkey: new PublicKey(recipientAddress),
+        lamports: BigInt(amountLamports),
+      });
+      const ix = signV2SubAccountInstruction({
+        swig: swigAddress,
+        signer: signer.publicKey,
+        roleId: signerRoleId,
+        subAccountId,
+        innerInstructions: [inner],
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              recipientAddress,
+              amountLamports,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'withdraw_token_from_v2_sub_account',
+    {
+      description:
+        'Withdraw SPL Token or Token-2022 units from a V2 sub-account token account to a token account owned by the parent Swig wallet. The acting Ed25519 role needs scoped withdrawal permission.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+        sourceTokenAccount: z.string(),
+        destinationTokenAccount: z.string(),
+        amount: z.string(),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      subAccountId,
+      sourceTokenAccount,
+      destinationTokenAccount,
+      amount,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2') {
+        throw new Error('V2 sub-accounts require a V2 Swig wallet');
+      }
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const state = await fetchV2SubAccountState(
+        conn,
+        swigAddress,
+        subAccountId,
+      );
+      if (!state.enabled) throw new Error('V2 sub-account is disabled');
+      const wallet = await getSwigWalletAddress(swig);
+      const source = new PublicKey(sourceTokenAccount);
+      const destination = new PublicKey(destinationTokenAccount);
+      const [sourceInfo, destinationInfo] = await Promise.all([
+        conn.getAccountInfo(source),
+        conn.getAccountInfo(destination),
+      ]);
+      if (
+        !sourceInfo ||
+        !destinationInfo ||
+        sourceInfo.data.length < 165 ||
+        destinationInfo.data.length < 165 ||
+        !sourceInfo.owner.equals(destinationInfo.owner) ||
+        !(
+          sourceInfo.owner.equals(TOKEN_PROGRAM_ID) ||
+          sourceInfo.owner.equals(TOKEN_2022_PROGRAM_ID)
+        ) ||
+        !sourceInfo.data
+          .subarray(0, 32)
+          .equals(destinationInfo.data.subarray(0, 32)) ||
+        !sourceInfo.data.subarray(32, 64).equals(state.asset.toBuffer()) ||
+        !destinationInfo.data.subarray(32, 64).equals(wallet.toBuffer()) ||
+        sourceInfo.data[108] !== 1 ||
+        destinationInfo.data[108] !== 1
+      ) {
+        throw new Error(
+          'Token accounts must share a mint and be owned by the V2 asset and parent wallet',
+        );
+      }
+      const ix = withdrawSolFromV2SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        swigWalletAddress: wallet,
+        roleId: signerRoleId,
+        subAccountId,
+        amountLamports: BigInt(amount),
+        tokenAccounts: { source, destination, program: sourceInfo.owner },
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              amount,
+              mint: new PublicKey(sourceInfo.data.subarray(0, 32)).toBase58(),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'close_v1_sub_account',
+    {
+      description:
+        'Close a disabled V1 sub-account. Operational SOL returns to the parent wallet; rent returns to its configured rent claimer, if any. The acting Ed25519 role needs close authority.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        childRoleId: z.number().int().min(0).max(0xffffffff),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId, childRoleId }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2')
+        throw new Error('Sub-account closure requires a V2 parent wallet');
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const child = findSwigSubAccountPda(
+        Uint8Array.from(swig.id),
+        childRoleId,
+      );
+      await requireNoTokenAccounts(conn, child);
+      const wallet = await getSwigWalletAddress(swig);
+      const tail = await swigTail(conn, swigAddress);
+      const ix = closeV1SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        actingRoleId: signerRoleId,
+        childRoleId,
+        child,
+        wallet,
+        rentClaimer: tail.rentClaimer,
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              childRoleId,
+              childAddress: child.toBase58(),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'close_v2_sub_account',
+    {
+      description:
+        'Close a disabled V2 sub-account after all its token accounts and positions are closed. Operational SOL returns to the parent wallet; rent returns to its configured rent claimer, if any.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        subAccountId: z.number().int().min(0).max(0xffffffff),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId, subAccountId }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swigAddress = new PublicKey(swigAccountAddress);
+      const swig = await fetchSwig(conn, swigAddress);
+      if (swig.accountVersion() !== 'v2')
+        throw new Error('V2 sub-accounts require a V2 wallet');
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const state = await fetchV2SubAccountState(
+        conn,
+        swigAddress,
+        subAccountId,
+      );
+      if (state.enabled)
+        throw new Error('Disable the V2 sub-account before closing it');
+      await requireNoTokenAccounts(conn, state.asset);
+      const wallet = await getSwigWalletAddress(swig);
+      const tail = await swigTail(conn, swigAddress);
+      const ix = closeV2SubAccountInstruction({
+        swig: swigAddress,
+        payer: signer.publicKey,
+        signer: signer.publicKey,
+        actingRoleId: signerRoleId,
+        subAccountId,
+        wallet,
+        rentClaimer: tail.rentClaimer,
+      });
+      const signature = await sendTx(conn, [ix], [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              subAccountId,
+              rentClaimer: tail.rentClaimer?.toBase58() ?? null,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'close_swig_wallet',
+    {
+      description:
+        'Close an empty Swig wallet after its sub-accounts and token accounts are closed. The acting Ed25519 role needs close authority.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        destinationAddress: z.string().optional(),
+      }),
+    },
+    async ({ swigAccountAddress, signerRoleId, destinationAddress }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swig = await fetchSwig(conn, new PublicKey(swigAccountAddress));
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const tail = await swigTail(conn, new PublicKey(swigAccountAddress));
+      if (
+        tail.activeSubAccountCount !== null &&
+        tail.activeSubAccountCount > 0
+      ) {
+        throw new Error('Close all sub-accounts before closing the wallet');
+      }
+      const destination =
+        tail.rentClaimer ??
+        (destinationAddress ? new PublicKey(destinationAddress) : undefined);
+      if (!destination)
+        throw new Error(
+          'destinationAddress is required when no rent claimer is configured',
+        );
+      if (
+        destinationAddress &&
+        !destination.equals(new PublicKey(destinationAddress))
+      )
+        throw new Error(
+          'destinationAddress must match the configured rent claimer',
+        );
+      await requireNoTokenAccounts(conn, await getSwigWalletAddress(swig));
+      const ixs = await getCloseSwigInstructions(swig, signerRoleId, {
+        destination,
+      });
+      const signature = await sendTx(conn, ixs, [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              destinationAddress: destination.toBase58(),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'close_swig_token_accounts',
+    {
+      description:
+        'Close empty SPL Token or Token-2022 accounts owned by a Swig wallet before closing the wallet itself.',
+      inputSchema: z.object({
+        swigAccountAddress: z.string(),
+        signerRoleId: z.number().int().min(0).max(0xffffffff),
+        destinationAddress: z.string().optional(),
+        tokenProgramId: z.string(),
+        tokenAccountAddresses: z.array(z.string()).min(1),
+      }),
+    },
+    async ({
+      swigAccountAddress,
+      signerRoleId,
+      destinationAddress,
+      tokenProgramId,
+      tokenAccountAddresses,
+    }) => {
+      const conn = getConnection();
+      const signer = getAgentKeypair();
+      const swig = await fetchSwig(conn, new PublicKey(swigAccountAddress));
+      requireActingEd25519Role(swig, signer.publicKey, signerRoleId);
+      const tail = await swigTail(conn, new PublicKey(swigAccountAddress));
+      const destination =
+        tail.rentClaimer ??
+        (destinationAddress ? new PublicKey(destinationAddress) : undefined);
+      if (!destination)
+        throw new Error(
+          'destinationAddress is required when no rent claimer is configured',
+        );
+      if (
+        destinationAddress &&
+        !destination.equals(new PublicKey(destinationAddress))
+      )
+        throw new Error(
+          'destinationAddress must match the configured rent claimer',
+        );
+      const program = new PublicKey(tokenProgramId);
+      if (
+        !(
+          program.equals(TOKEN_PROGRAM_ID) ||
+          program.equals(TOKEN_2022_PROGRAM_ID)
+        )
+      ) {
+        throw new Error('tokenProgramId must be SPL Token or Token-2022');
+      }
+      const ixs = await getCloseSwigTokenAccountInstructions(
+        swig,
+        signerRoleId,
+        {
+          destination,
+          tokenProgram: program,
+          tokenAccounts: tokenAccountAddresses.map(
+            (address) => new PublicKey(address),
+          ),
+        },
+      );
+      const signature = await sendTx(conn, ixs, [signer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              closed: tokenAccountAddresses,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'reserve_wallet_address',
+    {
+      description:
+        'Derive a zero-cost reserved Swig wallet address and canonical activation package off-chain. This does not submit a transaction; deposit to the returned wallet address before activation if desired.',
+      inputSchema: z.object({
+        authorityType: z
+          .enum(['ed25519', 'secp256k1', 'secp256r1'])
+          .default('ed25519'),
+        authorityPublicKey: z
+          .string()
+          .optional()
+          .describe(
+            'Ed25519 base58 key or compressed SEC1 hex key. Defaults to the configured agent Ed25519 key.',
+          ),
+        saltHex: z
+          .string()
+          .optional()
+          .describe('Optional 32-byte hex salt; random when omitted.'),
+      }),
+    },
+    async ({ authorityType, authorityPublicKey, saltHex }) => {
+      const authority = authorityPublicKey
+        ? authorityType === 'ed25519'
+          ? new PublicKey(authorityPublicKey).toBuffer()
+          : parseHex(authorityPublicKey, 'authorityPublicKey')
+        : authorityType === 'ed25519'
+          ? getAgentKeypair().publicKey.toBuffer()
+          : (() => {
+              throw new Error(
+                'A compressed SEC1 public key is required for secp authorities',
+              );
+            })();
+      const salt = saltHex ? parseHex(saltHex, 'saltHex') : randomBytes(32);
+      const reservation = createReservationPackage({
+        salt,
+        authorityType,
+        authority,
+      });
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              configAddress: reservation.config.toBase58(),
+              walletAddress: reservation.wallet.toBase58(),
+              authorityType,
+              authorityPublicKey:
+                authorityType === 'ed25519'
+                  ? new PublicKey(authority).toBase58()
+                  : authority.toString('hex'),
+              saltHex: salt.toString('hex'),
+              packageHex: reservation.package.toString('hex'),
+            }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerTool(
+    'activate_reserved_wallet',
+    {
+      description:
+        'Activate a previously derived reserved Swig wallet using its canonical package. The configured agent keypair pays rent; the initial authority comes from the package.',
+      inputSchema: z.object({ packageHex: z.string() }),
+    },
+    async ({ packageHex }) => {
+      const conn = getConnection();
+      const payer = getAgentKeypair();
+      const reservation = reservationFromPackage(
+        parseHex(packageHex, 'packageHex'),
+      );
+      const ix = createReservedWalletInstruction({
+        package: reservation.package,
+        payer: payer.publicKey,
+      });
+      const signature = await sendTx(conn, [ix], [payer]);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              success: true,
+              signature,
+              configAddress: reservation.config.toBase58(),
+              walletAddress: reservation.wallet.toBase58(),
+              authorityType: reservation.authorityType,
+            }),
+          },
+        ],
+      };
+    },
+  );
+
   // ---- Transact (Sign inner instructions through Swig) ----
 
-  server.tool(
+  server.registerTool(
     'transact_sol_transfer',
-    'Transfer SOL from a Swig wallet to a recipient.',
     {
-      swigAccountAddress: z
-        .string()
-        .describe('Base58 address of the Swig account'),
-      signerRoleId: z
-        .number()
-        .optional()
-        .describe(
-          'Role ID of the signing authority. Auto-detected if omitted.',
-        ),
-      recipientAddress: z.string().describe('Base58 address of the recipient'),
-      amountLamports: z
-        .string()
-        .describe(
-          'Amount in lamports to transfer (as string for bigint safety)',
-        ),
+      description: 'Transfer SOL from a Swig wallet to a recipient.',
+      inputSchema: z.object({
+        swigAccountAddress: z
+          .string()
+          .describe('Base58 address of the Swig account'),
+        signerRoleId: z
+          .number()
+          .optional()
+          .describe(
+            'Role ID of the signing authority. Auto-detected if omitted.',
+          ),
+        recipientAddress: z
+          .string()
+          .describe('Base58 address of the recipient'),
+        amountLamports: z
+          .string()
+          .describe(
+            'Amount in lamports to transfer (as string for bigint safety)',
+          ),
+      }),
     },
     async ({
       swigAccountAddress,
@@ -903,34 +1971,39 @@ function registerAllTools(server: McpServer) {
     },
   );
 
-  server.tool(
+  server.registerTool(
     'transact_custom',
-    'Execute a custom instruction through the Swig wallet. The Swig wallet will be the signer for the inner instruction.',
     {
-      swigAccountAddress: z
-        .string()
-        .describe('Base58 address of the Swig account'),
-      signerRoleId: z
-        .number()
-        .optional()
-        .describe(
-          'Role ID of the signing authority. Auto-detected if omitted.',
-        ),
-      programId: z.string().describe('Base58 program ID to call'),
-      accounts: z
-        .array(
-          z.object({
-            pubkey: z.string().describe('Base58 public key'),
-            isSigner: z.boolean().describe('Whether this account is a signer'),
-            isWritable: z
-              .boolean()
-              .describe('Whether this account is writable'),
-          }),
-        )
-        .describe('Account metas for the instruction'),
-      data: z
-        .string()
-        .describe('Hex-encoded instruction data (e.g. "aabbccdd")'),
+      description:
+        'Execute a custom instruction through the Swig wallet. The Swig wallet will be the signer for the inner instruction.',
+      inputSchema: z.object({
+        swigAccountAddress: z
+          .string()
+          .describe('Base58 address of the Swig account'),
+        signerRoleId: z
+          .number()
+          .optional()
+          .describe(
+            'Role ID of the signing authority. Auto-detected if omitted.',
+          ),
+        programId: z.string().describe('Base58 program ID to call'),
+        accounts: z
+          .array(
+            z.object({
+              pubkey: z.string().describe('Base58 public key'),
+              isSigner: z
+                .boolean()
+                .describe('Whether this account is a signer'),
+              isWritable: z
+                .boolean()
+                .describe('Whether this account is writable'),
+            }),
+          )
+          .describe('Account metas for the instruction'),
+        data: z
+          .string()
+          .describe('Hex-encoded instruction data (e.g. "aabbccdd")'),
+      }),
     },
     async ({ swigAccountAddress, signerRoleId, programId, accounts, data }) => {
       const conn = getConnection();
@@ -980,12 +2053,11 @@ function registerAllTools(server: McpServer) {
   );
 } // end registerAllTools
 
-// Create the default server instance (used by stdio mode)
-const server = new McpServer({
-  name: 'swig-wallet',
-  version: '1.0.0',
-});
-registerAllTools(server);
+function createServer(): McpServer {
+  const server = new McpServer({ name: 'swig-wallet', version: '1.0.0' });
+  registerAllTools(server);
+  return server;
+}
 
 // ---------------------------------------------------------------------------
 // CLI Argument Parsing
@@ -995,10 +2067,10 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const config = {
     mode: 'stdio' as 'stdio' | 'http',
-    port: 3001,
-    host: '0.0.0.0',
+    port: parseInt(process.env.PORT ?? '', 10) || 3001,
+    host: '127.0.0.1',
     apiKey: process.env.SWIG_MCP_API_KEY ?? (undefined as string | undefined),
-    corsOrigin: '*',
+    corsOrigin: process.env.SWIG_MCP_CORS_ORIGIN ?? '',
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -1030,29 +2102,25 @@ Usage:
 Options:
   --http              Run as Streamable HTTP server instead of stdio
   --port <number>     HTTP port (default: 3001, or PORT env var)
-  --host <address>    HTTP bind address (default: 0.0.0.0)
-  --api-key <key>     Require Bearer token auth (or set SWIG_MCP_API_KEY env var)
-  --cors-origin <o>   CORS allowed origin (default: *)
+  --host <address>    HTTP bind address (default: 127.0.0.1)
+  --api-key <key>     Bearer token (required when binding beyond loopback)
+  --cors-origin <o>   Explicit browser origin allowed to call the server
   --help, -h          Show this help
 
 Environment Variables:
   PORT                HTTP port (overridden by --port)
   SWIG_MCP_API_KEY    API key for Bearer token auth (overridden by --api-key)
+  SWIG_MCP_CORS_ORIGIN  Browser origin allowed to call the server
 
 Remote MCP Server Usage:
   Users add the server URL to their MCP client config:
 
   Claude Code:   claude mcp add swig-wallet --transport http https://your-host.com/mcp
   Cursor:        Add URL https://your-host.com/mcp in Settings > MCP Servers
-  Generic:       POST/GET to https://your-host.com/mcp (Streamable HTTP transport)
+  Generic:       Use https://your-host.com/mcp as a Streamable HTTP endpoint
 `);
         process.exit(0);
     }
-  }
-
-  // PORT env fallback
-  if (config.mode === 'http' && process.env.PORT) {
-    config.port = parseInt(process.env.PORT, 10) || config.port;
   }
 
   return config;
@@ -1063,159 +2131,92 @@ Remote MCP Server Usage:
 // ---------------------------------------------------------------------------
 
 async function startStdio() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  serveStdio(createServer);
 }
 
 async function startHttp(config: ReturnType<typeof parseArgs>) {
   const http = await import('node:http');
-  const crypto = await import('node:crypto');
-  const { StreamableHTTPServerTransport } =
-    await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
+  const { timingSafeEqual } = await import('node:crypto');
+  const isLoopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
+  if (!isLoopback && !config.apiKey) {
+    throw new Error(
+      'SWIG_MCP_API_KEY or --api-key is required for remote HTTP',
+    );
+  }
+  const handler = createMcpHandler(createServer, { responseMode: 'json' });
+  const nodeHandler = toNodeHandler(handler);
+  const validateLocalHost = localhostHostValidation();
+  const validateLocalOrigin = localhostOriginValidation();
 
-  // Per-session transport map for stateful sessions
-  const sessions = new Map<
-    string,
-    InstanceType<typeof StreamableHTTPServerTransport>
-  >();
-
-  const httpServer = http.createServer(
-    async (req: http.IncomingMessage, res: http.ServerResponse) => {
+  const httpServer = http.createServer(async (req, res) => {
+    try {
       const url = new URL(
         req.url ?? '/',
         `http://${req.headers.host ?? 'localhost'}`,
       );
-
-      // --- CORS preflight ---
-      if (req.method === 'OPTIONS') {
-        res.writeHead(204, {
-          'Access-Control-Allow-Origin': config.corsOrigin,
-          'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers':
-            'Content-Type, Accept, Authorization, Mcp-Session-Id, MCP-Protocol-Version',
-          'Access-Control-Max-Age': '86400',
-        });
-        res.end();
+      if (isLoopback && !validateLocalHost(req, res)) {
         return;
       }
-
-      // --- CORS headers for all responses ---
-      res.setHeader('Access-Control-Allow-Origin', config.corsOrigin);
-      res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
-
-      // --- Auth check ---
+      if (isLoopback && !config.corsOrigin && !validateLocalOrigin(req, res)) {
+        return;
+      }
+      if (req.headers.origin && req.headers.origin !== config.corsOrigin) {
+        res.writeHead(403).end();
+        return;
+      }
+      if (config.corsOrigin && req.headers.origin === config.corsOrigin) {
+        res.setHeader('Access-Control-Allow-Origin', config.corsOrigin);
+        res.setHeader('Vary', 'Origin');
+      }
+      if (req.method === 'OPTIONS') {
+        res
+          .writeHead(204, {
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers':
+              'Content-Type, Accept, Authorization, MCP-Protocol-Version, Mcp-Method, Mcp-Name',
+          })
+          .end();
+        return;
+      }
       if (config.apiKey) {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || authHeader !== `Bearer ${config.apiKey}`) {
+        const supplied = req.headers.authorization;
+        const expected = Buffer.from(`Bearer ${config.apiKey}`);
+        const actual = Buffer.from(supplied ?? '');
+        if (
+          actual.length !== expected.length ||
+          !timingSafeEqual(actual, expected)
+        ) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: 'Unauthorized. Provide a valid Bearer token.',
-            }),
-          );
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
           return;
         }
       }
-
-      // --- Health check ---
       if (url.pathname === '/health' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            status: 'ok',
-            server: 'swig-wallet-mcp',
-            sessions: sessions.size,
-          }),
-        );
+        res.end(JSON.stringify({ status: 'ok', server: 'swig-wallet-mcp' }));
         return;
       }
-
-      // --- MCP endpoint ---
       if (url.pathname === '/mcp') {
-        // Check for existing session
-        const sessionId = req.headers['mcp-session-id'] as string | undefined;
-
-        if (sessionId && sessions.has(sessionId)) {
-          // Route to existing session transport
-          const transport = sessions.get(sessionId)!;
-          await transport.handleRequest(req, res);
-          return;
-        }
-
-        // For new sessions (initialization) or stateless requests
-        if (req.method === 'POST') {
-          const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: () => crypto.randomUUID(),
-          });
-
-          transport.onclose = () => {
-            if (transport.sessionId) {
-              sessions.delete(transport.sessionId);
-            }
-          };
-
-          // Connect a fresh McpServer instance for this session.
-          // Note: The tool registrations are on the module-level `server` object.
-          // For a multi-session HTTP server, we re-use the same McpServer and
-          // connect each transport to it. However, the McpServer high-level API
-          // only supports one transport at a time. For multi-session, we need to
-          // create a new McpServer per session that shares the same tool defs.
-          const sessionServer = new McpServer({
-            name: 'swig-wallet',
-            version: '1.0.0',
-          });
-
-          // Re-register all tools on the session server
-          registerAllTools(sessionServer);
-
-          await sessionServer.connect(transport);
-
-          if (transport.sessionId) {
-            sessions.set(transport.sessionId, transport);
-          }
-
-          await transport.handleRequest(req, res);
-          return;
-        }
-
-        if (req.method === 'GET') {
-          // GET without session = 400 (need to initialize first)
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: 'No session. Send a POST with InitializeRequest first.',
-            }),
-          );
-          return;
-        }
-
-        if (req.method === 'DELETE') {
-          if (sessionId && sessions.has(sessionId)) {
-            const transport = sessions.get(sessionId)!;
-            await transport.close();
-            sessions.delete(sessionId);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ status: 'session_terminated' }));
-          } else {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Session not found' }));
-          }
-          return;
-        }
+        await nodeHandler(req, res);
+        return;
       }
-
-      // --- 404 for everything else ---
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found. MCP endpoint is at /mcp' }));
-    },
-  );
+    } catch (error) {
+      console.error('MCP HTTP request failed:', error);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Internal server error' }));
+      }
+    }
+  });
 
   httpServer.listen(config.port, config.host, () => {
     console.log(`Swig Wallet MCP Server (Streamable HTTP)`);
     console.log(`  Endpoint: http://${config.host}:${config.port}/mcp`);
     console.log(`  Health:   http://${config.host}:${config.port}/health`);
     console.log(
-      `  Auth:     ${config.apiKey ? 'Bearer token required' : 'None (open access)'}`,
+      `  Auth:     ${config.apiKey ? 'Bearer token required' : 'Loopback only'}`,
     );
     console.log(`  CORS:     ${config.corsOrigin}`);
     console.log('');

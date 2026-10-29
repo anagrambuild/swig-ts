@@ -225,12 +225,16 @@ describe('UpdateAuthorityV1 Instruction', () => {
       let swig = fetchSwig(svm, swigAddress);
       const rootRole = swig.roles[0];
 
-      // Add spender with just manageAuthority
+      // Give the spender an explicit program permission so the SDK does not
+      // auto-add ProgramAll before this test adds it below.
       const addIx = await getAddAuthorityInstructionContext(
         swig,
         rootRole.id,
         createEd25519AuthorityInfo(spender.publicKey),
-        Actions.set().manageAuthority().get(),
+        Actions.set()
+          .manageAuthority()
+          .programLimit({ programId: root.publicKey })
+          .get(),
       );
       sendSwigSVMTransaction(svm, addIx, root);
 

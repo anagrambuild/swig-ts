@@ -115,11 +115,59 @@ export class ActionsBuilder {
     return this;
   }
 
-  /**
-   * Enable RentDestination action - marks authority as a valid close rent recipient
-   */
-  rentDestination(): this {
-    this._actionConfigs.push(new RentDestinationConfig());
+  /** Removed from the protocol. Kept only to fail safely for older callers. */
+  rentDestination(): never {
+    throw new Error(
+      'RentDestination is not a permission in the current Swig protocol',
+    );
+  }
+
+  /** Allow replacing the signer of one role without changing its permissions. */
+  replaceAuthority(payload: { roleId: number }): this {
+    this._actionConfigs.push(
+      new ScopedU32Config(Permission.ReplaceAuthority, payload.roleId),
+    );
+    return this;
+  }
+
+  /** Allow creating V2 sub-accounts. */
+  subAccountV2Create(): this {
+    this._actionConfigs.push(new MarkerConfig(Permission.SubAccountV2Create));
+    return this;
+  }
+
+  /** Allow all runtime operations on one V2 sub-account. */
+  subAccountV2All(payload: { subAccountId: number }): this {
+    this._actionConfigs.push(
+      new ScopedU32Config(Permission.SubAccountV2All, payload.subAccountId),
+    );
+    return this;
+  }
+
+  /** Allow signing as one V2 sub-account. */
+  subAccountV2Sign(payload: { subAccountId: number }): this {
+    this._actionConfigs.push(
+      new ScopedU32Config(Permission.SubAccountV2Sign, payload.subAccountId),
+    );
+    return this;
+  }
+
+  /** Allow withdrawing from one V2 sub-account. */
+  subAccountV2Withdraw(payload: { subAccountId: number }): this {
+    this._actionConfigs.push(
+      new ScopedU32Config(
+        Permission.SubAccountV2Withdraw,
+        payload.subAccountId,
+      ),
+    );
+    return this;
+  }
+
+  /** Allow toggling one V2 sub-account. */
+  subAccountV2Toggle(payload: { subAccountId: number }): this {
+    this._actionConfigs.push(
+      new ScopedU32Config(Permission.SubAccountV2Toggle, payload.subAccountId),
+    );
     return this;
   }
 
@@ -553,21 +601,35 @@ class CloseSwigAuthorityConfig extends ActionConfig {
   }
 }
 
-class RentDestinationConfig extends ActionConfig {
-  constructor() {
+class MarkerConfig extends ActionConfig {
+  constructor(readonly permission: Permission) {
     super();
   }
-
   get length() {
     return 0;
   }
-
-  get permission() {
-    return Permission.RentDestination;
-  }
-
   encode(): Uint8Array {
     return new Uint8Array(0);
+  }
+}
+
+class ScopedU32Config extends ActionConfig {
+  constructor(
+    readonly permission: Permission,
+    private readonly id: number,
+  ) {
+    super();
+    if (!Number.isInteger(id) || id < 0 || id > 0xffffffff) {
+      throw new Error('Scoped permission ID must be a u32');
+    }
+  }
+  get length() {
+    return 8;
+  }
+  encode(): Uint8Array {
+    const data = new Uint8Array(8);
+    new DataView(data.buffer).setUint32(0, this.id, true);
+    return data;
   }
 }
 
