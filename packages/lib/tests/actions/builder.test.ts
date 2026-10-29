@@ -39,9 +39,43 @@ describe('ActionsBuilder', () => {
       expect(actions.count).toBe(1);
     });
 
-    test('rentDestination() creates RentDestination permission', () => {
-      const actions = Actions.set().rentDestination().get();
-      expect(actions.count).toBe(1);
+    test('rentDestination() rejects a removed permission', () => {
+      expect(() => Actions.set().rentDestination()).toThrow('not a permission');
+    });
+
+    test('scoped protocol permissions encode the current type and u32 payload', () => {
+      const cases = [
+        [() => Actions.set().replaceAuthority({ roleId: 7 }).get(), 21],
+        [() => Actions.set().subAccountV2All({ subAccountId: 7 }).get(), 23],
+        [() => Actions.set().subAccountV2Sign({ subAccountId: 7 }).get(), 24],
+        [
+          () => Actions.set().subAccountV2Withdraw({ subAccountId: 7 }).get(),
+          25,
+        ],
+        [() => Actions.set().subAccountV2Toggle({ subAccountId: 7 }).get(), 26],
+      ] as const;
+      for (const [build, permission] of cases) {
+        const bytes = build().bytes();
+        expect(bytes.length).toBe(16);
+        expect(
+          new DataView(bytes.buffer, bytes.byteOffset).getUint16(0, true),
+        ).toBe(permission);
+        expect(
+          new DataView(bytes.buffer, bytes.byteOffset).getUint32(8, true),
+        ).toBe(7);
+        expect(Array.from(bytes.slice(12))).toEqual([0, 0, 0, 0]);
+      }
+      const create = Actions.set().subAccountV2Create().get().bytes();
+      expect(create.length).toBe(8);
+      expect(
+        new DataView(create.buffer, create.byteOffset).getUint16(0, true),
+      ).toBe(22);
+      expect(() => Actions.set().replaceAuthority({ roleId: -1 })).toThrow(
+        'u32',
+      );
+      expect(() =>
+        Actions.set().subAccountV2Sign({ subAccountId: 2 ** 32 }),
+      ).toThrow('u32');
     });
   });
 
@@ -312,7 +346,7 @@ describe('ActionsBuilder', () => {
       // Each method should return the same builder instance for chaining
       expect(builder.all()).toBe(builder);
       expect(builder.manageAuthority()).toBe(builder);
-      expect(builder.rentDestination()).toBe(builder);
+      expect(builder.subAccountV2Create()).toBe(builder);
       expect(builder.programAll()).toBe(builder);
     });
   });

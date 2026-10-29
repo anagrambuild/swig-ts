@@ -112,10 +112,23 @@ export enum Permission {
    */
   CloseSwigAuthority,
 
-  /**
-   * Marks an authority as a valid rent destination for close instructions.
-   */
-  RentDestination,
+  /** Allows replacing the signer of one role without changing its permissions. */
+  ReplaceAuthority,
+
+  /** Allows creating V2 sub-accounts. */
+  SubAccountV2Create,
+
+  /** Allows signing, withdrawing, and toggling one V2 sub-account. */
+  SubAccountV2All,
+
+  /** Allows signing as one V2 sub-account. */
+  SubAccountV2Sign,
+
+  /** Allows withdrawing from one V2 sub-account. */
+  SubAccountV2Withdraw,
+
+  /** Allows toggling one V2 sub-account. */
+  SubAccountV2Toggle,
 }
 
 /**

@@ -8,7 +8,7 @@ MCP (Model Context Protocol) server that gives AI agents the ability to create a
 
 ```bash
 # From the swig-ts monorepo
-bun run build -w @swig-wallet/mcp-server
+bunx nx build @swig-wallet/mcp-server
 
 # Add to Claude Code
 claude mcp add swig-wallet -- node packages/mcp-server/dist/index.js
@@ -32,7 +32,7 @@ bun install
 bun run build   # builds all workspace packages
 ```
 
-Or build only the MCP server:
+Or rebuild the MCP server after its workspace dependencies are built:
 
 ```bash
 cd packages/mcp-server
@@ -74,7 +74,7 @@ Cursor / VS Code / generic MCP client (`settings.json` or equivalent):
 
 ### Streamable HTTP (`--http`)
 
-Starts an HTTP server that implements the [MCP Streamable HTTP transport](https://modelcontextprotocol.io/docs/concepts/transports#streamable-http). Each connecting client gets its own stateful session. This mode lets you host the server centrally and have many agents connect to it over the network.
+Starts an HTTP server that implements [MCP Streamable HTTP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http). Current clients use independent POST requests; older MCP clients can still connect. The wallet configuration and agent keypair belong to the server process, so run one server per trusted operator.
 
 ```bash
 node dist/index.js --http
@@ -82,10 +82,10 @@ node dist/index.js --http
 
 **Endpoints:**
 
-| Path      | Methods           | Description                                        |
-| --------- | ----------------- | -------------------------------------------------- |
-| `/mcp`    | POST, GET, DELETE | MCP Streamable HTTP endpoint                       |
-| `/health` | GET               | Health check (returns JSON status + session count) |
+| Path      | Methods | Description                 |
+| --------- | ------- | --------------------------- |
+| `/mcp`    | POST    | MCP endpoint (current spec) |
+| `/health` | GET     | JSON health check           |
 
 **Agent configuration examples:**
 
@@ -99,7 +99,7 @@ Cursor:
 
 > Settings > MCP Servers > Add a server > URL: `https://your-host.com/mcp`
 
-Any MCP-compatible client can connect by sending a `POST` with an `InitializeRequest` to the `/mcp` endpoint.
+Current MCP clients negotiate the protocol using `server/discover`. Older clients use `initialize`.
 
 ## CLI options
 
@@ -108,25 +108,26 @@ swig-mcp-server              Start in stdio mode (default)
 swig-mcp-server --http       Start as Streamable HTTP server
 ```
 
-| Flag                     | Default   | Description                                            |
-| ------------------------ | --------- | ------------------------------------------------------ |
-| `--http`                 | off       | Enable HTTP mode instead of stdio                      |
-| `--port <n>`             | `3001`    | HTTP listen port                                       |
-| `--host <addr>`          | `0.0.0.0` | HTTP bind address                                      |
-| `--api-key <key>`        | none      | Require `Authorization: Bearer <key>` on every request |
-| `--cors-origin <origin>` | `*`       | Value for the `Access-Control-Allow-Origin` header     |
-| `--help`, `-h`           |           | Print help and exit                                    |
+| Flag                     | Default     | Description                                                     |
+| ------------------------ | ----------- | --------------------------------------------------------------- |
+| `--http`                 | off         | Enable HTTP mode instead of stdio                               |
+| `--port <n>`             | `3001`      | HTTP listen port                                                |
+| `--host <addr>`          | `127.0.0.1` | HTTP bind address                                               |
+| `--api-key <key>`        | none        | Require `Authorization: Bearer <key>`; required beyond loopback |
+| `--cors-origin <origin>` | none        | Exact browser origin allowed to call the server                 |
+| `--help`, `-h`           |             | Print help and exit                                             |
 
 ### Environment variables
 
-| Variable           | Description                                       |
-| ------------------ | ------------------------------------------------- |
-| `PORT`             | HTTP port (overridden by `--port`)                |
-| `SWIG_MCP_API_KEY` | Bearer token for auth (overridden by `--api-key`) |
+| Variable               | Description                                       |
+| ---------------------- | ------------------------------------------------- |
+| `PORT`                 | HTTP port (overridden by `--port`)                |
+| `SWIG_MCP_API_KEY`     | Bearer token for auth (overridden by `--api-key`) |
+| `SWIG_MCP_CORS_ORIGIN` | Browser origin allowed to call the server         |
 
 ## Tools
 
-The server exposes 13 tools grouped into three categories.
+The server exposes 18 tools grouped into three categories.
 
 ### Configuration
 
@@ -143,13 +144,18 @@ These tools set up the server's runtime state. Call `configure_rpc` first.
 
 ### Wallet management
 
-| Tool                 | Description                                                                                                 |
-| -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `create_swig_wallet` | Create a new Swig smart wallet on-chain with a root authority and permissions                               |
-| `fetch_swig_wallet`  | Fetch a Swig wallet's details — account version, wallet address, and all roles/authorities                  |
-| `add_authority`      | Add a new authority to a wallet with specific permissions (Ed25519, Secp256k1, Secp256r1, or session-based) |
-| `remove_authority`   | Remove an authority by role ID                                                                              |
-| `update_authority`   | Update an authority's permissions (replace all, add actions, remove by type, or remove by index)            |
+| Tool                               | Description                                                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `create_swig_wallet`               | Create a new Swig smart wallet on-chain with a root authority and permissions                               |
+| `fetch_swig_wallet`                | Fetch a Swig wallet's details — account version, wallet address, and all roles/authorities                  |
+| `add_authority`                    | Add a new authority to a wallet with specific permissions (Ed25519, Secp256k1, Secp256r1, or session-based) |
+| `remove_authority`                 | Remove an authority by role ID                                                                              |
+| `update_authority`                 | Update an authority's permissions (replace all, add actions, remove by type, or remove by index)            |
+| `replace_ed25519_authority`        | Replace one Ed25519 role signer while preserving its permissions                                            |
+| `set_rent_claimer`                 | Set the immutable rent claimer on a V2 wallet                                                               |
+| `create_v2_sub_account`            | Create a V2 sub-account with the next on-chain ID                                                           |
+| `toggle_v2_sub_account`            | Enable or disable one V2 sub-account                                                                        |
+| `withdraw_sol_from_v2_sub_account` | Withdraw SOL from a V2 sub-account into its parent wallet                                                   |
 
 For `add_authority`, the `newAuthorityPubkey` format depends on `authorityType`: use Base58 for `ed25519` and `ed25519Session`, a hex-encoded SEC1 public key for `secp256k1`, and a compressed hex-encoded P-256 public key for `secp256r1`.
 
@@ -186,6 +192,12 @@ When calling `create_swig_wallet`, `add_authority`, or `update_authority`, pass 
 | `manageAuthority`       | —                                   | Can add/remove/update authorities              |
 | `allButManageAuthority` | —                                   | Everything except authority management         |
 | `closeSwigAuthority`    | —                                   | Can close the Swig account                     |
+| `replaceAuthority`      | `roleId` (u32 number)               | Can replace only the specified role's signer   |
+| `subAccountV2Create`    | —                                   | Can create a V2 sub-account                    |
+| `subAccountV2All`       | `subAccountId` (u32 number)         | All runtime operations on one V2 sub-account   |
+| `subAccountV2Sign`      | `subAccountId` (u32 number)         | Sign as one V2 sub-account                     |
+| `subAccountV2Withdraw`  | `subAccountId` (u32 number)         | Withdraw from one V2 sub-account               |
+| `subAccountV2Toggle`    | `subAccountId` (u32 number)         | Toggle one V2 sub-account                      |
 | `solLimit`              | `amount`                            | One-time SOL spend limit (lamports, as string) |
 | `solRecurringLimit`     | `recurringAmount`, `window`         | Recurring SOL limit                            |
 | `solDestinationLimit`   | `amount`, `destination`             | SOL limit to a specific recipient              |
@@ -209,6 +221,10 @@ Example:
   }
 ]
 ```
+
+`rentDestination` was removed from the Swig protocol. Rent routing uses `set_rent_claimer` on V2 wallets.
+
+The MCP currently exposes the existing wallet operations plus Ed25519 signer replacement, rent claimer setup, and V2 sub-account creation, toggle, and SOL withdrawal. V2 sub-account signing, token withdrawal, and reserved wallet creation are not yet MCP tools, though their permission types can be encoded and decoded.
 
 ## Deployment
 
@@ -239,7 +255,7 @@ Set environment variables `PORT` and `SWIG_MCP_API_KEY`.
 
 - Always use `--api-key` or `SWIG_MCP_API_KEY` to require authentication
 - Serve behind a reverse proxy (nginx, Caddy) with TLS termination
-- Set `--cors-origin` to your specific domain instead of `*`
+- Set `--cors-origin` to the exact browser origin if browser access is needed
 - Use a dedicated RPC endpoint (Helius, Triton, QuickNode) rather than the public Solana RPC
 
 ## Architecture
@@ -251,7 +267,7 @@ Agent (Claude Code, Cursor, etc.)
   │
   └── HTTP POST ──── swig-mcp-server --http (remote)
                        │
-                       ├── /mcp     → Streamable HTTP transport (per-session)
+                       ├── /mcp     → Streamable HTTP transport (per request)
                        └── /health  → health check
 ```
 

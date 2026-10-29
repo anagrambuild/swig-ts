@@ -50,14 +50,16 @@ export class Swig {
   }
 
   accountVersion(): AccountVersion {
-    // when a v1 account is created, the rent exempt lamport is stored
-    // which is quaranteed to be greater than max bump value of 255.
-    // hence we are able to use this condition to deduce the version of
-    // the swig account.
-    if (this.account.reserved_lamports_or_bump > 255n) {
-      return 'v1';
-    }
-    return 'v2';
+    // Current Swig V2 stores wallet_bump (one byte), three zero padding
+    // bytes, then a u32 V2 sub-account counter in the old u64 slot. The
+    // counter must not participate in the generation check.
+    const window = this.account.reserved_lamports_or_bump & 0xffffffffn;
+    return (window & 0xffn) !== 0n && window >> 8n === 0n ? 'v2' : 'v1';
+  }
+
+  subAccountV2Counter(): number | null {
+    if (this.accountVersion() !== 'v2') return null;
+    return Number(this.account.reserved_lamports_or_bump >> 32n);
   }
 
   /**

@@ -57,12 +57,28 @@ describe('Action payload utilities', () => {
       expect(payload.permission).toBe(Permission.StakeAll);
     });
 
-    test('decodes RentDestination permission', () => {
-      const payload = decodeActionPayload(
-        Permission.RentDestination,
-        new Uint8Array(0),
-      );
-      expect(payload.permission).toBe(Permission.RentDestination);
+    test('decodes scoped current protocol permissions', () => {
+      const data = new Uint8Array(8);
+      new DataView(data.buffer).setUint32(0, 7, true);
+      const replace = decodeActionPayload(Permission.ReplaceAuthority, data);
+      expect(replace).toEqual({
+        permission: Permission.ReplaceAuthority,
+        data: { roleId: 7 },
+      });
+      const sign = decodeActionPayload(Permission.SubAccountV2Sign, data);
+      expect(sign).toEqual({
+        permission: Permission.SubAccountV2Sign,
+        data: { subAccountId: 7 },
+      });
+      expect(() =>
+        decodeActionPayload(Permission.ReplaceAuthority, new Uint8Array(0)),
+      ).toThrow('Invalid scoped');
+      expect(() =>
+        decodeActionPayload(
+          Permission.SubAccountV2Sign,
+          Uint8Array.from([7, 0, 0, 0, 1, 0, 0, 0]),
+        ),
+      ).toThrow('Invalid scoped');
     });
 
     test('decodes SolLimit permission with data', () => {
@@ -136,7 +152,7 @@ describe('Action payload utilities', () => {
         Permission.AllButManageAuthority,
         Permission.ProgramAll,
         Permission.StakeAll,
-        Permission.RentDestination,
+        Permission.SubAccountV2Create,
       ];
 
       noPayloadPermissions.forEach((perm) => {
