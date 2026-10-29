@@ -44,6 +44,7 @@ import {
 } from '@swig-wallet/classic';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
+import { appendRentClaimer, requireNoTokenAccounts } from './accounts';
 import {
   closeV1SubAccountInstruction,
   closeV2SubAccountInstruction,
@@ -842,6 +843,10 @@ function registerAllTools(server: McpServer) {
         roleId,
         roleIdToRemove,
       );
+      appendRentClaimer(
+        ixs,
+        (await swigTail(conn, new PublicKey(swigAccountAddress))).rentClaimer,
+      );
 
       const signature = await sendTx(conn, ixs, [signer]);
 
@@ -973,6 +978,10 @@ function registerAllTools(server: McpServer) {
         roleId,
         roleIdToUpdate,
         updateInfo,
+      );
+      appendRentClaimer(
+        ixs,
+        (await swigTail(conn, new PublicKey(swigAccountAddress))).rentClaimer,
       );
 
       const signature = await sendTx(conn, ixs, [signer]);
@@ -1564,6 +1573,7 @@ function registerAllTools(server: McpServer) {
         Uint8Array.from(swig.id),
         childRoleId,
       );
+      await requireNoTokenAccounts(conn, child);
       const wallet = await getSwigWalletAddress(swig);
       const tail = await swigTail(conn, swigAddress);
       const ix = closeV1SubAccountInstruction({
@@ -1619,6 +1629,7 @@ function registerAllTools(server: McpServer) {
       );
       if (state.enabled)
         throw new Error('Disable the V2 sub-account before closing it');
+      await requireNoTokenAccounts(conn, state.asset);
       const wallet = await getSwigWalletAddress(swig);
       const tail = await swigTail(conn, swigAddress);
       const ix = closeV2SubAccountInstruction({
@@ -1684,6 +1695,7 @@ function registerAllTools(server: McpServer) {
         throw new Error(
           'destinationAddress must match the configured rent claimer',
         );
+      await requireNoTokenAccounts(conn, await getSwigWalletAddress(swig));
       const ixs = await getCloseSwigInstructions(swig, signerRoleId, {
         destination,
       });

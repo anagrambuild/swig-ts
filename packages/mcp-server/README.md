@@ -234,7 +234,11 @@ Example:
 
 `rentDestination` was removed from the Swig protocol. Rent routing uses `set_rent_claimer` on V2 wallets.
 
+Fund a new rent-claimer address to Solana's rent-exempt minimum before reducing or removing authorities: a small rent refund alone may not be enough to create that destination account.
+
 The V2 sub-account tools cover the current create, toggle, sign, withdraw, and close instructions. A scoped role can use `subAccountV2Sign`, `subAccountV2Withdraw`, or `subAccountV2Toggle` for a single sub-account. `transact_v2_sub_account` accepts an array of instructions and uses the V2 asset PDA as the inner signer. Disable a sub-account before closing it, then drain any excess SOL and token balances before closing the parent wallet. If a rent claimer is configured, close tools use that address as the rent destination.
+
+Wallet and sub-account close tools reject any remaining SPL Token or Token-2022 accounts, including empty accounts, before submitting a transaction. Close those accounts first. Also unwind protocol positions before closure: the token-account check cannot discover arbitrary third-party positions, and closing the signing PDA is irreversible.
 
 `reserve_wallet_address` accepts an Ed25519 base58 public key or a compressed secp256k1/secp256r1 public key in hex, and returns an activation package. `activate_reserved_wallet` submits that package on-chain. The payer needs enough SOL for rent and transaction fees; the package's authority does not need to sign activation.
 

@@ -411,4 +411,32 @@ describe('current Swig protocol instruction layout', () => {
       activeSubAccountCount: 3,
     });
   });
+
+  test('reserved Ed25519 keys reject small-order and noncanonical encodings', () => {
+    const identity = Buffer.alloc(32);
+    identity[0] = 1;
+    const noncanonical = Buffer.alloc(32, 255);
+    noncanonical[0] = 238; // y = p + 1 encodes the identity noncanonically.
+    noncanonical[31] = 127;
+    for (const authority of [Buffer.alloc(32), identity, noncanonical]) {
+      expect(() =>
+        createReservationPackage({
+          salt: Buffer.alloc(32),
+          authorityType: 'ed25519',
+          authority,
+        }),
+      ).toThrow();
+      const pkg = Buffer.alloc(99);
+      pkg[0] = 1;
+      SWIG_PROGRAM_ADDRESS.toBuffer().copy(pkg, 1);
+      pkg.writeUInt16LE(1, 65);
+      authority.copy(pkg, 67);
+      expect(() =>
+        createReservedWalletInstruction({
+          package: pkg,
+          payer: Keypair.generate().publicKey,
+        }),
+      ).toThrow();
+    }
+  });
 });

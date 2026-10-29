@@ -7,7 +7,7 @@ import { SWIG_PROGRAM_ADDRESS } from '@swig-wallet/classic';
 import elliptic from 'elliptic';
 import { createHash } from 'node:crypto';
 
-const { ec: EC } = elliptic;
+const { ec: EC, eddsa: EDDSA } = elliptic;
 
 const RESERVATION_DOMAIN = Buffer.from('rsv');
 
@@ -50,6 +50,18 @@ export function reservationFromPackage(bytes: Uint8Array): {
   if (authorityType === 'ed25519') {
     if (authority.length !== 32 || !PublicKey.isOnCurve(authority)) {
       throw new Error('Reservation requires an on-curve Ed25519 public key');
+    }
+    const curve = new EDDSA('ed25519');
+    const point = curve.decodePoint(authority.toString('hex'));
+    // Match the program's canonical encoding and cofactor checks. Merely
+    // being on-curve also admits small-order points that cannot activate.
+    if (
+      !Buffer.from(curve.encodePoint(point)).equals(authority) ||
+      point.dbl().dbl().dbl().isInfinity()
+    ) {
+      throw new Error(
+        'Reservation requires a canonical non-small-order Ed25519 public key',
+      );
     }
   } else {
     if (authority.length !== 33 || ![2, 3].includes(authority[0])) {

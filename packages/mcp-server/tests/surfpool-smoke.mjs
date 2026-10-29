@@ -100,6 +100,13 @@ try {
   await useKeypair(root);
   await airdrop(root.publicKey, 10_000_000_000);
 
+  const invalidReservation = await client.callTool({
+    name: 'reserve_wallet_address',
+    arguments: { authorityPublicKey: SystemProgram.programId.toBase58() },
+  });
+  assert.equal(invalidReservation.isError, true);
+  assert.match(invalidReservation.content[0].text, /non-small-order/);
+
   const reserved = await call('reserve_wallet_address', {});
   assert.equal(
     await conn.getAccountInfo(new PublicKey(reserved.configAddress)),
@@ -122,11 +129,38 @@ try {
   const created = await call('create_swig_wallet', {});
   const swigAddress = created.swigAccountAddress;
   const rentClaimer = Keypair.generate().publicKey;
+  await airdrop(rentClaimer, 1_000_000);
+  const rentBefore = await conn.getBalance(rentClaimer);
   await call('set_rent_claimer', {
     swigAccountAddress: swigAddress,
     signerRoleId: 0,
     rentClaimer: rentClaimer.toBase58(),
   });
+  await call('add_authority', {
+    swigAccountAddress: swigAddress,
+    signerRoleId: 0,
+    newAuthorityPubkey: Keypair.generate().publicKey.toBase58(),
+    authorityType: 'ed25519',
+    permissions: [{ type: 'solLimit', amount: '1000000' }],
+  });
+  const revocable = await call('fetch_swig_wallet', {
+    swigAccountAddress: swigAddress,
+  });
+  const revocableRoleId = revocable.roles.at(-1).id;
+  await call('update_authority', {
+    swigAccountAddress: swigAddress,
+    signerRoleId: 0,
+    roleIdToUpdate: revocableRoleId,
+    updateKind: 'replaceAll',
+    permissions: [{ type: 'programAll' }],
+  });
+  await call('remove_authority', {
+    swigAccountAddress: swigAddress,
+    signerRoleId: 0,
+    roleIdToRemove: revocableRoleId,
+  });
+  assert.ok((await conn.getBalance(rentClaimer)) > rentBefore);
+  console.log('authority reduction and revocation with rent claimer passed');
   const creator = Keypair.generate();
   await call('add_authority', {
     swigAccountAddress: swigAddress,
@@ -226,6 +260,31 @@ try {
     (await getAccount(conn, destinationToken.address)).amount,
     500_000n,
   );
+  await call('toggle_v2_sub_account', {
+    swigAccountAddress: swigAddress,
+    signerRoleId: creatorRoleId,
+    subAccountId: sub.subAccountId,
+    enabled: false,
+  });
+  await useKeypair(root);
+  const closeFundedChild = await client.callTool({
+    name: 'close_v2_sub_account',
+    arguments: {
+      swigAccountAddress: swigAddress,
+      signerRoleId: 0,
+      subAccountId: sub.subAccountId,
+    },
+  });
+  assert.equal(closeFundedChild.isError, true);
+  assert.match(closeFundedChild.content[0].text, /Close all token accounts/);
+  assert.equal((await getAccount(conn, sourceToken.address)).amount, 500_000n);
+  await useKeypair(creator);
+  await call('toggle_v2_sub_account', {
+    swigAccountAddress: swigAddress,
+    signerRoleId: creatorRoleId,
+    subAccountId: sub.subAccountId,
+    enabled: true,
+  });
   const sweep = createTransferInstruction(
     sourceToken.address,
     destinationToken.address,
@@ -321,6 +380,18 @@ try {
   });
   assert.equal(await conn.getBalance(v1Child), 0);
   console.log('V1 sub-account close passed');
+
+  const closeFundedParent = await client.callTool({
+    name: 'close_swig_wallet',
+    arguments: { swigAccountAddress: swigAddress, signerRoleId: 0 },
+  });
+  assert.equal(closeFundedParent.isError, true);
+  assert.match(closeFundedParent.content[0].text, /Close all token accounts/);
+  assert.equal(
+    (await getAccount(conn, destinationToken.address)).amount,
+    1_000_000n,
+  );
+  console.log('funded parent and V2 sub-account close rejection passed');
 
   const rootToken = await getOrCreateAssociatedTokenAccount(
     conn,
