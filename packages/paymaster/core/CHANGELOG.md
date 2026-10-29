@@ -1,5 +1,16 @@
 # @swig-wallet/paymaster-core
 
+## 1.1.0
+
+### Minor Changes
+
+- 9225c99: Add explicit, ALT-safe Jito bundle preparation and submission support to the paymaster SDK.
+
+### Patch Changes
+
+- Updated dependencies [9225c99]
+  - @swig-wallet/api@1.4.0
+
 ## 1.0.5
 
 ### Patch Changes
