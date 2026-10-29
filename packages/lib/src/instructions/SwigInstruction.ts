@@ -1,10 +1,12 @@
 import {
   getAddAuthorityV1InstructionCodec,
+  getAddAuthorizationLockV1InstructionDataCodec,
   getCloseSwigV1InstructionDataCodec,
   getCloseTokenAccountV1InstructionDataCodec,
   getCreateSessionV1InstructionCodec,
   getCreateV1InstructionDataCodec,
   getRemoveAuthorityV1InstructionCodec,
+  getRemoveAuthorizationLockV1InstructionDataCodec,
   getSignV1InstructionCodec,
   getSignV2InstructionCodec,
   getSubAccountCreateV1InstructionDataCodec,
@@ -14,11 +16,13 @@ import {
   getTransferAssetsV1InstructionDataCodec,
   getUpdateAuthorityV1InstructionCodec,
   type AddAuthorityV1InstructionDataArgs,
+  type AddAuthorizationLockV1InstructionDataArgs,
   type CloseSwigV1InstructionDataArgs,
   type CloseTokenAccountV1InstructionDataArgs,
   type CreateSessionV1InstructionDataArgs,
   type CreateV1InstructionDataArgs,
   type RemoveAuthorityV1InstructionDataArgs,
+  type RemoveAuthorizationLockV1InstructionDataArgs,
   type SignV1InstructionDataArgs,
   type SignV2InstructionDataArgs,
   type SubAccountCreateV1InstructionDataArgs,
@@ -37,6 +41,7 @@ import {
 } from '../solana';
 import { findSwigPdaRaw, findSwigSystemAddressPdaRaw } from '../utils';
 import { type AddAuthorityV1BaseAccountMetas } from './addAuthorityV1';
+import type { AddAuthorizationLockV1BaseAccountMetas } from './addAuthorizationLockV1';
 import type { CloseSwigV1BaseAccountMetas } from './closeSwigV1';
 import type { CloseTokenAccountV1BaseAccountMetas } from './closeTokenAccountV1';
 import type { CreateSessionV1BaseAccountMetas } from './createSessionV1';
@@ -45,6 +50,7 @@ import {
   type CreateV1BaseAccountMetas,
 } from './createV1';
 import { type RemoveAuthorityV1BaseAccountMetas } from './removeAuthorityV1';
+import type { RemoveAuthorizationLockV1BaseAccountMetas } from './removeAuthorizationLockV1';
 import { type SignV1BaseAccountMetas } from './signV1';
 import type { SignV2BaseAccountMetas } from './signV2';
 import type { SubAccountCreateV1BaseAccountMetas } from './subAccountCreateV1';
@@ -317,6 +323,53 @@ export class SwigInstructionV1 {
     options?: SwigInstructionContextOptions,
   ): SwigInstructionContext {
     const encoder = getCloseTokenAccountV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
+
+  /**
+   * Creates an `AddAuthorizationLockV1` instruction
+   * @param accounts AddAuthorizationLockV1 account metas with authority
+   * @param data AddAuthorizationLockV1InstructionDataArgs
+   * @returns SwigInstruction
+   */
+  static addAuthorizationLock<
+    T extends [...AddAuthorizationLockV1BaseAccountMetas, ...SolAccountMeta[]],
+  >(
+    accounts: T,
+    data: AddAuthorizationLockV1InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getAddAuthorizationLockV1InstructionDataCodec().encoder;
+
+    const instructionData = encoder.encode(data);
+
+    const swigInstruction = swigInst(accounts, new Uint8Array(instructionData));
+
+    return new SwigInstructionContext({ swigInstruction, ...options });
+  }
+
+  /**
+   * Creates a `RemoveAuthorizationLockV1` instruction
+   * @param accounts RemoveAuthorizationLockV1 account metas with authority
+   * @param data RemoveAuthorizationLockV1InstructionDataArgs
+   * @returns SwigInstruction
+   */
+  static removeAuthorizationLock<
+    T extends [
+      ...RemoveAuthorizationLockV1BaseAccountMetas,
+      ...SolAccountMeta[],
+    ],
+  >(
+    accounts: T,
+    data: RemoveAuthorizationLockV1InstructionDataArgs,
+    options?: SwigInstructionContextOptions,
+  ): SwigInstructionContext {
+    const encoder = getRemoveAuthorizationLockV1InstructionDataCodec().encoder;
 
     const instructionData = encoder.encode(data);
 

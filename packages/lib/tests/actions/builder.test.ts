@@ -39,6 +39,22 @@ describe('ActionsBuilder', () => {
       expect(actions.count).toBe(1);
     });
 
+    test('manageAuthorizationLocks() encodes permission 27 with a u64 max duration', () => {
+      const bytes = Actions.set()
+        .manageAuthorizationLocks({ maxDurationSlots: 0x0102030405060708n })
+        .get()
+        .bytes();
+      expect(Buffer.from(bytes).toString('hex')).toBe(
+        '1b000800' + '10000000' + '0807060504030201',
+      );
+      expect(() =>
+        Actions.set().manageAuthorizationLocks({ maxDurationSlots: 0n }),
+      ).toThrow('non-zero u64');
+      expect(() =>
+        Actions.set().manageAuthorizationLocks({ maxDurationSlots: 2n ** 64n }),
+      ).toThrow('non-zero u64');
+    });
+
     test('rentDestination() rejects a removed permission', () => {
       expect(() => Actions.set().rentDestination()).toThrow('not a permission');
     });

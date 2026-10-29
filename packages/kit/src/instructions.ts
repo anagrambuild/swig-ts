@@ -3,7 +3,10 @@ import {
   Actions,
   AddMultipleAuthoritiesInstructionContextBuilder,
   getAddAuthorityInstructionContext,
+  getAddAuthorizationLockInstructionContext,
   getAddMultipleAuthoritiesInstructionsContextBuilder,
+  getAddSolAuthorizationLockInstructionContext,
+  getAddTokenAuthorizationLockInstructionContext,
   getCloseSwigInstructionContext,
   getCloseSwigTokenAccountInstructionContext,
   getCreateSessionInstructionContext,
@@ -11,6 +14,7 @@ import {
   getCreateSwigInstructionContext,
   getCreateSwigWithMultipleAuthoritiesInstructionContextBuilder,
   getRemoveAuthorityInstructionContext,
+  getRemoveAuthorizationLockInstructionContext,
   getSignInstructionContext,
   getToggleSubAccountInstructionContext,
   getTransferAssetsInstructionContext,
@@ -20,10 +24,14 @@ import {
   SolInstruction,
   Swig,
   SwigInstructionContext,
+  type AddAuthorizationLockArgs,
+  type AddSolAuthorizationLockArgs,
+  type AddTokenAuthorizationLockArgs,
   type CloseSwigArgs,
   type CloseSwigTokenAccountArgs,
   type CreateAuthorityInfo,
   type KitInstruction,
+  type RemoveAuthorizationLockArgs,
   type SigningFn,
   type SwigOptions,
   type UpdateAuthorityActionsInfo,
@@ -230,6 +238,70 @@ export async function getCloseSwigTokenAccountInstructions(
   options?: SwigInstructionOptions,
 ): Promise<KitInstruction[]> {
   const context = await getCloseSwigTokenAccountInstructionContext(
+    swig,
+    roleId,
+    args,
+    toLibOptions(options),
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getAddAuthorizationLockInstructions(
+  swig: Swig,
+  roleId: number,
+  args: AddAuthorizationLockArgs<Address>,
+  options?: SwigInstructionOptions,
+): Promise<KitInstruction[]> {
+  const context = await getAddAuthorizationLockInstructionContext(
+    swig,
+    roleId,
+    args,
+    toLibOptions(options),
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getAddSolAuthorizationLockInstructions(
+  swig: Swig,
+  roleId: number,
+  args: AddSolAuthorizationLockArgs,
+  options?: SwigInstructionOptions,
+): Promise<KitInstruction[]> {
+  const context = await getAddSolAuthorizationLockInstructionContext(
+    swig,
+    roleId,
+    args,
+    toLibOptions(options),
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getAddTokenAuthorizationLockInstructions(
+  swig: Swig,
+  roleId: number,
+  args: AddTokenAuthorizationLockArgs<Address>,
+  options?: SwigInstructionOptions,
+): Promise<KitInstruction[]> {
+  const context = await getAddTokenAuthorizationLockInstructionContext(
+    swig,
+    roleId,
+    args,
+    toLibOptions(options),
+  );
+
+  return getInstructionsFromContext(context);
+}
+
+export async function getRemoveAuthorizationLockInstructions(
+  swig: Swig,
+  roleId: number,
+  args: RemoveAuthorizationLockArgs<Address>,
+  options?: SwigInstructionOptions,
+): Promise<KitInstruction[]> {
+  const context = await getRemoveAuthorizationLockInstructionContext(
     swig,
     roleId,
     args,

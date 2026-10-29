@@ -1,3 +1,7 @@
+import {
+  findAssociatedTokenPda,
+  TOKEN_PROGRAM_ADDRESS,
+} from '@solana-program/token';
 import { type Commitment } from '@solana/kit';
 import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
 import { Actions, ensureProgramAction } from '../actions';
@@ -24,6 +28,14 @@ import {
   findSwigSystemAddressPdaRaw,
   getUnprefixedSecpBytes,
 } from '../utils';
+import {
+  decodeAuthorizationLocks,
+  decodeRentClaimer,
+  getActiveAuthorizationLocks,
+  getSwigTail,
+} from './tail';
+
+export * from './tail';
 
 export class Swig {
   /**
@@ -81,6 +93,36 @@ export class Swig {
       this.account.roles,
       Uint8Array.from(this.account.id),
     );
+  }
+
+  /**
+   * Raw tail bytes stored after the roles (rent claimer, authorization locks, etc.)
+   */
+  tail(): Uint8Array {
+    return getSwigTail(this.account);
+  }
+
+  /**
+   * Authorization locks stored on the swig, including expired ones.
+   * @returns `{ nextLockId, locks }`
+   */
+  authorizationLocks() {
+    return decodeAuthorizationLocks(this.tail());
+  }
+
+  /**
+   * Authorization locks still enforced at `currentSlot`.
+   * @param currentSlot Current slot
+   */
+  activeAuthorizationLocks(currentSlot: bigint) {
+    return getActiveAuthorizationLocks(this.authorizationLocks(), currentSlot);
+  }
+
+  /**
+   * The configured rent claimer, or `null` when none is set.
+   */
+  rentClaimer() {
+    return decodeRentClaimer(this.tail());
   }
 
   setSwigFetchFn = (fn: SwigFetchFn) => {
@@ -605,6 +647,182 @@ export const getCloseSwigTokenAccountInstructionContext = async <
     destination: args.destination,
     tokenProgram: args.tokenProgram,
     tokenAccounts: args.tokenAccounts,
+    options,
+  });
+};
+
+export type AddAuthorizationLockArgs<
+  T extends SolPublicKeyData = SolPublicKeyData,
+> = {
+  /** Swig wallet address (native SOL) or a token account it owns. */
+  assetAccount: T;
+  /** Token mint. Omit for native SOL. */
+  mint?: T;
+  /** Amount to reserve, in base units. */
+  amount: bigint;
+  /** First slot at which the lock no longer applies. */
+  expirySlot: bigint;
+};
+
+/**
+ * Creates an `AddAuthorizationLock` instruction context.
+ *
+ * Requires the role to hold `ManageAuthorizationLocks`, and
+ * `expirySlot - currentSlot` must not exceed its `maxDurationSlots`.
+ */
+export const getAddAuthorizationLockInstructionContext = async <
+  T extends SolPublicKeyData = SolPublicKeyData,
+>(
+  swig: Swig,
+  roleId: number,
+  args: AddAuthorizationLockArgs<T>,
+  options?: SwigOptions,
+) => {
+  const { payer, role } = await assertInstructionOptions(
+    swig,
+    roleId,
+    false,
+    options,
+  );
+
+  return role.authority.addAuthorizationLock({
+    roleId: role.id,
+    payer,
+    swigAddress: swig.address,
+    swigSystemAddress: await getSwigSystemAddressRaw(swig),
+    assetAccount: args.assetAccount,
+    mint: args.mint,
+    amount: args.amount,
+    expirySlot: args.expirySlot,
+    options,
+  });
+};
+
+export type AddSolAuthorizationLockArgs = {
+  /** Lamports to reserve. */
+  amount: bigint;
+  /** First slot at which the lock no longer applies. */
+  expirySlot: bigint;
+};
+
+/**
+ * Creates an `AddAuthorizationLock` instruction context that reserves native
+ * SOL held by the swig wallet address.
+ */
+export const getAddSolAuthorizationLockInstructionContext = async (
+  swig: Swig,
+  roleId: number,
+  args: AddSolAuthorizationLockArgs,
+  options?: SwigOptions,
+) => {
+  return getAddAuthorizationLockInstructionContext(
+    swig,
+    roleId,
+    {
+      assetAccount: await getSwigSystemAddressRaw(swig),
+      amount: args.amount,
+      expirySlot: args.expirySlot,
+    },
+    options,
+  );
+};
+
+export type AddTokenAuthorizationLockArgs<
+  T extends SolPublicKeyData = SolPublicKeyData,
+> = {
+  mint: T;
+  /** Amount to reserve, in base units. */
+  amount: bigint;
+  /** First slot at which the lock no longer applies. */
+  expirySlot: bigint;
+  /**
+   * Token account owned by the swig wallet address. Defaults to its
+   * associated token account for `mint` under `tokenProgram`.
+   */
+  tokenAccount?: T;
+  /** Token program used to derive the default token account. Defaults to SPL Token. */
+  tokenProgram?: T;
+};
+
+/**
+ * Creates an `AddAuthorizationLock` instruction context that reserves tokens
+ * held by a token account of the swig wallet address.
+ */
+export const getAddTokenAuthorizationLockInstructionContext = async <
+  T extends SolPublicKeyData = SolPublicKeyData,
+>(
+  swig: Swig,
+  roleId: number,
+  args: AddTokenAuthorizationLockArgs<T>,
+  options?: SwigOptions,
+) => {
+  let tokenAccount: SolPublicKeyData | undefined = args.tokenAccount;
+  if (tokenAccount === undefined) {
+    const [ata] = await findAssociatedTokenPda({
+      mint: new SolPublicKey(args.mint).toAddress(),
+      owner: (await getSwigSystemAddressRaw(swig)).toAddress(),
+      tokenProgram: args.tokenProgram
+        ? new SolPublicKey(args.tokenProgram).toAddress()
+        : TOKEN_PROGRAM_ADDRESS,
+    });
+    tokenAccount = ata;
+  }
+
+  return getAddAuthorizationLockInstructionContext(
+    swig,
+    roleId,
+    {
+      assetAccount: tokenAccount,
+      mint: args.mint,
+      amount: args.amount,
+      expirySlot: args.expirySlot,
+    },
+    options,
+  );
+};
+
+export type RemoveAuthorizationLockArgs<
+  T extends SolPublicKeyData = SolPublicKeyData,
+> = {
+  lockId: number;
+  /**
+   * The wallet's rent claimer. Defaults to the one stored on the swig, so
+   * refetch the swig (or pass `preFetch`) if it may be stale.
+   */
+  rentClaimer?: T | null;
+};
+
+/**
+ * Creates a `RemoveAuthorizationLock` instruction context.
+ *
+ * The creating role may release its own lock at any time; once a lock has
+ * expired, a role with `All`, `AllButManageAuthority`, `ManageAuthority` or
+ * `ManageAuthorizationLocks` may prune it.
+ */
+export const getRemoveAuthorizationLockInstructionContext = async <
+  T extends SolPublicKeyData = SolPublicKeyData,
+>(
+  swig: Swig,
+  roleId: number,
+  args: RemoveAuthorizationLockArgs<T>,
+  options?: SwigOptions,
+) => {
+  const { payer, role } = await assertInstructionOptions(
+    swig,
+    roleId,
+    false,
+    options,
+  );
+
+  const rentClaimer =
+    args.rentClaimer === undefined ? swig.rentClaimer() : args.rentClaimer;
+
+  return role.authority.removeAuthorizationLock({
+    roleId: role.id,
+    payer,
+    swigAddress: swig.address,
+    rentClaimer: rentClaimer ?? undefined,
+    lockId: args.lockId,
     options,
   });
 };

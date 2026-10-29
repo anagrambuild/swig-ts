@@ -4,10 +4,13 @@ import {
   SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetas,
+  getAddAuthorizationLockV1BaseAccountMetas,
+  getAuthorizationLockMintBytes,
   getCloseSwigV1BaseAccountMetas,
   getCloseTokenAccountV1BaseAccountMetas,
   getCreateSessionV1BaseAccountMetas,
   getRemoveAuthorityV1BaseAccountMetas,
+  getRemoveAuthorizationLockV1BaseAccountMetas,
   getSignV1BaseAccountMetas,
   getSignV2BaseAccountMetas,
   getSubAccountCreateV1BaseAccountMetas,
@@ -437,6 +440,52 @@ export const ProgramExecInstruction: AuthorityInstruction = {
       {
         ...data,
         tokenAccountOffset: baseMetas.length + 1,
+        authorityPayload: Uint8Array.from([sysvarIndex]),
+      },
+      { preInstructions, postInstructions: options?.postInstructions ?? [] },
+    );
+  },
+
+  async addAuthorizationLockV1Instruction(accounts, data, options) {
+    const preInstructions = validateAndGetPreInstructions(
+      options,
+      new Uint8Array(data.authorityData),
+      accounts.swig,
+      accounts.payer,
+    );
+
+    const baseMetas = getAddAuthorizationLockV1BaseAccountMetas(accounts);
+    const sysvarIndex = baseMetas.length;
+    const metas: typeof baseMetas = [...baseMetas, getInstructionsSysvarMeta()];
+
+    return SwigInstructionV1.addAuthorizationLock(
+      metas,
+      {
+        ...data,
+        assetAccount: new SolPublicKey(accounts.assetAccount).toBytes(),
+        mint: getAuthorizationLockMintBytes(accounts.mint),
+        authorityPayload: Uint8Array.from([sysvarIndex]),
+      },
+      { preInstructions, postInstructions: options?.postInstructions ?? [] },
+    );
+  },
+
+  async removeAuthorizationLockV1Instruction(accounts, data, options) {
+    const preInstructions = validateAndGetPreInstructions(
+      options,
+      new Uint8Array(data.authorityData),
+      accounts.swig,
+      accounts.payer,
+    );
+
+    const baseMetas = getRemoveAuthorizationLockV1BaseAccountMetas(accounts);
+    const sysvarIndex = baseMetas.length;
+    const metas: typeof baseMetas = [...baseMetas, getInstructionsSysvarMeta()];
+
+    return SwigInstructionV1.removeAuthorizationLock(
+      metas,
+      {
+        ...data,
         authorityPayload: Uint8Array.from([sysvarIndex]),
       },
       { preInstructions, postInstructions: options?.postInstructions ?? [] },

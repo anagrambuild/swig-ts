@@ -10,7 +10,7 @@
  */
 
 import { Keypair } from '@solana/web3.js';
-import { Actions } from '../../src';
+import { Actions, Permission } from '../../src';
 
 describe('Actions class', () => {
   // ============================================================================
@@ -49,6 +49,53 @@ describe('Actions class', () => {
 
       const deserialized = Actions.from(bytes, 2);
       expect(deserialized.count).toBe(2);
+    });
+  });
+
+  describe('ManageAuthorizationLocks', () => {
+    test('permission enum value matches the program', () => {
+      expect(Permission.SubAccountV2Toggle).toBe(26);
+      expect(Permission.ManageAuthorizationLocks).toBe(27);
+    });
+
+    test('round trips through bytes', () => {
+      const original = Actions.set()
+        .solLimit({ amount: 1_000n })
+        .manageAuthorizationLocks({ maxDurationSlots: 432_000n })
+        .get();
+      const deserialized = Actions.from(original.bytes(), 2);
+      expect(deserialized.count).toBe(2);
+      expect(Array.from(deserialized.bytes())).toEqual(
+        Array.from(original.bytes()),
+      );
+      expect(deserialized.canManageAuthorizationLocks()).toBe(true);
+      expect(deserialized.authorizationLockMaxDurationSlots()).toBe(432_000n);
+      expect(deserialized.canPruneAuthorizationLocks()).toBe(true);
+    });
+
+    test('is required even for All roles', () => {
+      const all = Actions.set().all().get();
+      expect(all.canManageAuthorizationLocks()).toBe(false);
+      expect(all.authorizationLockMaxDurationSlots()).toBeNull();
+      expect(all.canPruneAuthorizationLocks()).toBe(true);
+    });
+
+    test('prune rights follow the program rules', () => {
+      expect(
+        Actions.set()
+          .allButManageAuthority()
+          .get()
+          .canPruneAuthorizationLocks(),
+      ).toBe(true);
+      expect(
+        Actions.set().manageAuthority().get().canPruneAuthorizationLocks(),
+      ).toBe(true);
+      expect(
+        Actions.set()
+          .solLimit({ amount: 1n })
+          .get()
+          .canPruneAuthorizationLocks(),
+      ).toBe(false);
     });
   });
 

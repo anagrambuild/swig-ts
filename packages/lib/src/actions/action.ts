@@ -117,6 +117,37 @@ export class Actions {
   }
 
   /**
+   * Check if the `ManageAuthorizationLocks` action is present.
+   * Every authorization lock requires it, including for `All` roles.
+   * @returns boolean
+   */
+  canManageAuthorizationLocks(): boolean {
+    return this.authorizationLockMaxDurationSlots() !== null;
+  }
+
+  /**
+   * Gets `maxDurationSlots` of the `ManageAuthorizationLocks` action.
+   * Returns `null` if the action is not present.
+   * @returns `bigint` | `null`
+   */
+  authorizationLockMaxDurationSlots(): bigint | null {
+    for (const action of this.actions) {
+      const max = action.authorizationLockMaxDurationSlots();
+      if (max !== null) return max;
+    }
+    return null;
+  }
+
+  /**
+   * Check if the actions may prune another role's expired authorization lock
+   * (`All`, `AllButManageAuthority`, `ManageAuthority` or `ManageAuthorizationLocks`).
+   * @returns boolean
+   */
+  canPruneAuthorizationLocks(): boolean {
+    return !!this.actions.find((action) => action.canPruneAuthorizationLocks());
+  }
+
+  /**
    * Check if the action can interact with a given program
    * @param programId ID of the Program to interact with
    * @returns boolean
@@ -338,6 +369,28 @@ class Action {
       this.permission === Permission.All ||
       this.permission === Permission.ManageAuthority ||
       this.permission === Permission.CloseSwigAuthority
+    );
+  }
+
+  /**
+   * `maxDurationSlots` of a `ManageAuthorizationLocks` action, otherwise `null`
+   */
+  authorizationLockMaxDurationSlots(): bigint | null {
+    if (isActionPayload(Permission.ManageAuthorizationLocks, this.payload)) {
+      return this.payload.data.maxDurationSlots;
+    }
+    return null;
+  }
+
+  /**
+   * Check if this action may prune another role's expired authorization lock
+   * @returns `boolean`
+   */
+  canPruneAuthorizationLocks() {
+    return (
+      this.hasAllButManageAuthorityAccess() ||
+      this.permission === Permission.ManageAuthority ||
+      this.permission === Permission.ManageAuthorizationLocks
     );
   }
 

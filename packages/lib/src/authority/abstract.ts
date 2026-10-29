@@ -273,6 +273,47 @@ export abstract class Authority {
   }): Promise<SwigInstructionContext>;
 
   /**
+   * Creates an `AddAuthorizationLock` instruction that reserves `amount` of
+   * `assetAccount` until `expirySlot`.
+   *
+   * For native SOL pass the swig wallet address as `assetAccount` and omit
+   * `mint`; for tokens pass a token account owned by the swig wallet address
+   * and its mint.
+   *
+   * Requires `ManageAuthorizationLocks`, and `expirySlot - currentSlot` may not
+   * exceed its `maxDurationSlots`. Roles without `All` or
+   * `AllButManageAuthority` may only lock within their own spend limits.
+   */
+  abstract addAuthorizationLock(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    assetAccount: SolPublicKeyData;
+    mint?: SolPublicKeyData;
+    amount: bigint;
+    expirySlot: bigint;
+    roleId: number;
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
+  /**
+   * Creates a `RemoveAuthorizationLock` instruction.
+   *
+   * The creating role may release its own lock at any time. Once a lock has
+   * expired, a role with `All`, `AllButManageAuthority`, `ManageAuthority` or
+   * `ManageAuthorizationLocks` may prune it. Pass `rentClaimer` when the
+   * wallet has one configured.
+   */
+  abstract removeAuthorizationLock(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    rentClaimer?: SolPublicKeyData;
+    lockId: number;
+    roleId: number;
+    options?: InstructionDataOptions;
+  }): Promise<SwigInstructionContext>;
+
+  /**
    * Check two {@link Authority} are partially equal
    */
   isEqual(other: Authority): boolean {

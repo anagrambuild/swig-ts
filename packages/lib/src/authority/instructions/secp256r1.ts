@@ -3,11 +3,13 @@ import { getArrayEncoder, getU8Encoder } from '@solana/kit';
 import {
   getAccountsPayloadEncoder,
   getAddAuthorityV1AuthorityPayloadEncoder,
+  getAddAuthorizationLockV1InstructionDataCodec,
   getCloseSwigV1InstructionDataCodec,
   getCloseTokenAccountV1InstructionDataCodec,
   getCompactInstructionEncoder,
   getCreateSessionV1AuthorityPayloadCodec,
   getRemoveAuthorityV1AuthorityPayloadEncoder,
+  getRemoveAuthorizationLockV1InstructionDataCodec,
   getSecp256r1SignatureInstructionDataEncoder,
   getSubAccountCreateV1InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
@@ -20,10 +22,13 @@ import {
   SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetasWithSystemProgram,
+  getAddAuthorizationLockV1BaseAccountMetas,
+  getAuthorizationLockMintBytes,
   getCloseSwigV1BaseAccountMetas,
   getCloseTokenAccountV1BaseAccountMetas,
   getCreateSessionV1BaseAccountMetasWithSystemProgram,
   getRemoveAuthorityV1BaseAccountMetasWithSystemProgram,
+  getRemoveAuthorizationLockV1BaseAccountMetas,
   getSignV1BaseAccountMetasWithSystemProgram,
   getSignV2BaseAccountMetasWithSystemProgram,
   getSubAccountCreateV1BaseAccountMetasWithSystemProgram,
@@ -694,6 +699,93 @@ export const Secp256r1Instruction: AuthorityInstruction = {
       {
         ...data,
         tokenAccountOffset: baseMetas.length + 1,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
+  },
+
+  async addAuthorizationLockV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'instruction data options not provided for Secp256r1 based authority',
+      );
+
+    const instructionsSysvar = SolAccountMeta.from({
+      pubkey: new SolPublicKey('Sysvar1nstructions1111111111111111111111111'),
+      isSigner: false,
+      isWritable: false,
+    });
+
+    const baseMetas = getAddAuthorizationLockV1BaseAccountMetas(accounts);
+    const accountMetas: typeof baseMetas = [...baseMetas, instructionsSysvar];
+
+    const lockData = {
+      ...data,
+      assetAccount: new SolPublicKey(accounts.assetAccount).toBytes(),
+      mint: getAuthorizationLockMintBytes(accounts.mint),
+    };
+
+    const { payloadEncoder } = getAddAuthorizationLockV1InstructionDataCodec();
+
+    const message = payloadEncoder.encode(lockData);
+
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
+      Uint8Array.from(message),
+      accountMetas,
+      new Uint8Array(data.authorityData),
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.addAuthorizationLock(
+      accountMetas,
+      {
+        ...lockData,
+        authorityPayload,
+      },
+      { preInstructions: [sigVerifyIx], postInstructions: [] },
+    );
+  },
+
+  async removeAuthorizationLockV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'instruction data options not provided for Secp256r1 based authority',
+      );
+
+    const instructionsSysvar = SolAccountMeta.from({
+      pubkey: new SolPublicKey('Sysvar1nstructions1111111111111111111111111'),
+      isSigner: false,
+      isWritable: false,
+    });
+
+    const baseMetas = getRemoveAuthorizationLockV1BaseAccountMetas(accounts);
+    const accountMetas: typeof baseMetas = [...baseMetas, instructionsSysvar];
+
+    const { payloadEncoder } =
+      getRemoveAuthorizationLockV1InstructionDataCodec();
+
+    const message = payloadEncoder.encode(data);
+
+    const { authorityPayload, sigVerifyIx } = await prepareSecp256r1Payload(
+      Uint8Array.from(message),
+      accountMetas,
+      new Uint8Array(data.authorityData),
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.removeAuthorizationLock(
+      accountMetas,
+      {
+        ...data,
         authorityPayload,
       },
       { preInstructions: [sigVerifyIx], postInstructions: [] },
