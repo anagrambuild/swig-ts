@@ -1,5 +1,13 @@
 # @swig-wallet/classic
 
+## 2.2.0
+
+### Patch Changes
+
+- Updated dependencies [5ca5557]
+  - @swig-wallet/coder@2.2.0
+  - @swig-wallet/lib@2.2.0
+
 ## 2.1.0
 
 ### Minor Changes
