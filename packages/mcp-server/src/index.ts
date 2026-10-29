@@ -2173,7 +2173,7 @@ async function startHttp(config: ReturnType<typeof parseArgs>) {
           .writeHead(204, {
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
             'Access-Control-Allow-Headers':
-              'Content-Type, Accept, Authorization, MCP-Protocol-Version',
+              'Content-Type, Accept, Authorization, MCP-Protocol-Version, Mcp-Method, Mcp-Name',
           })
           .end();
         return;

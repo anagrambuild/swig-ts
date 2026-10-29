@@ -244,12 +244,52 @@ describe('wallet MCP transports', () => {
       await waitForHealth(browserPort);
       const response = await fetch(`http://127.0.0.1:${browserPort}/mcp`, {
         method: 'OPTIONS',
-        headers: { Origin: 'https://trusted.example' },
+        headers: {
+          Origin: 'https://trusted.example',
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers':
+            'authorization, content-type, mcp-protocol-version, mcp-method, mcp-name',
+        },
       });
       expect(response.status).toBe(204);
       expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
         'https://trusted.example',
       );
+      const allowed = response.headers
+        .get('Access-Control-Allow-Headers')!
+        .toLowerCase()
+        .split(',')
+        .map((header) => header.trim());
+      for (const header of [
+        'authorization',
+        'content-type',
+        'mcp-protocol-version',
+        'mcp-method',
+        'mcp-name',
+      ])
+        expect(allowed).toContain(header);
+      const browserClient = new Client(
+        { name: 'browser-mcp-test', version: '1.0.0' },
+        { versionNegotiation: { mode: { pin: '2026-07-28' } } },
+      );
+      try {
+        await browserClient.connect(
+          new StreamableHTTPClientTransport(
+            new URL(`http://127.0.0.1:${browserPort}/mcp`),
+            {
+              requestInit: {
+                headers: {
+                  Authorization: 'Bearer smoke-key',
+                  Origin: 'https://trusted.example',
+                },
+              },
+            },
+          ),
+        );
+        expect((await browserClient.listTools()).tools.length).toBe(28);
+      } finally {
+        await browserClient.close();
+      }
       const rejected = await fetch(`http://127.0.0.1:${browserPort}/mcp`, {
         method: 'OPTIONS',
         headers: { Origin: 'https://other.example' },
