@@ -405,6 +405,7 @@ export class ProgramExecAuthority
   removeAuthorizationLock(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     rentClaimer?: SolPublicKeyData;
     lockId: number;
     roleId: number;
@@ -413,6 +414,7 @@ export class ProgramExecAuthority
     return ProgramExecInstruction.removeAuthorizationLockV1Instruction(
       {
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         payer: args.payer,
         rentClaimer: args.rentClaimer,
       },

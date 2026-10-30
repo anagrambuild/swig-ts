@@ -38,15 +38,15 @@ export function getAddAuthorizationLockV1BaseAccountMetas(
       role: AccountRole.WRITABLE,
     }),
     SolAccountMeta.fromKitAccountMeta({
+      address: new SolPublicKey(accounts.swigSystemAddress).toAddress(),
+      role: AccountRole.READONLY,
+    }),
+    SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.payer).toAddress(),
       role: AccountRole.WRITABLE_SIGNER,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(SYSTEM_PROGRAM_ADDRESS_STRING).toAddress(),
-      role: AccountRole.READONLY,
-    }),
-    SolAccountMeta.fromKitAccountMeta({
-      address: new SolPublicKey(accounts.swigSystemAddress).toAddress(),
       role: AccountRole.READONLY,
     }),
     SolAccountMeta.fromKitAccountMeta({

@@ -409,6 +409,7 @@ export class Ed25519SessionAuthority
   removeAuthorizationLock(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     rentClaimer?: SolPublicKeyData;
     lockId: number;
     roleId: number;
@@ -416,6 +417,7 @@ export class Ed25519SessionAuthority
     return Ed25519Instruction.removeAuthorizationLockV1Instruction(
       {
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         payer: args.payer,
         rentClaimer: args.rentClaimer,
       },

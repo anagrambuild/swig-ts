@@ -821,6 +821,7 @@ export const getRemoveAuthorizationLockInstructionContext = async <
     roleId: role.id,
     payer,
     swigAddress: swig.address,
+    swigSystemAddress: await getSwigSystemAddressRaw(swig),
     rentClaimer: rentClaimer ?? undefined,
     lockId: args.lockId,
     options,

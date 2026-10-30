@@ -413,6 +413,7 @@ export class Secp256r1Authority
   removeAuthorizationLock(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     rentClaimer?: SolPublicKeyData;
     lockId: number;
     roleId: number;
@@ -421,6 +422,7 @@ export class Secp256r1Authority
     return Secp256r1Instruction.removeAuthorizationLockV1Instruction(
       {
         swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
         payer: args.payer,
         rentClaimer: args.rentClaimer,
       },

@@ -307,6 +307,7 @@ export abstract class Authority {
   abstract removeAuthorizationLock(args: {
     payer: SolPublicKeyData;
     swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
     rentClaimer?: SolPublicKeyData;
     lockId: number;
     roleId: number;

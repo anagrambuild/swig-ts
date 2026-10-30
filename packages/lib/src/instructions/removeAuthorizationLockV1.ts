@@ -4,6 +4,8 @@ import { SolAccountMeta, SolPublicKey, type SolPublicKeyData } from '../solana';
 
 export type RemoveAuthorizationLockV1InstructionAccounts = {
   swig: SolPublicKeyData;
+  /** Canonical swig wallet address PDA. */
+  swigSystemAddress: SolPublicKeyData;
   payer: SolPublicKeyData;
   /**
    * The wallet's configured rent claimer. Required when the wallet has one;
@@ -13,6 +15,7 @@ export type RemoveAuthorizationLockV1InstructionAccounts = {
 };
 
 export type RemoveAuthorizationLockV1BaseAccountMetas = [
+  SolAccountMeta,
   SolAccountMeta,
   SolAccountMeta,
   SolAccountMeta,
@@ -31,6 +34,10 @@ export function getRemoveAuthorizationLockV1BaseAccountMetas(
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.swig).toAddress(),
       role: AccountRole.WRITABLE,
+    }),
+    SolAccountMeta.fromKitAccountMeta({
+      address: new SolPublicKey(accounts.swigSystemAddress).toAddress(),
+      role: AccountRole.READONLY,
     }),
     SolAccountMeta.fromKitAccountMeta({
       address: new SolPublicKey(accounts.payer).toAddress(),

@@ -451,7 +451,7 @@ export const ProgramExecInstruction: AuthorityInstruction = {
       options,
       new Uint8Array(data.authorityData),
       accounts.swig,
-      accounts.payer,
+      accounts.swigSystemAddress,
     );
 
     const baseMetas = getAddAuthorizationLockV1BaseAccountMetas(accounts);
@@ -475,7 +475,7 @@ export const ProgramExecInstruction: AuthorityInstruction = {
       options,
       new Uint8Array(data.authorityData),
       accounts.swig,
-      accounts.payer,
+      accounts.swigSystemAddress,
     );
 
     const baseMetas = getRemoveAuthorizationLockV1BaseAccountMetas(accounts);
