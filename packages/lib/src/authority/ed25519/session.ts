@@ -379,6 +379,56 @@ export class Ed25519SessionAuthority
     );
   }
 
+  addAuthorizationLock(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    assetAccount: SolPublicKeyData;
+    mint?: SolPublicKeyData;
+    amount: bigint;
+    expirySlot: bigint;
+    roleId: number;
+  }) {
+    return Ed25519Instruction.addAuthorizationLockV1Instruction(
+      {
+        swig: args.swigAddress,
+        payer: args.payer,
+        swigSystemAddress: args.swigSystemAddress,
+        assetAccount: args.assetAccount,
+        mint: args.mint,
+      },
+      {
+        authorityData: this.sessionKey.toBytes(),
+        actingRoleId: args.roleId,
+        amount: args.amount,
+        expirySlot: args.expirySlot,
+      },
+    );
+  }
+
+  removeAuthorizationLock(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    rentClaimer?: SolPublicKeyData;
+    lockId: number;
+    roleId: number;
+  }) {
+    return Ed25519Instruction.removeAuthorizationLockV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        payer: args.payer,
+        rentClaimer: args.rentClaimer,
+      },
+      {
+        authorityData: this.sessionKey.toBytes(),
+        actingRoleId: args.roleId,
+        lockId: args.lockId,
+      },
+    );
+  }
+
   closeTokenAccount(args: {
     swigAddress: SolPublicKeyData;
     swigSystemAddress: SolPublicKeyData;

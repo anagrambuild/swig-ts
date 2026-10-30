@@ -1,6 +1,7 @@
 import {
   ACTION_HEADER_LENGTH,
   getActionHeaderEncoder,
+  getManageAuthorizationLocksEncoder,
   getProgramCuratedEncoder,
   getProgramLimitEncoder,
   getProgramScopeEncoder,
@@ -167,6 +168,18 @@ export class ActionsBuilder {
   subAccountV2Toggle(payload: { subAccountId: number }): this {
     this._actionConfigs.push(
       new ScopedU32Config(Permission.SubAccountV2Toggle, payload.subAccountId),
+    );
+    return this;
+  }
+
+  /**
+   * Allow creating authorization locks that last at most `maxDurationSlots`.
+   * Every lock requires this permission, including for `All` roles.
+   * @param payload.maxDurationSlots Maximum slots between lock creation and expiry. Must be non-zero.
+   */
+  manageAuthorizationLocks(payload: { maxDurationSlots: bigint }): this {
+    this._actionConfigs.push(
+      new ManageAuthorizationLocksConfig(payload.maxDurationSlots),
     );
     return this;
   }
@@ -630,6 +643,31 @@ class ScopedU32Config extends ActionConfig {
     const data = new Uint8Array(8);
     new DataView(data.buffer).setUint32(0, this.id, true);
     return data;
+  }
+}
+
+class ManageAuthorizationLocksConfig extends ActionConfig {
+  constructor(private readonly maxDurationSlots: bigint) {
+    super();
+    if (maxDurationSlots <= 0n || maxDurationSlots > 0xffffffffffffffffn) {
+      throw new Error('maxDurationSlots must be a non-zero u64');
+    }
+  }
+
+  get length() {
+    return 8;
+  }
+
+  get permission() {
+    return Permission.ManageAuthorizationLocks;
+  }
+
+  encode(): Uint8Array {
+    return Uint8Array.from(
+      getManageAuthorizationLocksEncoder().encode({
+        maxDurationSlots: this.maxDurationSlots,
+      }),
+    );
   }
 }
 

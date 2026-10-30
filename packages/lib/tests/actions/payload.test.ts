@@ -81,6 +81,23 @@ describe('Action payload utilities', () => {
       ).toThrow('Invalid scoped');
     });
 
+    test('decodes ManageAuthorizationLocks permission', () => {
+      const data = new Uint8Array(8);
+      new DataView(data.buffer).setBigUint64(0, 1_500n, true);
+      expect(
+        decodeActionPayload(Permission.ManageAuthorizationLocks, data),
+      ).toEqual({
+        permission: Permission.ManageAuthorizationLocks,
+        data: { maxDurationSlots: 1_500n },
+      });
+      expect(() =>
+        decodeActionPayload(
+          Permission.ManageAuthorizationLocks,
+          new Uint8Array(4),
+        ),
+      ).toThrow('Invalid ManageAuthorizationLocks');
+    });
+
     test('decodes SolLimit permission with data', () => {
       // SolLimit is 8 bytes (u64 amount)
       const data = new Uint8Array(8);

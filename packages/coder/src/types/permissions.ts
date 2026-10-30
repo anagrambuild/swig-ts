@@ -129,6 +129,12 @@ export enum Permission {
 
   /** Allows toggling one V2 sub-account. */
   SubAccountV2Toggle,
+
+  /**
+   * Allows creating authorization locks that last at most `maxDurationSlots`.
+   * Every lock requires this permission, including for `All` roles.
+   */
+  ManageAuthorizationLocks,
 }
 
 /**

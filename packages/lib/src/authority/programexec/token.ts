@@ -373,6 +373,60 @@ export class ProgramExecAuthority
     );
   }
 
+  addAuthorizationLock(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    assetAccount: SolPublicKeyData;
+    mint?: SolPublicKeyData;
+    amount: bigint;
+    expirySlot: bigint;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return ProgramExecInstruction.addAuthorizationLockV1Instruction(
+      {
+        swig: args.swigAddress,
+        payer: args.payer,
+        swigSystemAddress: args.swigSystemAddress,
+        assetAccount: args.assetAccount,
+        mint: args.mint,
+      },
+      {
+        authorityData: this.data,
+        actingRoleId: args.roleId,
+        amount: args.amount,
+        expirySlot: args.expirySlot,
+      },
+      args.options,
+    );
+  }
+
+  removeAuthorizationLock(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    rentClaimer?: SolPublicKeyData;
+    lockId: number;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return ProgramExecInstruction.removeAuthorizationLockV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        payer: args.payer,
+        rentClaimer: args.rentClaimer,
+      },
+      {
+        authorityData: this.data,
+        actingRoleId: args.roleId,
+        lockId: args.lockId,
+      },
+      args.options,
+    );
+  }
+
   closeTokenAccount(args: {
     swigAddress: SolPublicKeyData;
     swigSystemAddress: SolPublicKeyData;

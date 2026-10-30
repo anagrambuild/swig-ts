@@ -1,10 +1,12 @@
 import type { ReadonlyUint8Array } from '@solana/kit';
 import type {
   AddAuthorityV1InstructionDataArgs,
+  AddAuthorizationLockV1InstructionDataArgs,
   CloseSwigV1InstructionDataArgs,
   CloseTokenAccountV1InstructionDataArgs,
   CreateSessionV1InstructionDataArgs,
   RemoveAuthorityV1InstructionDataArgs,
+  RemoveAuthorizationLockV1InstructionDataArgs,
   SubAccountCreateV1InstructionDataArgs,
   SubAccountToggleV1InstructionDataArgs,
   SubAccountWithdrawV1InstructionDataArgs,
@@ -13,9 +15,11 @@ import type {
 } from '@swig-wallet/coder';
 import {
   type AddAuthorityV1InstructionAccounts,
+  type AddAuthorizationLockV1InstructionAccounts,
   type CloseSwigV1InstructionAccounts,
   type CloseTokenAccountV1InstructionAccounts,
   type RemoveAuthorityV1InstructionAccounts,
+  type RemoveAuthorizationLockV1InstructionAccounts,
   type SignV1InstructionAccounts,
   type SignV2InstructionAccounts,
   type SubAccountCreateV1InstructionAccounts,
@@ -154,6 +158,32 @@ export interface AuthorityInstruction {
     > & {
       authorityData: ReadonlyUint8Array;
       tokenAccounts: ReadonlyUint8Array[];
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
+  /**
+   * `assetAccount` and `mint` in the instruction data are taken from
+   * `accounts`, so they always match the accounts passed to the program.
+   */
+  addAuthorizationLockV1Instruction(
+    accounts: AddAuthorizationLockV1InstructionAccounts,
+    data: Omit<
+      AddAuthorizationLockV1InstructionDataArgs,
+      'authorityPayload' | 'assetAccount' | 'mint'
+    > & {
+      authorityData: ReadonlyUint8Array;
+    },
+    options?: InstructionDataOptions,
+  ): Promise<SwigInstructionContext>;
+
+  removeAuthorizationLockV1Instruction(
+    accounts: RemoveAuthorizationLockV1InstructionAccounts,
+    data: Omit<
+      RemoveAuthorizationLockV1InstructionDataArgs,
+      'authorityPayload'
+    > & {
+      authorityData: ReadonlyUint8Array;
     },
     options?: InstructionDataOptions,
   ): Promise<SwigInstructionContext>;

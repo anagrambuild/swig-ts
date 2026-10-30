@@ -381,6 +381,60 @@ export class Secp256r1Authority
     );
   }
 
+  addAuthorizationLock(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    assetAccount: SolPublicKeyData;
+    mint?: SolPublicKeyData;
+    amount: bigint;
+    expirySlot: bigint;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256r1Instruction.addAuthorizationLockV1Instruction(
+      {
+        swig: args.swigAddress,
+        payer: args.payer,
+        swigSystemAddress: args.swigSystemAddress,
+        assetAccount: args.assetAccount,
+        mint: args.mint,
+      },
+      {
+        authorityData: this.publicKeyBytes,
+        actingRoleId: args.roleId,
+        amount: args.amount,
+        expirySlot: args.expirySlot,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
+  removeAuthorizationLock(args: {
+    payer: SolPublicKeyData;
+    swigAddress: SolPublicKeyData;
+    swigSystemAddress: SolPublicKeyData;
+    rentClaimer?: SolPublicKeyData;
+    lockId: number;
+    roleId: number;
+    options: InstructionDataOptions;
+  }) {
+    return Secp256r1Instruction.removeAuthorizationLockV1Instruction(
+      {
+        swig: args.swigAddress,
+        swigSystemAddress: args.swigSystemAddress,
+        payer: args.payer,
+        rentClaimer: args.rentClaimer,
+      },
+      {
+        authorityData: this.publicKeyBytes,
+        actingRoleId: args.roleId,
+        lockId: args.lockId,
+      },
+      { ...args.options, odometer: args.options.odometer ?? this.odometer() },
+    );
+  }
+
   closeTokenAccount(args: {
     swigAddress: SolPublicKeyData;
     swigSystemAddress: SolPublicKeyData;

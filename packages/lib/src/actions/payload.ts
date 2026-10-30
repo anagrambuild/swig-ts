@@ -1,4 +1,5 @@
 import type {
+  ManageAuthorizationLocks,
   ProgramCurated,
   ProgramLimit,
   ProgramScope,
@@ -15,6 +16,7 @@ import type {
   TokenRecurringLimit,
 } from '@swig-wallet/coder';
 import {
+  getManageAuthorizationLocksDecoder,
   getProgramCuratedDecoder,
   getProgramLimitDecoder,
   getProgramScopeDecoder,
@@ -114,6 +116,10 @@ export type ActionPayload =
         | Permission.SubAccountV2Withdraw
         | Permission.SubAccountV2Toggle;
       data: { subAccountId: number };
+    }
+  | {
+      permission: Permission.ManageAuthorizationLocks;
+      data: ManageAuthorizationLocks;
     };
 
 function decodeScopedU32(data: Uint8Array): number {
@@ -242,6 +248,16 @@ export function decodeActionPayload(
     permission === Permission.SubAccountV2Toggle
   ) {
     return { permission, data: { subAccountId: decodeScopedU32(data) } };
+  }
+
+  if (permission === Permission.ManageAuthorizationLocks) {
+    if (data.length !== 8) {
+      throw new Error('Invalid ManageAuthorizationLocks permission data');
+    }
+    return {
+      permission,
+      data: getManageAuthorizationLocksDecoder().decode(data),
+    };
   }
 
   throw new Error('Invalid Permission');

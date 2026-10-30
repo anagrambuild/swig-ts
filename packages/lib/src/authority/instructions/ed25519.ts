@@ -2,10 +2,13 @@ import {
   SwigInstructionV1,
   SwigInstructionV2,
   compactInstructions,
+  getAddAuthorizationLockV1BaseAccountMetasWithAuthority,
   getAddV1BaseAccountMetasWithAuthority,
+  getAuthorizationLockMintBytes,
   getCloseSwigV1BaseAccountMetasWithAuthority,
   getCloseTokenAccountV1BaseAccountMetasWithAuthority,
   getCreateSessionV1BaseAccountMetasWithAuthority,
+  getRemoveAuthorizationLockV1BaseAccountMetasWithAuthority,
   getRemoveV1BaseAccountMetasWithAuthority,
   getSignV1BaseAccountMetasWithAuthority,
   getSignV2BaseAccountMetasWithAuthority,
@@ -248,6 +251,38 @@ export const Ed25519Instruction: AuthorityInstruction = {
       ...data,
       // token_account_offset = index of first token account in accounts array
       tokenAccountOffset: baseMetas.length,
+      authorityPayload: Uint8Array.from([authorityPayload]),
+    });
+  },
+
+  async addAuthorizationLockV1Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [metas, authorityPayload] =
+      getAddAuthorizationLockV1BaseAccountMetasWithAuthority(
+        accounts,
+        authority,
+      );
+
+    return SwigInstructionV1.addAuthorizationLock(metas, {
+      ...data,
+      assetAccount: new SolPublicKey(accounts.assetAccount).toBytes(),
+      mint: getAuthorizationLockMintBytes(accounts.mint),
+      authorityPayload: Uint8Array.from([authorityPayload]),
+    });
+  },
+
+  async removeAuthorizationLockV1Instruction(accounts, data) {
+    const authority = new SolPublicKey(new Uint8Array(data.authorityData));
+
+    const [metas, authorityPayload] =
+      getRemoveAuthorizationLockV1BaseAccountMetasWithAuthority(
+        accounts,
+        authority,
+      );
+
+    return SwigInstructionV1.removeAuthorizationLock(metas, {
+      ...data,
       authorityPayload: Uint8Array.from([authorityPayload]),
     });
   },

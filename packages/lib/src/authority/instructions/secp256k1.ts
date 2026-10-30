@@ -4,11 +4,13 @@ import { getArrayEncoder, getU8Encoder } from '@solana/kit';
 import {
   getAccountsPayloadEncoder,
   getAddAuthorityV1AuthorityPayloadEncoder,
+  getAddAuthorizationLockV1InstructionDataCodec,
   getCloseSwigV1InstructionDataCodec,
   getCloseTokenAccountV1InstructionDataCodec,
   getCompactInstructionEncoder,
   getCreateSessionV1AuthorityPayloadCodec,
   getRemoveAuthorityV1AuthorityPayloadEncoder,
+  getRemoveAuthorizationLockV1InstructionDataCodec,
   getSubAccountCreateV1InstructionDataCodec,
   getSubAccountToggleV1InstructionDataCodec,
   getSubAccountWithdrawV1InstructionDataCodec,
@@ -20,10 +22,13 @@ import {
   SwigInstructionV2,
   compactInstructions,
   getAddAuthorityV1BaseAccountMetas,
+  getAddAuthorizationLockV1BaseAccountMetas,
+  getAuthorizationLockMintBytes,
   getCloseSwigV1BaseAccountMetas,
   getCloseTokenAccountV1BaseAccountMetas,
   getCreateSessionV1BaseAccountMetasWithSystemProgram,
   getRemoveAuthorityV1BaseAccountMetas,
+  getRemoveAuthorizationLockV1BaseAccountMetas,
   getSignV1BaseAccountMetas,
   getSignV2BaseAccountMetas,
   getSubAccountCreateV1BaseAccountMetas,
@@ -502,6 +507,69 @@ export const Secp256k1Instruction: AuthorityInstruction = {
     return SwigInstructionV1.closeTokenAccount(accountMetas, {
       ...data,
       tokenAccountOffset: baseMetas.length,
+      authorityPayload,
+    });
+  },
+
+  async addAuthorizationLockV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const accountMetas = getAddAuthorizationLockV1BaseAccountMetas(accounts);
+
+    const lockData = {
+      ...data,
+      assetAccount: new SolPublicKey(accounts.assetAccount).toBytes(),
+      mint: getAuthorizationLockMintBytes(accounts.mint),
+    };
+
+    const { payloadEncoder } = getAddAuthorizationLockV1InstructionDataCodec();
+
+    const message = payloadEncoder.encode(lockData);
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(message),
+      accountMetas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.addAuthorizationLock(accountMetas, {
+      ...lockData,
+      authorityPayload,
+    });
+  },
+
+  async removeAuthorizationLockV1Instruction(accounts, data, options) {
+    if (!options?.signingFn || options?.currentSlot === undefined)
+      throw new Error(
+        'Current slot or Signing function not provided for Secp256k1 based authority',
+      );
+
+    const accountMetas = getRemoveAuthorizationLockV1BaseAccountMetas(accounts);
+
+    const { payloadEncoder } =
+      getRemoveAuthorizationLockV1InstructionDataCodec();
+
+    const message = payloadEncoder.encode(data);
+
+    const authorityPayload = await prepareSecpPayload(
+      Uint8Array.from(message),
+      accountMetas,
+      {
+        signingFn: options.signingFn,
+        odometer: options.odometer,
+        currentSlot: options.currentSlot,
+      },
+    );
+
+    return SwigInstructionV1.removeAuthorizationLock(accountMetas, {
+      ...data,
       authorityPayload,
     });
   },

@@ -21,12 +21,16 @@ import {
 } from '@solana/kit';
 import { getSwigCodec, type SwigAccount } from '@swig-wallet/coder';
 import {
+  getActiveAuthorizationLocks,
   getSwigAccountAddressRaw,
+  getSwigAuthorizationLocks,
   getSwigSystemAddressRaw,
   getSwigWalletAddressRaw,
   SolPublicKey,
   Swig,
+  type AuthorizationLock,
   type SolPublicKeyData,
+  type SwigAuthorizationLocks,
   type SwigFetchFn,
 } from '@swig-wallet/lib';
 import { SWIG_PROGRAM_ADDRESS } from '../consts';
@@ -111,6 +115,40 @@ export async function fetchSwig(
   const swig = await fetchSwigAccount(rpc, swigAddress, config);
 
   return new Swig(swigAddress, swig.data, getSwigFetchFn(rpc, config));
+}
+
+/**
+ * Fetch the authorization locks stored on a Swig, including expired ones.
+ * @param rpc Rpc
+ * @param swigAddress Swig address
+ * @param config Commitment config
+ * @returns `{ nextLockId, locks }`
+ */
+export async function fetchSwigAuthorizationLocks(
+  rpc: Rpc<GetAccountInfoApi>,
+  swigAddress: Address,
+  config?: FetchAccountConfig,
+): Promise<SwigAuthorizationLocks> {
+  const swig = await fetchSwigAccount(rpc, swigAddress, config);
+  return getSwigAuthorizationLocks(swig.data);
+}
+
+/**
+ * Fetch the authorization locks on a Swig still enforced at `currentSlot`.
+ * @param rpc Rpc
+ * @param swigAddress Swig address
+ * @param currentSlot Current slot
+ * @param config Commitment config
+ * @returns active locks
+ */
+export async function fetchActiveSwigAuthorizationLocks(
+  rpc: Rpc<GetAccountInfoApi>,
+  swigAddress: Address,
+  currentSlot: bigint,
+  config?: FetchAccountConfig,
+): Promise<AuthorizationLock[]> {
+  const locks = await fetchSwigAuthorizationLocks(rpc, swigAddress, config);
+  return getActiveAuthorizationLocks(locks, currentSlot);
 }
 
 export const getSwigFetchFn = <T extends { commitment?: Commitment }>(
